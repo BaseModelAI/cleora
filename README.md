@@ -21,7 +21,7 @@ Key competitive advantages of Cleora:
 * **quality of results outperforming or competitive** with other embedding frameworks like [PyTorch-BigGraph](https://ai.facebook.com/blog/open-sourcing-pytorch-biggraph-for-faster-embeddings-of-extremely-large-graphs/), GOSH, DeepWalk, LINE
 * can embed extremely large graphs & hypergraphs on a single machine
 
-Embedding times:
+Embedding times - example:
 
 <table>
 <tr>
@@ -47,7 +47,7 @@ Embedding times:
 
 </table>
 
-Link Prediction results:
+Link Prediction results - example:
 <table>
   <tr>
     <td>
