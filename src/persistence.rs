@@ -8,16 +8,14 @@ pub mod entity {
         fn contains(&self, hash: u64) -> bool;
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Default)]
     pub struct InMemoryEntityMappingPersistor {
         entity_mappings: RwLock<FxHashMap<u64, String>>,
     }
 
     impl InMemoryEntityMappingPersistor {
         pub fn new() -> Self {
-            InMemoryEntityMappingPersistor {
-                entity_mappings: RwLock::new(FxHashMap::default()),
-            }
+            Self::default()
         }
     }
 
