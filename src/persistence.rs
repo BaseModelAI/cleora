@@ -72,7 +72,7 @@ pub mod sparse_matrix {
         fn finish(&self);
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Default)]
     pub struct InMemorySparseMatrixPersistor {
         entity_count: u32,
         edge_count: u32,
@@ -86,16 +86,7 @@ pub mod sparse_matrix {
 
     impl InMemorySparseMatrixPersistor {
         pub fn new() -> Self {
-            InMemorySparseMatrixPersistor {
-                entity_count: 0,
-                edge_count: 0,
-                hash_2_id: FxHashMap::default(),
-                id_2_hash: FxHashMap::default(),
-                hash_2_count: FxHashMap::default(),
-                row_sum: Vec::new(),
-                pair_index: FxHashMap::default(),
-                entries: Vec::new(),
-            }
+            Self::default()
         }
     }
 
