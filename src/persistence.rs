@@ -246,26 +246,26 @@ pub mod embedding {
     impl EmbeddingPersistor for TextFileVectorPersistor {
         fn put_metadata(&mut self, entity_count: u32, dimension: u16) {
             let metadata = format!("{} {}", entity_count, dimension);
-            self.buf_writer.write(metadata.as_bytes());
+            self.buf_writer.write(metadata.as_bytes()).ok();
         }
 
         fn put_data(&mut self, entity: String, occur_count: u32, vector: Vec<f32>) {
-            self.buf_writer.write(b"\n");
-            self.buf_writer.write(entity.as_bytes());
+            self.buf_writer.write(b"\n").ok();
+            self.buf_writer.write(entity.as_bytes()).ok();
 
             if self.produce_entity_occurrence_count {
                 let occur = format!(" {}", occur_count);
-                self.buf_writer.write(occur.as_bytes());
+                self.buf_writer.write(occur.as_bytes()).ok();
             }
 
             for &v in &vector {
                 let vec = format!(" {}", v);
-                self.buf_writer.write(vec.as_bytes());
+                self.buf_writer.write(vec.as_bytes()).ok();
             }
         }
 
         fn finish(&mut self) {
-            self.buf_writer.write(b"\n");
+            self.buf_writer.write(b"\n").ok();
         }
     }
 }

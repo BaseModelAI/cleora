@@ -296,7 +296,7 @@ where
             self.dimension, entities_count
         );
 
-        mmap.flush();
+        mmap.flush().ok();
         mmap
     }
 
@@ -364,7 +364,7 @@ where
                 }
             });
 
-        mmap_output.flush();
+        mmap_output.flush().ok();
         mmap_output
     }
 
@@ -407,7 +407,7 @@ where
                 }
             });
 
-        res.flush();
+        res.flush().ok();
         res
     }
 
