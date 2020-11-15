@@ -35,7 +35,7 @@ pub struct Configuration {
 }
 
 /// Column configuration
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Column {
     /// Name, header of the column
     pub name: String,
