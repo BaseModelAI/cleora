@@ -54,7 +54,6 @@ fn test_build_graphs_and_create_embedding() {
 
     // build sparse matrices
     let mut sparse_matrices = build_graphs(&config, in_memory_entity_mapping_persistor.clone());
-    assert_debug_snapshot!("sparse_matrices", sparse_matrices);
 
     let mut in_memory_embedding_persistor = InMemoryEmbeddingPersistor::default();
 
@@ -70,14 +69,14 @@ fn test_build_graphs_and_create_embedding() {
 }
 
 #[derive(Debug, Default)]
-pub struct InMemoryEmbeddingPersistor {
+struct InMemoryEmbeddingPersistor {
     entity_count: u32,
     dimenstion: u16,
     entities: Vec<InMemoryEntity>,
 }
 
 #[derive(Debug)]
-pub struct InMemoryEntity {
+struct InMemoryEntity {
     entity: String,
     occur_count: u32,
     vector: Vec<f32>,
