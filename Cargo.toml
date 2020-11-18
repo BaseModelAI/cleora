@@ -9,6 +9,9 @@ description = """
 Cleora is a general-purpose model for efficient, scalable learning of stable and inductive entity embeddings for heterogeneous relational data.
 """
 
+[build]
+rustflags = ["-C", "target-cpu=native"]
+
 [dependencies]
 bus = "2.2.3"
 clap = "2.33.3"
@@ -20,6 +23,7 @@ rayon = "1.5.0"
 rustc-hash = "1.1.0"
 smallvec = "1.4.2"
 twox-hash = "1.6.0"
+simdjson-rust = {git = "https://github.com/SunDoge/simdjson-rust"}
 
 [dev-dependencies]
 criterion = "0.3"

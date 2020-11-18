@@ -147,10 +147,10 @@ The technical properties described above imply good production-readiness of Cleo
 ## Data formats supported by Cleora
 
 Cleora supports 2 input file formats:
- - TSV (tab-separated-values) - **preferred**
- - CSV (comma-separated-values)
+ - TSV (tab-separated values)
+ - JSON
 
-For datasets containing composite fields (categorical array) TSV format is required, as multiple items within a field are then separated by space.
+For TSV datasets containing composite fields (categorical array), multiple items within a field are then separated by space.
 
 The specification of an input format is as follows:
 
@@ -158,13 +158,13 @@ The specification of an input format is as follows:
 
 The allowed column modifiers are:
  - *transient* - the field is virtual - it is considered during embedding process, no entity is written for the column
- - *complex* - the field is composite, containing multiple entity identifiers separated by space
+ - *complex* - the field is composite, containing multiple entity identifiers separated by space in TSV or an array in JSON
  - *reflexive* - the field is reflexive, which means that it interacts with itself, additional output file is written for every such field
  - *ignore* - the field is ignored, no output file is written for the field
 
 Allowed combinations of modifiers are:
 - `transient`
-- `complex` (requires TSV format)
+- `complex`
 - `transient::complex`
 - `reflexive::complex`
 
@@ -185,6 +185,7 @@ or build oneself. See **Building** section below.
 Command line options (for more info use `--help` as program argument):
 
     -i --input (name of the input file)
+    -t --type (type of the input file)
     -o --output-dir (output directory for files with embeddings)
     -r --relation-name (name of the relation, for output filename generation)
     -d --dimension (number of dimensions for output embeddings)

@@ -1,3 +1,9 @@
+#[derive(Debug)]
+pub enum FileType {
+    JSON,
+    TSV,
+}
+
 /// Pipeline configuration
 #[derive(Debug)]
 pub struct Configuration {
@@ -23,6 +29,9 @@ pub struct Configuration {
 
     /// Path to the input file
     pub input: String,
+
+    /// Type of the input file
+    pub file_type: FileType,
 
     /// Output directory for files with embeddings
     pub output_dir: Option<String>,
@@ -63,6 +72,7 @@ impl Configuration {
             prepend_field: true,
             log_every_n: 1000,
             in_memory_embedding_calculation: true,
+            file_type: FileType::TSV,
             input,
             output_dir: None,
             relation_name: String::from("emb"),
