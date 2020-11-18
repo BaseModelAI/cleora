@@ -30,6 +30,12 @@ fn main() {
             .required(true)
             .help("Input file path")
             .takes_value(true))
+        .arg(Arg::with_name("file-type")
+            .short("t")
+            .long("type")
+            .possible_values(&["tsv", "json"])
+            .help("Input file type")
+            .takes_value(true))
         .arg(Arg::with_name("output-dir")
             .short("o")
             .long("output-dir")
@@ -78,6 +84,14 @@ fn main() {
     info!("Reading args...");
 
     let input = matches.value_of("input").unwrap();
+    let file_type = match matches.value_of("file-type") {
+        Some(type_name) => match type_name {
+            "tsv" => configuration::FileType::TSV,
+            "json" => configuration::FileType::JSON,
+            _ => panic!("Invalid file type {}", type_name),
+        },
+        None => configuration::FileType::TSV,
+    };
     let output_dir = matches.value_of("output-dir").map(|s| s.to_string());
     // try to create output directory for files with embeddings
     if let Some(output_dir) = output_dir.as_ref() {
@@ -131,6 +145,7 @@ fn main() {
         log_every_n: log_every,
         in_memory_embedding_calculation,
         input: input.to_string(),
+        file_type,
         output_dir,
         relation_name: relation_name.to_string(),
         columns,

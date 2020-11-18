@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-use crate::configuration::Configuration;
+use crate::configuration::{Column, Configuration, FileType};
 use crate::embedding::{calculate_embeddings, calculate_embeddings_mmap};
 use crate::entity::{EntityProcessor, SMALL_VECTOR_SIZE};
 use crate::persistence::embedding::TextFileVectorPersistor;
@@ -9,7 +9,8 @@ use crate::persistence::entity::InMemoryEntityMappingPersistor;
 use crate::persistence::sparse_matrix::InMemorySparseMatrixPersistor;
 use crate::sparse_matrix::{create_sparse_matrices, SparseMatrix};
 use bus::Bus;
-use smallvec::SmallVec;
+use simdjson_rust::dom;
+use smallvec::{smallvec, SmallVec};
 use std::sync::Arc;
 use std::thread;
 
@@ -50,12 +51,25 @@ pub fn build_graphs(
     let mut buffered = BufReader::new(input_file);
 
     let mut line = String::new();
-    while buffered.read_line(&mut line).unwrap() > 0 {
-        let split: Vec<&str> = line.trim().split('\t').collect();
-
-        entity_processor.process_row(split);
-
-        line.clear(); // clear to reuse the buffer
+    let mut parser = dom::Parser::default();
+    match &config.file_type {
+        FileType::JSON => {
+            while buffered.read_line(&mut line).unwrap() > 0 {
+                let row = read_json_columns(&line, &mut parser, &config.columns);
+                entity_processor.process_row(&row);
+                line.clear(); // clear to reuse the buffer
+            }
+        }
+        FileType::TSV => {
+            while buffered.read_line(&mut line).unwrap() > 0 {
+                {
+                    let values = line.trim().split('\t');
+                    let row: Vec<_> = values.map(|c| c.split(' ').collect()).collect();
+                    entity_processor.process_row(&row);
+                }
+                line.clear(); // clear to reuse the buffer
+            }
+        }
     }
     entity_processor.finish();
 
@@ -68,6 +82,42 @@ pub fn build_graphs(
     }
 
     sparse_matrices
+}
+
+/// Parse a line of JSON and read its columns into a vector for processing.
+fn read_json_columns(
+    line: &str,
+    parser: &mut dom::Parser,
+    columns: &[Column],
+) -> Vec<SmallVec<[String; SMALL_VECTOR_SIZE]>> {
+    let parsed = parser.parse(&line).unwrap();
+    columns
+        .iter()
+        .map({
+            |c| {
+                if !c.complex {
+                    let elem = parsed.at_key(&c.name).unwrap();
+                    let value = match elem.get_type() {
+                        dom::element::ElementType::String => elem.get_string().unwrap(),
+                        _ => elem.minify(),
+                    };
+                    smallvec![value]
+                } else {
+                    parsed
+                        .at_key(&c.name)
+                        .unwrap()
+                        .get_array()
+                        .expect("values for complex columns must be arrays")
+                        .into_iter()
+                        .map(|v| match v.get_type() {
+                            dom::element::ElementType::String => v.get_string().unwrap(),
+                            _ => v.minify(),
+                        })
+                        .collect()
+                }
+            }
+        })
+        .collect()
 }
 
 /// Train SparseMatrix'es (graphs) in separated threads.

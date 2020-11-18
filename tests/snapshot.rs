@@ -1,4 +1,4 @@
-use cleora::configuration::{Column, Configuration};
+use cleora::configuration::{Column, Configuration, FileType};
 use cleora::embedding::calculate_embeddings;
 use cleora::persistence::embedding::EmbeddingPersistor;
 use cleora::persistence::entity::InMemoryEntityMappingPersistor;
@@ -45,6 +45,7 @@ fn test_build_graphs_and_create_embedding() {
         log_every_n: 10000,
         in_memory_embedding_calculation: true,
         input: "files/samples/edgelist_1.tsv".to_string(),
+        file_type: FileType::TSV,
         output_dir: None,
         relation_name: "r1".to_string(),
         columns,
