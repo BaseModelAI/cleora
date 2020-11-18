@@ -125,7 +125,7 @@ where
 
     /// Every row can create few combinations (cartesian products) which are hashed and provided for sparse matrix creation.
     /// `row` - array of strings such as: ("userId1", "productId1 productId2", "brandId1").
-    pub fn process_row(&mut self, row: Vec<&str>) {
+    pub fn process_row<S: AsRef<str>>(&mut self, row: &[SmallVec<[S; SMALL_VECTOR_SIZE]>]) {
         let mut hashes: SmallVec<[u64; SMALL_VECTOR_SIZE]> =
             SmallVec::with_capacity(self.not_ignored_columns_count as usize);
         let mut lens_and_offsets: SmallVec<[LengthAndOffset; SMALL_VECTOR_SIZE]> =
@@ -134,18 +134,16 @@ where
         let mut current_offset = 0u32;
 
         let mut idx = 0;
-        for (i, &column_entities) in row.iter().enumerate() {
+        for (i, column_entities) in row.iter().enumerate() {
             let column = &self.config.columns[i];
             if !column.ignored {
                 if column.complex {
-                    let parts: SmallVec<[&str; SMALL_VECTOR_SIZE]> =
-                        column_entities.split(' ').collect();
-                    for &entity in &parts {
-                        let hash = self.field_hashes[i] ^ hash(entity);
+                    for entity in column_entities {
+                        let hash = self.field_hashes[i] ^ hash(entity.as_ref());
                         hashes.push(hash);
-                        self.update_entity_mapping(entity, hash, column);
+                        self.update_entity_mapping(entity.as_ref(), hash, column);
                     }
-                    let length = parts.len() as u32;
+                    let length = column_entities.len() as u32;
                     lens_and_offsets[idx] = LengthAndOffset {
                         length,
                         offset: current_offset,
@@ -162,7 +160,7 @@ where
                     }
                     current_offset += length;
                 } else {
-                    let entity = column_entities;
+                    let entity = column_entities.get(0).unwrap().as_ref();
                     let hash = self.field_hashes[i] ^ hash(entity);
                     hashes.push(hash);
                     self.update_entity_mapping(entity, hash, column);
@@ -428,8 +426,13 @@ mod tests {
             },
         );
 
-        let row = vec!["a", "bb", "ccc ddd", "eeee"];
-        entity_processor.process_row(row);
+        let row = vec![
+            smallvec!["a"],
+            smallvec!["bb"],
+            smallvec!["ccc", "ddd"],
+            smallvec!["eeee"],
+        ];
+        entity_processor.process_row(&row);
 
         // first column is ignored, third one is reflexive so the entities go at the end
         // input: "bb", "ccc ddd", "eeee", "ccc ddd"

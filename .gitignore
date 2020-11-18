@@ -3,3 +3,4 @@
 **/*.rs.bk
 .idea
 cleora-light-rust.iml
+*.out
