@@ -8,17 +8,9 @@ pub mod entity {
         fn contains(&self, hash: u64) -> bool;
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Default)]
     pub struct InMemoryEntityMappingPersistor {
         entity_mappings: RwLock<FxHashMap<u64, String>>,
-    }
-
-    impl InMemoryEntityMappingPersistor {
-        pub fn new() -> Self {
-            InMemoryEntityMappingPersistor {
-                entity_mappings: RwLock::new(FxHashMap::default()),
-            }
-        }
     }
 
     impl EntityMappingPersistor for InMemoryEntityMappingPersistor {
@@ -72,7 +64,7 @@ pub mod sparse_matrix {
         fn finish(&self);
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Default)]
     pub struct InMemorySparseMatrixPersistor {
         entity_count: u32,
         edge_count: u32,
@@ -82,21 +74,6 @@ pub mod sparse_matrix {
         row_sum: Vec<f32>,
         pair_index: FxHashMap<u64, u32>,
         entries: Vec<Entry>,
-    }
-
-    impl InMemorySparseMatrixPersistor {
-        pub fn new() -> Self {
-            InMemorySparseMatrixPersistor {
-                entity_count: 0,
-                edge_count: 0,
-                hash_2_id: FxHashMap::default(),
-                id_2_hash: FxHashMap::default(),
-                hash_2_count: FxHashMap::default(),
-                row_sum: Vec::new(),
-                pair_index: FxHashMap::default(),
-                entries: Vec::new(),
-            }
-        }
     }
 
     impl SparseMatrixPersistor for InMemorySparseMatrixPersistor {
@@ -219,12 +196,18 @@ pub mod sparse_matrix {
 
 pub mod embedding {
     use std::fs::File;
+    use std::io;
     use std::io::{BufWriter, Write};
 
     pub trait EmbeddingPersistor {
-        fn put_metadata(&mut self, entity_count: u32, dimension: u16);
-        fn put_data(&mut self, entity: String, occur_count: u32, vector: Vec<f32>);
-        fn finish(&mut self);
+        fn put_metadata(&mut self, entity_count: u32, dimension: u16) -> Result<(), io::Error>;
+        fn put_data(
+            &mut self,
+            entity: &str,
+            occur_count: u32,
+            vector: Vec<f32>,
+        ) -> Result<(), io::Error>;
+        fn finish(&mut self) -> Result<(), io::Error>;
     }
 
     pub struct TextFileVectorPersistor {
@@ -244,28 +227,37 @@ pub mod embedding {
     }
 
     impl EmbeddingPersistor for TextFileVectorPersistor {
-        fn put_metadata(&mut self, entity_count: u32, dimension: u16) {
+        fn put_metadata(&mut self, entity_count: u32, dimension: u16) -> Result<(), io::Error> {
             let metadata = format!("{} {}", entity_count, dimension);
-            self.buf_writer.write(metadata.as_bytes());
+            self.buf_writer.write_all(metadata.as_bytes())?;
+            Ok(())
         }
 
-        fn put_data(&mut self, entity: String, occur_count: u32, vector: Vec<f32>) {
-            self.buf_writer.write(b"\n");
-            self.buf_writer.write(entity.as_bytes());
+        fn put_data(
+            &mut self,
+            entity: &str,
+            occur_count: u32,
+            vector: Vec<f32>,
+        ) -> Result<(), io::Error> {
+            self.buf_writer.write_all(b"\n")?;
+            self.buf_writer.write_all(entity.as_bytes())?;
 
             if self.produce_entity_occurrence_count {
                 let occur = format!(" {}", occur_count);
-                self.buf_writer.write(occur.as_bytes());
+                self.buf_writer.write_all(occur.as_bytes())?;
             }
 
             for &v in &vector {
                 let vec = format!(" {}", v);
-                self.buf_writer.write(vec.as_bytes());
+                self.buf_writer.write_all(vec.as_bytes())?;
             }
+
+            Ok(())
         }
 
-        fn finish(&mut self) {
-            self.buf_writer.write(b"\n");
+        fn finish(&mut self) -> Result<(), io::Error> {
+            self.buf_writer.write_all(b"\n")?;
+            Ok(())
         }
     }
 }

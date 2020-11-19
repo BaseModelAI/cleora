@@ -329,7 +329,7 @@ mod tests {
             total_combinations *= len_and_offset.length as u64;
         }
 
-        let in_memory_entity_mapping_persistor = InMemoryEntityMappingPersistor::new();
+        let in_memory_entity_mapping_persistor = InMemoryEntityMappingPersistor::default();
         let in_memory_entity_mapping_persistor = Arc::new(in_memory_entity_mapping_persistor);
         let entity_processor = EntityProcessor::new(
             &dummy_config,
@@ -414,7 +414,7 @@ mod tests {
         // columns are most important, the rest can be omitted
         let dummy_config = Configuration::default(String::from(""), columns);
 
-        let in_memory_entity_mapping_persistor = InMemoryEntityMappingPersistor::new();
+        let in_memory_entity_mapping_persistor = InMemoryEntityMappingPersistor::default();
         let in_memory_entity_mapping_persistor = Arc::new(in_memory_entity_mapping_persistor);
         let mut result: SmallVec<[SmallVec<[u64; SMALL_VECTOR_SIZE]>; SMALL_VECTOR_SIZE]> =
             SmallVec::new();

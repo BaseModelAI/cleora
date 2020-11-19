@@ -47,7 +47,7 @@ pub fn build_graphs(
             bus.broadcast(hashes);
         });
 
-    let input_file = File::open(&config.input).expect("can't open file"); // handle error
+    let input_file = File::open(&config.input).expect("Can't open file"); // handle error
     let mut buffered = BufReader::new(input_file);
 
     let mut line = String::new();

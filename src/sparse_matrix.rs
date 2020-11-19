@@ -41,7 +41,7 @@ pub fn create_sparse_matrices(
                     col_b_id: j as u8,
                     col_b_name: col_j.name.clone(),
                     dimension,
-                    sparse_matrix_persistor: InMemorySparseMatrixPersistor::new(),
+                    sparse_matrix_persistor: InMemorySparseMatrixPersistor::default(),
                 };
                 sparse_matrices.push(sm);
             } else if i == j && col_i.reflexive {
@@ -53,7 +53,7 @@ pub fn create_sparse_matrices(
                     col_b_id: new_j as u8,
                     col_b_name: col_j.name.clone(),
                     dimension,
-                    sparse_matrix_persistor: InMemorySparseMatrixPersistor::new(),
+                    sparse_matrix_persistor: InMemorySparseMatrixPersistor::default(),
                 };
                 sparse_matrices.push(sm);
             }
