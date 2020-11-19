@@ -4,6 +4,7 @@ use cleora::persistence::embedding::EmbeddingPersistor;
 use cleora::persistence::entity::InMemoryEntityMappingPersistor;
 use cleora::pipeline::build_graphs;
 use insta::assert_debug_snapshot;
+use std::io;
 use std::sync::Arc;
 
 /// This test performs work for sample case and saves snapshot file.
@@ -50,7 +51,7 @@ fn test_build_graphs_and_create_embedding() {
         relation_name: "r1".to_string(),
         columns,
     };
-    let in_memory_entity_mapping_persistor = InMemoryEntityMappingPersistor::new();
+    let in_memory_entity_mapping_persistor = InMemoryEntityMappingPersistor::default();
     let in_memory_entity_mapping_persistor = Arc::new(in_memory_entity_mapping_persistor);
 
     // build sparse matrices
@@ -84,16 +85,26 @@ struct InMemoryEntity {
 }
 
 impl EmbeddingPersistor for InMemoryEmbeddingPersistor {
-    fn put_metadata(&mut self, entity_count: u32, dimension: u16) {
+    fn put_metadata(&mut self, entity_count: u32, dimension: u16) -> Result<(), io::Error> {
         self.entity_count = entity_count;
         self.dimenstion = dimension;
+        Ok(())
     }
-    fn put_data(&mut self, entity: String, occur_count: u32, vector: Vec<f32>) {
+    fn put_data(
+        &mut self,
+        entity: &str,
+        occur_count: u32,
+        vector: Vec<f32>,
+    ) -> Result<(), io::Error> {
+        let entity = entity.to_string();
         self.entities.push(InMemoryEntity {
             entity,
             occur_count,
             vector,
         });
+        Ok(())
     }
-    fn finish(&mut self) {}
+    fn finish(&mut self) -> Result<(), io::Error> {
+        Ok(())
+    }
 }

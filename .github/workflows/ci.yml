@@ -66,7 +66,6 @@ jobs:
           override: true
       - run: rustup component add clippy
       - uses: actions-rs/cargo@v1
-        continue-on-error: true  # FIXME remove when https://github.com/Synerise/cleora/pull/2 merged
         with:
           command: clippy
           args: -- -D warnings

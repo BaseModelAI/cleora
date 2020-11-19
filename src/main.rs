@@ -153,7 +153,7 @@ fn main() {
     dbg!(&config);
 
     info!("Starting calculation...");
-    let in_memory_entity_mapping_persistor = InMemoryEntityMappingPersistor::new();
+    let in_memory_entity_mapping_persistor = InMemoryEntityMappingPersistor::default();
     let in_memory_entity_mapping_persistor = Arc::new(in_memory_entity_mapping_persistor);
 
     let sparse_matrices = build_graphs(&config, in_memory_entity_mapping_persistor.clone());
