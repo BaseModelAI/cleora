@@ -3,13 +3,18 @@ use crate::persistence::entity::EntityMappingPersistor;
 use crate::persistence::sparse_matrix::SparseMatrixPersistor;
 use crate::sparse_matrix::SparseMatrix;
 use fnv::FnvHasher;
-use log::info;
+use log::{info, warn};
 use memmap::MmapMut;
 use rayon::prelude::*;
+use std::collections::HashSet;
 use std::fs;
 use std::fs::OpenOptions;
 use std::hash::Hasher;
 use std::sync::Arc;
+
+/// Number of broken entities (those with errors during writing to the file) which are logged.
+/// There can be much more but log the first few.
+const LOGGED_NUMBER_OF_BROKEN_ENTITIES: usize = 20;
 
 /// Calculate embeddings in memory.
 pub fn calculate_embeddings<T1, T2, T3>(
@@ -176,8 +181,18 @@ where
         info!("Start saving embeddings.");
 
         let entities_count = self.sparse_matrix_persistor.get_entity_counter();
-        embedding_persistor.put_metadata(entities_count, self.dimension);
+        embedding_persistor
+            .put_metadata(entities_count, self.dimension)
+            .unwrap_or_else(|_| {
+                // if can't write first data to the file, probably further is the same
+                panic!(
+                    "Can't write metadata. Entities: {}. Dimension: {}.",
+                    entities_count, self.dimension
+                )
+            });
 
+        // entities which can't be written to the file (error occurs)
+        let mut broken_entities = HashSet::new();
         for i in 0..entities_count {
             let hash = self.sparse_matrix_persistor.get_hash(i);
             let entity_name_opt = entity_mapping_persistor.get_entity(hash as u64);
@@ -191,11 +206,21 @@ where
                     let value = col.get(i as usize).unwrap();
                     embedding.insert(j, *value);
                 }
-                embedding_persistor.put_data(entity_name, hash_occur, embedding);
+                embedding_persistor
+                    .put_data(&entity_name, hash_occur, embedding)
+                    .unwrap_or_else(|_| {
+                        broken_entities.insert(entity_name);
+                    });
             };
         }
 
-        embedding_persistor.finish();
+        if !broken_entities.is_empty() {
+            log_broken_entities(broken_entities);
+        }
+
+        embedding_persistor
+            .finish()
+            .unwrap_or_else(|_| warn!("Can't finish writing to the file."));
 
         info!("Done saving embeddings.");
     }
@@ -205,6 +230,18 @@ fn hash(num: i64) -> i64 {
     let mut hasher = FnvHasher::default();
     hasher.write_i64(num);
     hasher.finish() as i64
+}
+
+fn log_broken_entities(broken_entities: HashSet<String>) {
+    let num_of_broken_entities = broken_entities.len();
+    let few_broken_entities: HashSet<_> = broken_entities
+        .into_iter()
+        .take(LOGGED_NUMBER_OF_BROKEN_ENTITIES)
+        .collect();
+    warn!(
+        "Number of entities which can't be written to the file: {}. First {} broken entities: {:?}.",
+        num_of_broken_entities, LOGGED_NUMBER_OF_BROKEN_ENTITIES, few_broken_entities
+    );
 }
 
 /// Calculate embeddings with memory-mapped files.
@@ -229,7 +266,13 @@ pub fn calculate_embeddings_mmap<T1, T2, T3>(
     let res = mult.propagate(max_iter, init);
     mult.persist(res, entity_mapping_persistor, embedding_persistor);
 
-    fs::remove_file(format!("{}_matrix_{}", sparse_matrix.get_id(), max_iter)).unwrap();
+    let work_file = format!("{}_matrix_{}", sparse_matrix.get_id(), max_iter);
+    fs::remove_file(&work_file).unwrap_or_else(|_| {
+        warn!(
+            "File {} can't be removed after work. Remove the file in order to save disk space.",
+            work_file
+        )
+    });
 
     info!("Finalizing embeddings calculations!")
 }
@@ -260,10 +303,22 @@ where
             .read(true)
             .write(true)
             .create(true)
-            .open(file_name)
-            .unwrap();
-        file.set_len(number_of_bytes).unwrap();
-        let mut mmap = unsafe { MmapMut::map_mut(&file).unwrap() };
+            .open(&file_name)
+            .expect("Can't create new set of options for memory mapped file");
+        file.set_len(number_of_bytes).unwrap_or_else(|_| {
+            panic!(
+                "Can't update the size of {} file to {} bytes",
+                &file_name, number_of_bytes
+            )
+        });
+        let mut mmap = unsafe {
+            MmapMut::map_mut(&file).unwrap_or_else(|_| {
+                panic!(
+                    "Can't create memory mapped file for the underlying file {}",
+                    file_name
+                )
+            })
+        };
 
         // no specific requirement (ca be lower as well)
         let max_hash = 8 * 1024 * 1024;
@@ -296,7 +351,8 @@ where
             self.dimension, entities_count
         );
 
-        mmap.flush();
+        mmap.flush()
+            .expect("Can't flush memory map modifications to disk");
         mmap
     }
 
@@ -308,7 +364,12 @@ where
         for i in 0..max_iter {
             let next = self.next_power(i, new_res);
             new_res = self.normalize(next);
-            fs::remove_file(format!("{}_matrix_{}", self.sparse_matrix_id, i)).unwrap();
+
+            let work_file = format!("{}_matrix_{}", self.sparse_matrix_id, i);
+            fs::remove_file(&work_file).unwrap_or_else(|_| {
+                warn!("File {} can't be removed after work. Remove the file in order to save disk space.", work_file)
+            });
+
             info!(
                 "Done iter: {}. Dims: {}, entities: {}, num data points: {}.",
                 i,
@@ -330,10 +391,22 @@ where
             .read(true)
             .write(true)
             .create(true)
-            .open(file_name)
-            .unwrap();
-        file.set_len(number_of_bytes).unwrap();
-        let mut mmap_output = unsafe { MmapMut::map_mut(&file).unwrap() };
+            .open(&file_name)
+            .expect("Can't create new set of options for memory mapped file");
+        file.set_len(number_of_bytes).unwrap_or_else(|_| {
+            panic!(
+                "Can't update the size of {} file to {} bytes",
+                &file_name, number_of_bytes
+            )
+        });
+        let mut mmap_output = unsafe {
+            MmapMut::map_mut(&file).unwrap_or_else(|_| {
+                panic!(
+                    "Can't create memory mapped file for the underlying file {}",
+                    file_name
+                )
+            })
+        };
 
         let amount_of_data = self.sparse_matrix_persistor.get_amount_of_data();
 
@@ -364,7 +437,9 @@ where
                 }
             });
 
-        mmap_output.flush();
+        mmap_output
+            .flush()
+            .expect("Can't flush memory map modifications to disk");
         mmap_output
     }
 
@@ -407,7 +482,8 @@ where
                 }
             });
 
-        res.flush();
+        res.flush()
+            .expect("Can't flush memory map modifications to disk");
         res
     }
 
@@ -423,8 +499,18 @@ where
         info!("Start saving embeddings.");
 
         let entities_count = self.sparse_matrix_persistor.get_entity_counter();
-        embedding_persistor.put_metadata(entities_count, self.dimension);
+        embedding_persistor
+            .put_metadata(entities_count, self.dimension)
+            .unwrap_or_else(|_| {
+                // if can't write first data to the file, probably further is the same
+                panic!(
+                    "Can't write metadata. Entities: {}. Dimension: {}.",
+                    entities_count, self.dimension
+                )
+            });
 
+        // entities which can't be written to the file (error occurs)
+        let mut broken_entities = HashSet::new();
         for i in 0..entities_count {
             let hash = self.sparse_matrix_persistor.get_hash(i);
             let entity_name_opt = entity_mapping_persistor.get_entity(hash as u64);
@@ -444,11 +530,21 @@ where
 
                     embedding.insert(j, value);
                 }
-                embedding_persistor.put_data(entity_name, hash_occur, embedding);
+                embedding_persistor
+                    .put_data(&entity_name, hash_occur, embedding)
+                    .unwrap_or_else(|_| {
+                        broken_entities.insert(entity_name);
+                    });
             };
         }
 
-        embedding_persistor.finish();
+        if !broken_entities.is_empty() {
+            log_broken_entities(broken_entities);
+        }
+
+        embedding_persistor
+            .finish()
+            .unwrap_or_else(|_| warn!("Can't finish writing to the file."));
 
         info!("Done saving embeddings.");
     }
