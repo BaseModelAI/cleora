@@ -175,12 +175,7 @@ Combinations which don't make sense are:
 
 ## Running
 
-One can download binary from:
-
-- [macOS](files/bin/macos/cleora)
-- [Linux](files/bin/linux/cleora)
-
-or build oneself. See **Building** section below.
+One can download binary from [releases](https://github.com/Synerise/cleora/releases) or build oneself. See **Building** section below.
 
 Command line options (for more info use `--help` as program argument):
 
