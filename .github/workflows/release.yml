@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - '*'
+  pull_request:
+    branches: [ master ]
 
 jobs:
   release:
@@ -12,17 +14,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-
-          - os: macos-latest
-            target: x86_64-apple-darwin
 
     steps:
       - name: Checkout repository
@@ -30,7 +23,21 @@ jobs:
 
       - name: Set the version
         id: version
-        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
+        run: |
+          echo ::set-output name=VERSION::$(($env:GITHUB_REF -split '/')[-1] -replace ' ','')
+        env:
+          RELEASE_VERSION: $(($env:GITHUB_REF -split '/')[-1] -replace ' ','')
+
+      - name: Check output
+        run: |
+          echo "test1"
+          echo "${env:GITHUB_REF}"
+          echo "${env:RELEASE_VERSION}"
+          echo $(($env:tag -split '/')[-1] -replace ' ','')
+          echo ${{ steps.version.outputs.VERSION }}
+          echo "test2"
+          echo ${{ steps.version.outputs.VERSION }}
+          echo cleora-${{ steps.version.outputs.VERSION }}-${{ matrix.target }}
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
