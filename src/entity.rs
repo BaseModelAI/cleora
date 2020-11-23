@@ -1,6 +1,5 @@
 use crate::configuration::{Column, Configuration};
 use crate::persistence::entity::EntityMappingPersistor;
-use log::info;
 use smallvec::{smallvec, SmallVec};
 use std::hash::Hasher;
 use std::sync::Arc;
@@ -80,7 +79,6 @@ where
     field_hashes: SmallVec<[u64; SMALL_VECTOR_SIZE]>,
     not_ignored_columns_count: u16,
     columns_count: u16,
-    rows_count: u64,
     entity_mapping_persistor: Arc<T>,
     hashes_handler: F,
 }
@@ -117,7 +115,6 @@ where
             field_hashes,
             not_ignored_columns_count,
             columns_count,
-            rows_count: 0u64,
             entity_mapping_persistor: persistor,
             hashes_handler,
         }
@@ -178,12 +175,6 @@ where
         let hash_rows = self.generate_combinations_with_length(hashes, lens_and_offsets);
         for hash_row in hash_rows {
             (self.hashes_handler)(hash_row);
-        }
-
-        self.rows_count += 1;
-
-        if self.rows_count % self.config.log_every_n as u64 == 0 {
-            info!("Number of lines processed: {}", self.rows_count);
         }
     }
 
