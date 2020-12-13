@@ -2,10 +2,10 @@ use crate::persistence::embedding::EmbeddingPersistor;
 use crate::persistence::entity::EntityMappingPersistor;
 use crate::persistence::sparse_matrix::SparseMatrixPersistor;
 use crate::sparse_matrix::SparseMatrix;
-use fnv::FnvHasher;
 use log::{info, warn};
 use memmap::MmapMut;
 use rayon::prelude::*;
+use rustc_hash::FxHasher;
 use std::collections::HashSet;
 use std::fs;
 use std::fs::OpenOptions;
@@ -227,7 +227,7 @@ where
 }
 
 fn hash(num: i64) -> i64 {
-    let mut hasher = FnvHasher::default();
+    let mut hasher = FxHasher::default();
     hasher.write_i64(num);
     hasher.finish() as i64
 }
