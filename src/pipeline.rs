@@ -22,7 +22,7 @@ pub fn build_graphs(
     config: &Configuration,
     in_memory_entity_mapping_persistor: Arc<InMemoryEntityMappingPersistor>,
 ) -> Vec<SparseMatrix<InMemorySparseMatrixPersistor>> {
-    let sparse_matrices = create_sparse_matrices(config.embeddings_dimension, &config.columns);
+    let sparse_matrices = create_sparse_matrices(&config.columns);
     dbg!(&sparse_matrices);
 
     let mut bus: Bus<SmallVec<[u64; SMALL_VECTOR_SIZE]>> = Bus::new(128);
@@ -161,7 +161,7 @@ pub fn train(
 ) {
     let config = Arc::new(config);
     let mut embedding_threads = Vec::new();
-    for mut sparse_matrix in sparse_matrices {
+    for sparse_matrix in sparse_matrices {
         let config = config.clone();
         let in_memory_entity_mapping_persistor = in_memory_entity_mapping_persistor.clone();
         let handle = thread::spawn(move || {
@@ -180,15 +180,15 @@ pub fn train(
                 TextFileVectorPersistor::new(ofp, config.produce_entity_occurrence_count);
             if config.in_memory_embedding_calculation {
                 calculate_embeddings(
-                    &mut sparse_matrix,
-                    config.max_number_of_iteration,
+                    config.clone(),
+                    &sparse_matrix,
                     in_memory_entity_mapping_persistor,
                     &mut text_file_embedding_persistor,
                 );
             } else {
                 calculate_embeddings_mmap(
-                    &mut sparse_matrix,
-                    config.max_number_of_iteration,
+                    config.clone(),
+                    &sparse_matrix,
                     in_memory_entity_mapping_persistor,
                     &mut text_file_embedding_persistor,
                 );

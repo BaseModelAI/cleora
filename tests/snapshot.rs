@@ -1,5 +1,5 @@
 use cleora::configuration::{Column, Configuration, FileType};
-use cleora::embedding::calculate_embeddings;
+use cleora::embedding::{calculate_embeddings, calculate_embeddings_mmap};
 use cleora::persistence::embedding::EmbeddingPersistor;
 use cleora::persistence::entity::InMemoryEntityMappingPersistor;
 use cleora::pipeline::build_graphs;
@@ -19,7 +19,47 @@ use std::sync::Arc;
 /// ./cleora -i files/samples/edgelist_1.tsv --columns="complex::reflexive::a b complex::c"
 /// -d 128 -n 4 --relation-name=R1 -p 0
 #[test]
-fn test_build_graphs_and_create_embedding() {
+fn test_build_graphs_and_create_embeddings() {
+    let config = prepare_config();
+
+    let in_memory_entity_mapping_persistor = InMemoryEntityMappingPersistor::default();
+    let in_memory_entity_mapping_persistor = Arc::new(in_memory_entity_mapping_persistor);
+
+    // build sparse matrices
+    let sparse_matrices = build_graphs(&config, in_memory_entity_mapping_persistor.clone());
+
+    let config = Arc::new(config);
+
+    // embeddings for in-memory and mmap files calculation should be the same
+    for sparse_matrix in sparse_matrices.iter() {
+        let snapshot_name = format!(
+            "embeddings_{}_{}",
+            sparse_matrix.col_a_name, sparse_matrix.col_b_name
+        );
+
+        let mut in_memory_embedding_persistor = InMemoryEmbeddingPersistor::default();
+        // calculate embeddings in memory
+        calculate_embeddings(
+            config.clone(),
+            sparse_matrix,
+            in_memory_entity_mapping_persistor.clone(),
+            &mut in_memory_embedding_persistor,
+        );
+        assert_debug_snapshot!(snapshot_name.clone(), in_memory_embedding_persistor);
+
+        let mut in_memory_embedding_persistor = InMemoryEmbeddingPersistor::default();
+        // calculate embeddings with mmap files
+        calculate_embeddings_mmap(
+            config.clone(),
+            sparse_matrix,
+            in_memory_entity_mapping_persistor.clone(),
+            &mut in_memory_embedding_persistor,
+        );
+        assert_debug_snapshot!(snapshot_name, in_memory_embedding_persistor);
+    }
+}
+
+fn prepare_config() -> Configuration {
     let columns = vec![
         Column {
             name: "a".to_string(),
@@ -51,23 +91,7 @@ fn test_build_graphs_and_create_embedding() {
         relation_name: "r1".to_string(),
         columns,
     };
-    let in_memory_entity_mapping_persistor = InMemoryEntityMappingPersistor::default();
-    let in_memory_entity_mapping_persistor = Arc::new(in_memory_entity_mapping_persistor);
-
-    // build sparse matrices
-    let mut sparse_matrices = build_graphs(&config, in_memory_entity_mapping_persistor.clone());
-
-    let mut in_memory_embedding_persistor = InMemoryEmbeddingPersistor::default();
-
-    // calculate embeddings for ONE sparse matrix
-    calculate_embeddings(
-        &mut sparse_matrices[0],
-        config.max_number_of_iteration,
-        in_memory_entity_mapping_persistor,
-        &mut in_memory_embedding_persistor,
-    );
-
-    assert_debug_snapshot!("embeddings", in_memory_embedding_persistor);
+    config
 }
 
 #[derive(Debug, Default)]
