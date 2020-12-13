@@ -19,13 +19,9 @@ use crate::persistence::sparse_matrix::{
 /// Apart from column names in sparse matrix we provide indices for incoming data. We have 3 columns such as a, b and c
 /// but column b is reflexive so we need to include this column. The result is: Array(a, b, c, b).
 /// The rule is that every reflexive column is append with the order of occurrence to the end of constructed array.
-/// `dimension` - dimension for output embedding vector size
 /// `cols` columns configuration with transient, reflexive, complex marks
 /// return sparse matrices for columns configuration.
-pub fn create_sparse_matrices(
-    dimension: u16,
-    cols: &[Column],
-) -> Vec<SparseMatrix<InMemorySparseMatrixPersistor>> {
+pub fn create_sparse_matrices(cols: &[Column]) -> Vec<SparseMatrix<InMemorySparseMatrixPersistor>> {
     let mut sparse_matrices: Vec<SparseMatrix<InMemorySparseMatrixPersistor>> = Vec::new();
     let num_fields = cols.len();
     let mut reflexive_count = 0;
@@ -40,7 +36,6 @@ pub fn create_sparse_matrices(
                     col_a_name: col_i.name.clone(),
                     col_b_id: j as u8,
                     col_b_name: col_j.name.clone(),
-                    dimension,
                     sparse_matrix_persistor: InMemorySparseMatrixPersistor::default(),
                 };
                 sparse_matrices.push(sm);
@@ -52,7 +47,6 @@ pub fn create_sparse_matrices(
                     col_a_name: col_i.name.clone(),
                     col_b_id: new_j as u8,
                     col_b_name: col_j.name.clone(),
-                    dimension,
                     sparse_matrix_persistor: InMemorySparseMatrixPersistor::default(),
                 };
                 sparse_matrices.push(sm);
@@ -68,7 +62,6 @@ pub struct SparseMatrix<T: SparseMatrixPersistor + Sync> {
     pub col_a_name: String,
     pub col_b_id: u8,
     pub col_b_name: String,
-    pub dimension: u16,
     pub sparse_matrix_persistor: T,
 }
 
@@ -98,6 +91,7 @@ where
     }
 
     pub fn finish(&mut self) {
+        self.normalize();
         self.sparse_matrix_persistor.finish();
     }
 
@@ -186,7 +180,7 @@ where
         }
     }
 
-    pub fn normalize(&mut self) {
+    fn normalize(&mut self) {
         let amount_of_data = self.sparse_matrix_persistor.get_amount_of_data();
         for i in 0..amount_of_data {
             let entry = self.sparse_matrix_persistor.get_entry(i);

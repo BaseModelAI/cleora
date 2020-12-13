@@ -1,3 +1,4 @@
+use crate::configuration::Configuration;
 use crate::persistence::embedding::EmbeddingPersistor;
 use crate::persistence::entity::EntityMappingPersistor;
 use crate::persistence::sparse_matrix::SparseMatrixPersistor;
@@ -18,8 +19,8 @@ const LOGGED_NUMBER_OF_BROKEN_ENTITIES: usize = 20;
 
 /// Calculate embeddings in memory.
 pub fn calculate_embeddings<T1, T2, T3>(
-    sparse_matrix: &mut SparseMatrix<T1>,
-    max_iter: u8,
+    config: Arc<Configuration>,
+    sparse_matrix: &SparseMatrix<T1>,
     entity_mapping_persistor: Arc<T2>,
     embedding_persistor: &mut T3,
 ) where
@@ -27,15 +28,13 @@ pub fn calculate_embeddings<T1, T2, T3>(
     T2: EntityMappingPersistor + Sync,
     T3: EmbeddingPersistor,
 {
-    sparse_matrix.normalize();
-
     let mult = MatrixMultiplicator {
-        dimension: sparse_matrix.dimension,
+        dimension: config.embeddings_dimension,
         sparse_matrix_id: sparse_matrix.get_id(),
         sparse_matrix_persistor: &sparse_matrix.sparse_matrix_persistor,
     };
     let init = mult.initialize();
-    let res = mult.propagate(max_iter, init);
+    let res = mult.propagate(config.max_number_of_iteration, init);
     mult.persist(res, entity_mapping_persistor, embedding_persistor);
 
     info!("Finalizing embeddings calculations!")
@@ -246,8 +245,8 @@ fn log_broken_entities(broken_entities: HashSet<String>) {
 
 /// Calculate embeddings with memory-mapped files.
 pub fn calculate_embeddings_mmap<T1, T2, T3>(
-    sparse_matrix: &mut SparseMatrix<T1>,
-    max_iter: u8,
+    config: Arc<Configuration>,
+    sparse_matrix: &SparseMatrix<T1>,
     entity_mapping_persistor: Arc<T2>,
     embedding_persistor: &mut T3,
 ) where
@@ -255,18 +254,20 @@ pub fn calculate_embeddings_mmap<T1, T2, T3>(
     T2: EntityMappingPersistor + Sync,
     T3: EmbeddingPersistor,
 {
-    sparse_matrix.normalize();
-
     let mult = MatrixMultiplicatorMMap {
-        dimension: sparse_matrix.dimension,
+        dimension: config.embeddings_dimension,
         sparse_matrix_id: sparse_matrix.get_id(),
         sparse_matrix_persistor: &sparse_matrix.sparse_matrix_persistor,
     };
     let init = mult.initialize();
-    let res = mult.propagate(max_iter, init);
+    let res = mult.propagate(config.max_number_of_iteration, init);
     mult.persist(res, entity_mapping_persistor, embedding_persistor);
 
-    let work_file = format!("{}_matrix_{}", sparse_matrix.get_id(), max_iter);
+    let work_file = format!(
+        "{}_matrix_{}",
+        sparse_matrix.get_id(),
+        config.max_number_of_iteration
+    );
     fs::remove_file(&work_file).unwrap_or_else(|_| {
         warn!(
             "File {} can't be removed after work. Remove the file in order to save disk space.",
