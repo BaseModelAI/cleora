@@ -138,6 +138,7 @@ dependencies = [
  "memmap",
  "rayon",
  "rustc-hash",
+ "ryu",
  "simdjson-rust",
  "smallvec",
  "twox-hash",
