@@ -12,7 +12,7 @@ pub const SMALL_VECTOR_SIZE: usize = 8;
 /// Marker for elements in a vector. Let's say that we have `vec![1, 2, 3, 4]`
 /// and `LengthAndOffset { length: 2, offset : 1 }`. Offset points to the second element in the vector
 /// and length tell us how many elements we should take (in that case 2 elements: 2 and 3).
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 struct LengthAndOffset {
     length: u32,
     offset: u32,
@@ -210,18 +210,16 @@ where
         &self,
         hashes: SmallVec<[u64; SMALL_VECTOR_SIZE]>,
         lens_and_offsets: SmallVec<[LengthAndOffset; SMALL_VECTOR_SIZE]>,
-    ) -> SmallVec<[SmallVec<[u64; SMALL_VECTOR_SIZE]>; SMALL_VECTOR_SIZE]> {
+    ) -> impl Iterator<Item = SmallVec<[u64; SMALL_VECTOR_SIZE]>> {
         let row_length = lens_and_offsets.len();
         let mut total_combinations = 1;
         for len_and_offset in &lens_and_offsets {
             total_combinations *= len_and_offset.length;
         }
 
-        let mut result: SmallVec<[SmallVec<[u64; SMALL_VECTOR_SIZE]>; SMALL_VECTOR_SIZE]> =
-            SmallVec::with_capacity(total_combinations as usize);
         let cartesian = CartesianProduct::new(lens_and_offsets);
 
-        for indices in cartesian {
+        cartesian.map(move |indices| {
             let mut arr: SmallVec<[u64; SMALL_VECTOR_SIZE]> =
                 SmallVec::with_capacity(row_length + 1);
             arr.push(total_combinations as u64);
@@ -229,10 +227,8 @@ where
                 let value = hashes[i as usize];
                 arr.push(value);
             }
-            result.push(arr);
-        }
-
-        result
+            arr
+        })
     }
 
     pub fn finish(&mut self) {
@@ -328,8 +324,9 @@ mod tests {
             |_hashes| {},
         );
 
-        let combinations =
-            entity_processor.generate_combinations_with_length(hashes, lengths_and_offsets);
+        let combinations: Vec<_> = entity_processor
+            .generate_combinations_with_length(hashes, lengths_and_offsets)
+            .collect();
         assert_eq!(
             &SmallVec::from([total_combinations, 10, 20, 40]),
             combinations.get(0).unwrap()
