@@ -237,8 +237,7 @@ pub mod embedding {
 
     impl EmbeddingPersistor for TextFileVectorPersistor {
         fn put_metadata(&mut self, entity_count: u32, dimension: u16) -> Result<(), io::Error> {
-            let metadata = format!("{} {}", entity_count, dimension);
-            self.buf_writer.write_all(metadata.as_bytes())?;
+            write!(&mut self.buf_writer, "{} {}", entity_count, dimension)?;
             Ok(())
         }
 
@@ -252,13 +251,13 @@ pub mod embedding {
             self.buf_writer.write_all(entity.as_bytes())?;
 
             if self.produce_entity_occurrence_count {
-                let occur = format!(" {}", occur_count);
-                self.buf_writer.write_all(occur.as_bytes())?;
+                write!(&mut self.buf_writer, " {}", occur_count)?;
             }
 
             for &v in &vector {
-                let vec = format!(" {}", v);
-                self.buf_writer.write_all(vec.as_bytes())?;
+                self.buf_writer.write_all(b" ")?;
+                let mut buf = ryu::Buffer::new(); // cheap op
+                self.buf_writer.write_all(buf.format_finite(v).as_bytes())?;
             }
 
             Ok(())
