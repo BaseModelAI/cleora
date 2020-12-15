@@ -130,16 +130,7 @@ where
     }
 
     fn get_or_create_id(&mut self, hash: u64) -> u32 {
-        let res = self.sparse_matrix_persistor.get_id(hash);
-        if res == -1 {
-            let entity_count = self.sparse_matrix_persistor.get_entity_counter();
-            self.sparse_matrix_persistor.add_hash_id(hash, entity_count);
-            self.sparse_matrix_persistor
-                .update_entity_counter(entity_count + 1);
-            entity_count
-        } else {
-            res as u32
-        }
+        self.sparse_matrix_persistor.get_or_add_id_by_hash(hash)
     }
 
     fn add_or_update_entry(&mut self, x: u32, y: u32, val: f32) {
@@ -160,14 +151,8 @@ where
 
     fn get_or_put_position(&mut self, a: u32, b: u32, tentative: u32) -> u32 {
         let magic = Self::magic_pair(a, b);
-        let pos = self.sparse_matrix_persistor.get_pair_index(magic);
-        if pos == -1 {
-            self.sparse_matrix_persistor
-                .add_pair_index(magic, tentative);
-            tentative
-        } else {
-            pos as u32
-        }
+        self.sparse_matrix_persistor
+            .get_or_add_pair_index(magic, tentative)
     }
 
     fn magic_pair(a: u32, b: u32) -> u64 {
