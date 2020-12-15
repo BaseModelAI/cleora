@@ -24,6 +24,7 @@ smallvec = "1.5.1"
 twox-hash = "1.6.0"
 simdjson-rust = {git = "https://github.com/SunDoge/simdjson-rust"}
 ryu = "1"
+lazy_static = "1.4"
 
 [dev-dependencies]
 criterion = "0.3.3"
@@ -37,3 +38,4 @@ harness = false
 opt-level = 3
 lto = true
 codegen-units = 1
+panic = "abort"

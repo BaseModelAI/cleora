@@ -134,6 +134,7 @@ dependencies = [
  "criterion",
  "env_logger",
  "insta",
+ "lazy_static",
  "log",
  "memmap",
  "rayon",

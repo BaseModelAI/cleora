@@ -3,6 +3,7 @@ use crate::persistence::embedding::EmbeddingPersistor;
 use crate::persistence::entity::EntityMappingPersistor;
 use crate::persistence::sparse_matrix::SparseMatrixPersistor;
 use crate::sparse_matrix::SparseMatrix;
+use lazy_static::lazy_static;
 use log::{info, warn};
 use memmap::MmapMut;
 use rayon::prelude::*;
@@ -12,10 +13,19 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::hash::Hasher;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 /// Number of broken entities (those with errors during writing to the file) which are logged.
 /// There can be much more but log the first few.
 const LOGGED_NUMBER_OF_BROKEN_ENTITIES: usize = 20;
+
+pub type Col = Vec<f32>;
+// Each vec element is a matrix column.
+pub type Matrix = Vec<Col>;
+
+lazy_static! {
+    static ref EMBEDDING_TICKET: Mutex<()> = Mutex::new(());
+}
 
 /// Calculate embeddings in memory.
 pub fn calculate_embeddings<T1, T2, T3>(
@@ -33,8 +43,16 @@ pub fn calculate_embeddings<T1, T2, T3>(
         sparse_matrix_id: sparse_matrix.get_id(),
         sparse_matrix_persistor: &sparse_matrix.sparse_matrix_persistor,
     };
+
+    // Serialize matrix initialization and propagation as they mostly use rayon
+    // This limits amount of used memory.
+    let lock = EMBEDDING_TICKET.lock();
     let init = mult.initialize();
     let res = mult.propagate(config.max_number_of_iteration, init);
+
+    // Drop lock now, so we can parallely persist and compute another embeddings
+    drop(lock);
+
     mult.persist(res, entity_mapping_persistor, embedding_persistor);
 
     info!("Finalizing embeddings calculations!")
@@ -52,7 +70,7 @@ impl<'a, T> MatrixMultiplicator<'a, T>
 where
     T: SparseMatrixPersistor + Sync,
 {
-    fn initialize(&self) -> Vec<Vec<f32>> {
+    fn initialize(&self) -> Matrix {
         let entities_count = self.sparse_matrix_persistor.get_entity_counter();
 
         info!(
@@ -64,7 +82,7 @@ where
         let max_hash = 8 * 1024 * 1024;
         let max_hash_float = max_hash as f32;
 
-        let result: Vec<Vec<f32>> = (0..self.dimension)
+        let result: Matrix = (0..self.dimension)
             .into_par_iter()
             .map(|i| {
                 let mut col: Vec<f32> = Vec::with_capacity(entities_count as usize);
@@ -87,14 +105,24 @@ where
         result
     }
 
-    fn propagate(&self, max_iter: u8, res: Vec<Vec<f32>>) -> Vec<Vec<f32>> {
+    fn propagate(&self, max_iter: u8, res: Matrix) -> Matrix {
         info!("Start propagating. Number of iterations: {}.", max_iter);
+        let entities_count = self.sparse_matrix_persistor.get_entity_counter() as usize;
 
-        let entities_count = self.sparse_matrix_persistor.get_entity_counter();
         let mut new_res = res;
+        let mut next_res = Self::zero_2d(entities_count, self.dimension as usize);
         for i in 0..max_iter {
-            let next = self.next_power(new_res);
-            new_res = self.normalize(next);
+            self.next_power(&new_res, &mut next_res);
+            self.normalize(&mut next_res);
+            std::mem::swap(&mut new_res, &mut next_res);
+
+            if i < max_iter - 1 {
+                // zeroize next_res, so it's ready for next iteration
+                next_res
+                    .iter_mut()
+                    .for_each(|c| c.iter_mut().for_each(|v| *v = 0.0));
+            }
+
             info!(
                 "Done iter: {}. Dims: {}, entities: {}, num data points: {}.",
                 i,
@@ -107,32 +135,24 @@ where
         new_res
     }
 
-    fn next_power(&self, res: Vec<Vec<f32>>) -> Vec<Vec<f32>> {
-        let entities_count = self.sparse_matrix_persistor.get_entity_counter() as usize;
-        let rnew = Self::zero_2d(entities_count, self.dimension as usize);
+    fn next_power(&self, res: &[Col], rnew: &mut Matrix) {
+        res.par_iter().zip(rnew).for_each(|data| {
+            let (res_col, rnew_col) = data;
+            for entry in self.sparse_matrix_persistor.iter_entries() {
+                debug_assert!((entry.row as usize) < rnew_col.len());
+                debug_assert!((entry.col as usize) < res_col.len());
 
-        let amount_of_data = self.sparse_matrix_persistor.get_amount_of_data();
-
-        let result: Vec<Vec<f32>> = res
-            .into_par_iter()
-            .zip(rnew)
-            .update(|data| {
-                let (res_col, rnew_col) = data;
-                for j in 0..amount_of_data {
-                    let entry = self.sparse_matrix_persistor.get_entry(j);
-                    let elem = rnew_col.get_mut(entry.row as usize).unwrap();
-                    let value = res_col.get(entry.col as usize).unwrap();
+                unsafe {
+                    let elem = rnew_col.get_unchecked_mut(entry.row as usize);
+                    let value = res_col.get_unchecked(entry.col as usize);
                     *elem += *value * entry.value
                 }
-            })
-            .map(|data| data.1)
-            .collect();
-
-        result
+            }
+        });
     }
 
-    fn zero_2d(row: usize, col: usize) -> Vec<Vec<f32>> {
-        let mut res: Vec<Vec<f32>> = Vec::with_capacity(col);
+    fn zero_2d(row: usize, col: usize) -> Matrix {
+        let mut res: Matrix = Vec::with_capacity(col);
         for i in 0..col {
             let col = vec![0f32; row];
             res.insert(i, col);
@@ -140,7 +160,7 @@ where
         res
     }
 
-    fn normalize(&self, res: Vec<Vec<f32>>) -> Vec<Vec<f32>> {
+    fn normalize(&self, res: &mut Matrix) {
         let entities_count = self.sparse_matrix_persistor.get_entity_counter() as usize;
         let mut row_sum = vec![0f32; entities_count];
 
@@ -153,24 +173,18 @@ where
             }
         }
 
-        let row_sum = Arc::new(row_sum);
-        let result: Vec<Vec<f32>> = res
-            .into_par_iter()
-            .update(|col| {
-                for j in 0..entities_count {
-                    let value = col.get_mut(j).unwrap();
-                    let sum = row_sum.get(j).unwrap();
-                    *value /= sum.sqrt();
-                }
-            })
-            .collect();
-
-        result
+        res.into_par_iter().for_each(|col| {
+            for j in 0..entities_count {
+                let value = col.get_mut(j).unwrap();
+                let sum = row_sum.get(j).unwrap();
+                *value /= sum.sqrt();
+            }
+        });
     }
 
     fn persist<T1, T2>(
         &self,
-        res: Vec<Vec<f32>>,
+        res: Matrix,
         entity_mapping_persistor: Arc<T1>,
         embedding_persistor: &mut T2,
     ) where
