@@ -23,6 +23,7 @@ rustc-hash = "1.1.0"
 smallvec = "1.5.1"
 twox-hash = "1.6.0"
 simdjson-rust = {git = "https://github.com/SunDoge/simdjson-rust"}
+ryu = "1"
 
 [dev-dependencies]
 criterion = "0.3.3"
