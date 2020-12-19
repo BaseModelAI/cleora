@@ -31,7 +31,8 @@ fn test_build_graphs_and_create_embeddings() {
     let config = Arc::new(config);
 
     // embeddings for in-memory and mmap files calculation should be the same
-    for sparse_matrix in sparse_matrices.iter() {
+    for sparse_matrix in sparse_matrices.into_iter() {
+        let sparse_matrix = Arc::new(sparse_matrix);
         let snapshot_name = format!(
             "embeddings_{}_{}",
             sparse_matrix.col_a_name, sparse_matrix.col_b_name
@@ -41,7 +42,7 @@ fn test_build_graphs_and_create_embeddings() {
         // calculate embeddings in memory
         calculate_embeddings(
             config.clone(),
-            sparse_matrix,
+            sparse_matrix.clone(),
             in_memory_entity_mapping_persistor.clone(),
             &mut in_memory_embedding_persistor,
         );
@@ -51,7 +52,7 @@ fn test_build_graphs_and_create_embeddings() {
         // calculate embeddings with mmap files
         calculate_embeddings_mmap(
             config.clone(),
-            sparse_matrix,
+            sparse_matrix.clone(),
             in_memory_entity_mapping_persistor.clone(),
             &mut in_memory_embedding_persistor,
         );

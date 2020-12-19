@@ -6,7 +6,6 @@ use crate::embedding::{calculate_embeddings, calculate_embeddings_mmap};
 use crate::entity::{EntityProcessor, SMALL_VECTOR_SIZE};
 use crate::persistence::embedding::TextFileVectorPersistor;
 use crate::persistence::entity::InMemoryEntityMappingPersistor;
-use crate::persistence::sparse_matrix::InMemorySparseMatrixPersistor;
 use crate::sparse_matrix::{create_sparse_matrices, SparseMatrix};
 use bus::Bus;
 use log::{error, info};
@@ -21,7 +20,7 @@ use std::thread;
 pub fn build_graphs(
     config: &Configuration,
     in_memory_entity_mapping_persistor: Arc<InMemoryEntityMappingPersistor>,
-) -> Vec<SparseMatrix<InMemorySparseMatrixPersistor>> {
+) -> Vec<SparseMatrix> {
     let sparse_matrices = create_sparse_matrices(&config.columns);
     dbg!(&sparse_matrices);
 
@@ -157,11 +156,12 @@ fn parse_tsv_line(line: &str) -> Vec<SmallVec<[&str; SMALL_VECTOR_SIZE]>> {
 pub fn train(
     config: Configuration,
     in_memory_entity_mapping_persistor: Arc<InMemoryEntityMappingPersistor>,
-    sparse_matrices: Vec<SparseMatrix<InMemorySparseMatrixPersistor>>,
+    sparse_matrices: Vec<SparseMatrix>,
 ) {
     let config = Arc::new(config);
     let mut embedding_threads = Vec::new();
     for sparse_matrix in sparse_matrices {
+        let sparse_matrix = Arc::new(sparse_matrix);
         let config = config.clone();
         let in_memory_entity_mapping_persistor = in_memory_entity_mapping_persistor.clone();
         let handle = thread::spawn(move || {
@@ -181,14 +181,14 @@ pub fn train(
             if config.in_memory_embedding_calculation {
                 calculate_embeddings(
                     config.clone(),
-                    &sparse_matrix,
+                    sparse_matrix.clone(),
                     in_memory_entity_mapping_persistor,
                     &mut text_file_embedding_persistor,
                 );
             } else {
                 calculate_embeddings_mmap(
                     config.clone(),
-                    &sparse_matrix,
+                    sparse_matrix.clone(),
                     in_memory_entity_mapping_persistor,
                     &mut text_file_embedding_persistor,
                 );
