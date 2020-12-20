@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use clap::{App, Arg};
+use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg};
 use cleora::configuration;
 use cleora::configuration::Configuration;
 use cleora::persistence::entity::InMemoryEntityMappingPersistor;
@@ -20,65 +20,93 @@ fn main() {
 
     let now = Instant::now();
 
-    let matches = App::new("cleora")
-        .version("1.0.0")
-        .author("Piotr Babel <piotr.babel@synerise.com> & Jacek Dabrowski <jack.dabrowski@synerise.com>")
-        .about("cleora for embeddings calculation")
-        .arg(Arg::with_name("input")
-            .short("i")
-            .long("input")
-            .required(true)
-            .help("Input file path")
-            .takes_value(true))
-        .arg(Arg::with_name("file-type")
-            .short("t")
-            .long("type")
-            .possible_values(&["tsv", "json"])
-            .help("Input file type")
-            .takes_value(true))
-        .arg(Arg::with_name("output-dir")
-            .short("o")
-            .long("output-dir")
-            .help("Output directory for files with embeddings")
-            .takes_value(true))
-        .arg(Arg::with_name("dimension")
-            .short("d")
-            .long("dimension")
-            .required(true)
-            .help("Embedding dimension size")
-            .takes_value(true))
-        .arg(Arg::with_name("number-of-iterations")
-            .short("n")
-            .long("number-of-iterations")
-            .help("Max number of iterations")
-            .takes_value(true))
-        .arg(Arg::with_name("columns")
-            .short("c")
-            .long("columns")
-            .required(true)
-            .help("Column names (max 12), with modifiers: [transient::, reflexive::, complex::]")
-            .takes_value(true))
-        .arg(Arg::with_name("relation-name")
-            .short("r")
-            .long("relation-name")
-            .help("Name of the relation, for output filename generation")
-            .takes_value(true))
-        .arg(Arg::with_name("prepend-field-name")
-            .short("p")
-            .long("prepend-field-name")
-            .help("Prepend field name to entity in output")
-            .takes_value(true))
-        .arg(Arg::with_name("log-every-n")
-            .short("l")
-            .long("log-every-n")
-            .help("Log output every N lines")
-            .takes_value(true))
-        .arg(Arg::with_name("in-memory-embedding-calculation")
-            .short("e")
-            .long("in-memory-embedding-calculation")
-            .possible_values(&["0", "1"])
-            .help("Calculate embeddings in memory or with memory-mapped files")
-            .takes_value(true))
+    let matches = App::new(crate_name!())
+        .version(crate_version!())
+        .author(crate_authors!())
+        .about(crate_description!())
+        .arg(
+            Arg::with_name("input")
+                .short("i")
+                .long("input")
+                .required(true)
+                .help("Input file path")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("file-type")
+                .short("t")
+                .long("type")
+                .possible_values(&["tsv", "json"])
+                .help("Input file type")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("output-dir")
+                .short("o")
+                .long("output-dir")
+                .help("Output directory for files with embeddings")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("dimension")
+                .short("d")
+                .long("dimension")
+                .required(true)
+                .help("Embedding dimension size")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("number-of-iterations")
+                .short("n")
+                .long("number-of-iterations")
+                .required(true)
+                .help("Max number of iterations")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("columns")
+                .short("c")
+                .long("columns")
+                .required(true)
+                .help(
+                    "Column names (max 12), with modifiers: [transient::, reflexive::, complex::]",
+                )
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("relation-name")
+                .short("r")
+                .long("relation-name")
+                .default_value("emb")
+                .help("Name of the relation, for output filename generation")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("prepend-field-name")
+                .short("p")
+                .long("prepend-field-name")
+                .possible_values(&["0", "1"])
+                .default_value("0")
+                .help("Prepend field name to entity in output")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("log-every-n")
+                .short("l")
+                .long("log-every-n")
+                .default_value("10000")
+                .help("Log output every N lines")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("in-memory-embedding-calculation")
+                .short("e")
+                .long("in-memory-embedding-calculation")
+                .possible_values(&["0", "1"])
+                .default_value("1")
+                .help("Calculate embeddings in memory or with memory-mapped files")
+                .takes_value(true),
+        )
         .get_matches();
 
     info!("Reading args...");
@@ -100,27 +128,23 @@ fn main() {
     let dimension: u16 = matches.value_of("dimension").unwrap().parse().unwrap();
     let max_iter: u8 = matches
         .value_of("number-of-iterations")
-        .unwrap_or("4")
+        .unwrap()
         .parse()
         .unwrap();
-    let relation_name = matches.value_of("relation-name").unwrap_or("emb");
+    let relation_name = matches.value_of("relation-name").unwrap();
     let prepend_field_name = {
         let value: u8 = matches
             .value_of("prepend-field-name")
-            .unwrap_or("0")
+            .unwrap()
             .parse()
             .unwrap();
         value == 1
     };
-    let log_every: u32 = matches
-        .value_of("log-every-n")
-        .unwrap_or("10000")
-        .parse()
-        .unwrap();
+    let log_every: u32 = matches.value_of("log-every-n").unwrap().parse().unwrap();
     let in_memory_embedding_calculation = {
         let value: u8 = matches
             .value_of("in-memory-embedding-calculation")
-            .unwrap_or("1")
+            .unwrap()
             .parse()
             .unwrap();
         value == 1
