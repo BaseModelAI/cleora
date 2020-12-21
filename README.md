@@ -189,6 +189,7 @@ Command line options (for more info use `--help` as program argument):
     -p --prepend-field-name (prepend field name to entity in output)
     -l --log-every-n (log output every N lines)
     -e --in-memory-embedding-calculation (calculate embeddings in memory or with memory-mapped files)
+    -f --output-format (either textfile (default) or numpy)
 
 An example input file for Cleora (stored in `files/samples/edgelist_1.tsv`):
 
@@ -201,7 +202,7 @@ An example of how to run Cleora in order to calculate embeddings:
 
     ./cleora -i files/samples/edgelist_1.tsv --columns="complex::reflexive::a b complex::c" -d 128 -n 4 --relation-name=just_a_test -p 0
 
-It generates the following output files:
+It generates the following output files for textfile:
 
 	just_a_test__a__a.out
 	just_a_test__a__b.out
@@ -209,6 +210,17 @@ It generates the following output files:
 	just_a_test__b__c.out
 
 containing embedding vectors for respective pairs of columns.
+
+For numpy output format each pair of embedded entities is stored in three
+files: .entities a list of entities in json format, .npy a numpy array
+containing embeddings, .occurences numpyarray containing entities occurence
+counts.
+
+	just_a_test__a__a.out{.entities, .npy, .occurences}
+	just_a_test__a__b.out{.entities, .npy, .occurences}
+	just_a_test__a__c.out{.entities, .npy, .occurences}
+	just_a_test__b__c.out{.entities, .npy, .occurences}
+
 
 ## Building
 

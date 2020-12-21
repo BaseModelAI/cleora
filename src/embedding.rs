@@ -17,15 +17,14 @@ use std::sync::Arc;
 const LOGGED_NUMBER_OF_BROKEN_ENTITIES: usize = 20;
 
 /// Calculate embeddings in memory.
-pub fn calculate_embeddings<T1, T2, T3>(
+pub fn calculate_embeddings<T1, T2>(
     config: Arc<Configuration>,
     sparse_matrix_reader: Arc<T1>,
     entity_mapping_persistor: Arc<T2>,
-    embedding_persistor: &mut T3,
+    embedding_persistor: &mut dyn EmbeddingPersistor,
 ) where
     T1: SparseMatrixReader + Sync + Send,
     T2: EntityMappingPersistor,
-    T3: EmbeddingPersistor,
 {
     let mult = MatrixMultiplicator {
         dimension: config.embeddings_dimension,
@@ -159,14 +158,13 @@ where
         result
     }
 
-    fn persist<T1, T2>(
+    fn persist<T1>(
         &self,
         res: Vec<Vec<f32>>,
         entity_mapping_persistor: Arc<T1>,
-        embedding_persistor: &mut T2,
+        embedding_persistor: &mut dyn EmbeddingPersistor,
     ) where
         T1: EntityMappingPersistor,
-        T2: EmbeddingPersistor,
     {
         info!("Start saving embeddings.");
 
@@ -231,15 +229,14 @@ fn log_broken_entities(broken_entities: HashSet<String>) {
 }
 
 /// Calculate embeddings with memory-mapped files.
-pub fn calculate_embeddings_mmap<T1, T2, T3>(
+pub fn calculate_embeddings_mmap<T1, T2>(
     config: Arc<Configuration>,
     sparse_matrix_reader: Arc<T1>,
     entity_mapping_persistor: Arc<T2>,
-    embedding_persistor: &mut T3,
+    embedding_persistor: &mut dyn EmbeddingPersistor,
 ) where
     T1: SparseMatrixReader + Sync + Send,
     T2: EntityMappingPersistor,
-    T3: EmbeddingPersistor,
 {
     let matrix_id = sparse_matrix_reader.get_id();
 
@@ -468,14 +465,13 @@ where
         res
     }
 
-    fn persist<T1, T2>(
+    fn persist<T1>(
         &self,
         res: MmapMut,
         entity_mapping_persistor: Arc<T1>,
-        embedding_persistor: &mut T2,
+        embedding_persistor: &mut dyn EmbeddingPersistor,
     ) where
         T1: EntityMappingPersistor,
-        T2: EmbeddingPersistor,
     {
         info!("Start saving embeddings.");
 
