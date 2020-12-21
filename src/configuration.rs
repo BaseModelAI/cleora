@@ -4,6 +4,12 @@ pub enum FileType {
     TSV,
 }
 
+#[derive(Debug)]
+pub enum OutputFormat {
+    TextFile,
+    Numpy,
+}
+
 /// Pipeline configuration
 #[derive(Debug)]
 pub struct Configuration {
@@ -35,6 +41,9 @@ pub struct Configuration {
 
     /// Output directory for files with embeddings
     pub output_dir: Option<String>,
+
+    /// Output format
+    pub output_format: OutputFormat,
 
     /// Name of the relation, for output filename generation
     pub relation_name: String,
@@ -75,6 +84,7 @@ impl Configuration {
             file_type: FileType::TSV,
             input,
             output_dir: None,
+            output_format: OutputFormat::TextFile,
             relation_name: String::from("emb"),
             columns,
         }
