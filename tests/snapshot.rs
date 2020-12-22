@@ -1,4 +1,4 @@
-use cleora::configuration::{Column, Configuration, FileType};
+use cleora::configuration::{Column, Configuration, FileType, OutputFormat};
 use cleora::embedding::{calculate_embeddings, calculate_embeddings_mmap};
 use cleora::persistence::embedding::EmbeddingPersistor;
 use cleora::persistence::entity::InMemoryEntityMappingPersistor;
@@ -88,6 +88,7 @@ fn prepare_config() -> Configuration {
         in_memory_embedding_calculation: true,
         input: "files/samples/edgelist_1.tsv".to_string(),
         file_type: FileType::TSV,
+        output_format: OutputFormat::TextFile,
         output_dir: None,
         relation_name: "r1".to_string(),
         columns,

@@ -3,6 +3,7 @@ use std::time::Instant;
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg};
 use cleora::configuration;
 use cleora::configuration::Configuration;
+use cleora::configuration::OutputFormat;
 use cleora::persistence::entity::InMemoryEntityMappingPersistor;
 use cleora::pipeline::{build_graphs, train};
 use env_logger::Env;
@@ -107,6 +108,14 @@ fn main() {
                 .help("Calculate embeddings in memory or with memory-mapped files")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("output-format")
+                .short("f")
+                .help("Output format. One of: textfile|numpy")
+                .possible_values(&["textfile", "numpy"])
+                .default_value("textfile")
+                .takes_value(true),
+        )
         .get_matches();
 
     info!("Reading args...");
@@ -161,6 +170,12 @@ fn main() {
         }
     };
 
+    let output_format = match matches.value_of("output-format").unwrap() {
+        "textfile" => OutputFormat::TextFile,
+        "numpy" => OutputFormat::Numpy,
+        _ => panic!("unsupported output format"),
+    };
+
     let config = Configuration {
         produce_entity_occurrence_count: true,
         embeddings_dimension: dimension,
@@ -171,6 +186,7 @@ fn main() {
         input: input.to_string(),
         file_type,
         output_dir,
+        output_format,
         relation_name: relation_name.to_string(),
         columns,
     };

@@ -1,10 +1,10 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-use crate::configuration::{Column, Configuration, FileType};
+use crate::configuration::{Column, Configuration, FileType, OutputFormat};
 use crate::embedding::{calculate_embeddings, calculate_embeddings_mmap};
 use crate::entity::{EntityProcessor, SMALL_VECTOR_SIZE};
-use crate::persistence::embedding::TextFileVectorPersistor;
+use crate::persistence::embedding::{EmbeddingPersistor, NpyPersistor, TextFileVectorPersistor};
 use crate::persistence::entity::InMemoryEntityMappingPersistor;
 use crate::sparse_matrix::{create_sparse_matrices, SparseMatrix};
 use bus::Bus;
@@ -176,21 +176,30 @@ pub fn train(
                 sparse_matrix.col_a_name.as_str(),
                 sparse_matrix.col_b_name.as_str()
             );
-            let mut text_file_embedding_persistor =
-                TextFileVectorPersistor::new(ofp, config.produce_entity_occurrence_count);
+
+            let mut persistor: Box<dyn EmbeddingPersistor> = match &config.output_format {
+                OutputFormat::TextFile => Box::new(TextFileVectorPersistor::new(
+                    ofp,
+                    config.produce_entity_occurrence_count,
+                )),
+                OutputFormat::Numpy => Box::new(NpyPersistor::new(
+                    ofp,
+                    config.produce_entity_occurrence_count,
+                )),
+            };
             if config.in_memory_embedding_calculation {
                 calculate_embeddings(
                     config.clone(),
                     sparse_matrix.clone(),
                     in_memory_entity_mapping_persistor,
-                    &mut text_file_embedding_persistor,
+                    persistor.as_mut(),
                 );
             } else {
                 calculate_embeddings_mmap(
                     config.clone(),
                     sparse_matrix.clone(),
                     in_memory_entity_mapping_persistor,
-                    &mut text_file_embedding_persistor,
+                    persistor.as_mut(),
                 );
             }
         });

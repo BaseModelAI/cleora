@@ -24,6 +24,9 @@ smallvec = "1.5.1"
 twox-hash = "1.6.0"
 simdjson-rust = {git = "https://github.com/SunDoge/simdjson-rust"}
 ryu = "1"
+ndarray = "0.14"
+ndarray-npy = "0.7"
+serde_json = "1"
 
 [dev-dependencies]
 criterion = "0.3.3"
