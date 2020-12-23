@@ -1,6 +1,6 @@
 [package]
 name = "cleora"
-version = "1.0.1"
+version = "1.1.0"
 authors = ["Piotr Babel <piotr.babel@synerise.com>", "Jacek Dabrowski <jack.dabrowski@synerise.com>", "Konrad Goluchowski <konrad.goluchowski@synerise.com>"]
 edition = "2018"
 license-file = "LICENSE"
