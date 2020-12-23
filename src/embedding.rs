@@ -10,11 +10,310 @@ use std::collections::HashSet;
 use std::fs;
 use std::fs::OpenOptions;
 use std::hash::Hasher;
+use std::marker::PhantomData;
 use std::sync::Arc;
+use uuid::Uuid;
 
 /// Number of broken entities (those with errors during writing to the file) which are logged.
 /// There can be much more but log the first few.
 const LOGGED_NUMBER_OF_BROKEN_ENTITIES: usize = 20;
+
+/// Used during matrix initialization. No specific requirement (ca be lower as well).
+const MAX_HASH_I64: i64 = 8 * 1024 * 1024;
+const MAX_HASH_F32: f32 = MAX_HASH_I64 as f32;
+
+/// Wrapper for different types of matrix structures such as 2-dim vectors or memory-mapped files
+trait MatrixWrapper {
+    /// Initializing a matrix with values from its dimensions and the hash values from the sparse matrix
+    fn init_with_hashes<T: SparseMatrixReader + Sync + Send>(
+        rows: usize,
+        cols: usize,
+        sparse_matrix_reader: Arc<T>,
+    ) -> Self;
+
+    /// Returns value for specific coordinates
+    fn get_value(&self, row: usize, col: usize) -> f32;
+
+    /// Normalizing a matrix by rows sum
+    fn normalize(&mut self);
+
+    /// Multiplies sparse matrix by the matrix
+    fn multiply<T: SparseMatrixReader + Sync + Send>(
+        sparse_matrix_reader: Arc<T>,
+        other: Self,
+    ) -> Self;
+}
+
+/// Two dimensional vectors as matrix representation
+struct TwoDimVectorMatrix {
+    rows: usize,
+    cols: usize,
+    matrix: Vec<Vec<f32>>,
+}
+
+impl MatrixWrapper for TwoDimVectorMatrix {
+    fn init_with_hashes<T: SparseMatrixReader + Sync + Send>(
+        rows: usize,
+        cols: usize,
+        sparse_matrix_reader: Arc<T>,
+    ) -> Self {
+        let result: Vec<Vec<f32>> = (0..cols)
+            .into_par_iter()
+            .map(|i| {
+                let mut col: Vec<f32> = Vec::with_capacity(rows);
+                for hsh in sparse_matrix_reader.iter_hashes() {
+                    let col_value = init_value(i, hsh.value);
+                    col.push(col_value);
+                }
+                col
+            })
+            .collect();
+        Self {
+            rows,
+            cols,
+            matrix: result,
+        }
+    }
+
+    #[inline]
+    fn get_value(&self, row: usize, col: usize) -> f32 {
+        let column: &Vec<f32> = self.matrix.get(col).unwrap();
+        column[row]
+    }
+
+    fn normalize(&mut self) {
+        let mut row_sum = vec![0f32; self.rows];
+
+        for col in self.matrix.iter() {
+            for (j, sum) in row_sum.iter_mut().enumerate() {
+                let value = col[j];
+                *sum += value.powi(2)
+            }
+        }
+
+        let row_sum = Arc::new(row_sum);
+        self.matrix.par_iter_mut().for_each(|col| {
+            for (j, value) in col.iter_mut().enumerate() {
+                let sum = row_sum[j];
+                *value /= sum.sqrt();
+            }
+        });
+    }
+
+    fn multiply<T: SparseMatrixReader + Sync + Send>(
+        sparse_matrix_reader: Arc<T>,
+        other: Self,
+    ) -> Self {
+        let rnew = zero_2d(other.rows, other.cols);
+
+        let result: Vec<Vec<f32>> = other
+            .matrix
+            .into_par_iter()
+            .zip(rnew)
+            .update(|data| {
+                let (res_col, rnew_col) = data;
+                for entry in sparse_matrix_reader.iter_entries() {
+                    let elem = rnew_col.get_mut(entry.row as usize).unwrap();
+                    let value = res_col[entry.col as usize];
+                    *elem += value * entry.value;
+                }
+            })
+            .map(|data| data.1)
+            .collect();
+
+        Self {
+            rows: other.rows,
+            cols: other.cols,
+            matrix: result,
+        }
+    }
+}
+
+fn init_value(col: usize, hsh: u64) -> f32 {
+    ((hash((hsh as i64) + (col as i64)) % MAX_HASH_I64) as f32) / MAX_HASH_F32
+}
+
+fn hash(num: i64) -> i64 {
+    let mut hasher = FxHasher::default();
+    hasher.write_i64(num);
+    hasher.finish() as i64
+}
+
+fn zero_2d(row: usize, col: usize) -> Vec<Vec<f32>> {
+    let mut res: Vec<Vec<f32>> = Vec::with_capacity(col);
+    for _i in 0..col {
+        let col = vec![0f32; row];
+        res.push(col);
+    }
+    res
+}
+
+/// Memory-mapped file as matrix representation. Every column of the matrix is placed side by side in the file.
+struct MMapMatrix {
+    rows: usize,
+    cols: usize,
+    file_name: String,
+    matrix: MmapMut,
+}
+
+impl MatrixWrapper for MMapMatrix {
+    fn init_with_hashes<T: SparseMatrixReader + Sync + Send>(
+        rows: usize,
+        cols: usize,
+        sparse_matrix_reader: Arc<T>,
+    ) -> Self {
+        let uuid = Uuid::new_v4();
+        let file_name = format!("{}_matrix_{}", sparse_matrix_reader.get_id(), uuid);
+        let mut mmap = create_mmap(rows, cols, file_name.as_str());
+
+        mmap.par_chunks_mut(rows * 4)
+            .enumerate()
+            .for_each(|(i, chunk)| {
+                // i - number of dimension
+                // chunk - column/vector of bytes
+                for (j, hsh) in sparse_matrix_reader.iter_hashes().enumerate() {
+                    let col_value = init_value(i, hsh.value);
+                    MMapMatrix::update_column(j, chunk, |value| unsafe { *value = col_value });
+                }
+            });
+
+        mmap.flush()
+            .expect("Can't flush memory map modifications to disk");
+
+        Self {
+            rows,
+            cols,
+            file_name,
+            matrix: mmap,
+        }
+    }
+
+    #[inline]
+    fn get_value(&self, row: usize, col: usize) -> f32 {
+        let start_idx = ((col * self.rows) + row) * 4;
+        let end_idx = start_idx + 4;
+        let pointer: *const u8 = (&self.matrix[start_idx..end_idx]).as_ptr();
+        unsafe {
+            let value = pointer as *const f32;
+            *value
+        }
+    }
+
+    fn normalize(&mut self) {
+        let entities_count = self.rows;
+        let mut row_sum = vec![0f32; entities_count];
+
+        for i in 0..(self.cols as usize) {
+            for (j, sum) in row_sum.iter_mut().enumerate() {
+                let value = self.get_value(j, i);
+                *sum += value.powi(2)
+            }
+        }
+
+        let row_sum = Arc::new(row_sum);
+        self.matrix
+            .par_chunks_mut(entities_count * 4)
+            .enumerate()
+            .for_each(|(_i, chunk)| {
+                // i - number of dimension
+                // chunk - column/vector of bytes
+                for (j, &sum) in row_sum.iter().enumerate() {
+                    MMapMatrix::update_column(j, chunk, |value| unsafe { *value /= sum.sqrt() });
+                }
+            });
+
+        self.matrix
+            .flush()
+            .expect("Can't flush memory map modifications to disk");
+    }
+
+    fn multiply<T: SparseMatrixReader + Sync + Send>(
+        sparse_matrix_reader: Arc<T>,
+        other: Self,
+    ) -> Self {
+        let rows = other.rows;
+        let cols = other.cols;
+
+        let uuid = Uuid::new_v4();
+        let file_name = format!("{}_matrix_{}", sparse_matrix_reader.get_id(), uuid);
+        let mut mmap_output = create_mmap(rows, cols, file_name.as_str());
+
+        let input = Arc::new(other);
+        mmap_output
+            .par_chunks_mut(rows * 4)
+            .enumerate()
+            .for_each_with(input, |input, (i, chunk)| {
+                for entry in sparse_matrix_reader.iter_entries() {
+                    let input_value = input.get_value(entry.col as usize, i);
+                    MMapMatrix::update_column(entry.row as usize, chunk, |value| unsafe {
+                        *value += input_value * entry.value
+                    });
+                }
+            });
+
+        mmap_output
+            .flush()
+            .expect("Can't flush memory map modifications to disk");
+
+        Self {
+            rows,
+            cols,
+            file_name,
+            matrix: mmap_output,
+        }
+    }
+}
+
+/// Creates memory-mapped file with allocated number of bytes
+fn create_mmap(rows: usize, cols: usize, file_name: &str) -> MmapMut {
+    let number_of_bytes = (rows * cols * 4) as u64;
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(file_name)
+        .expect("Can't create new set of options for memory mapped file");
+    file.set_len(number_of_bytes).unwrap_or_else(|_| {
+        panic!(
+            "Can't update the size of {} file to {} bytes",
+            file_name, number_of_bytes
+        )
+    });
+    unsafe {
+        MmapMut::map_mut(&file).unwrap_or_else(|_| {
+            panic!(
+                "Can't create memory mapped file for the underlying file {}",
+                file_name
+            )
+        })
+    }
+}
+
+/// Used to remove memory-mapped file after processing
+impl Drop for MMapMatrix {
+    fn drop(&mut self) {
+        fs::remove_file(self.file_name.as_str()).unwrap_or_else(|_| {
+            warn!(
+                "File {} can't be removed after work. Remove the file in order to save disk space.",
+                self.file_name.as_str()
+            )
+        });
+    }
+}
+
+impl MMapMatrix {
+    #[inline]
+    fn update_column<F>(col: usize, chunk: &mut [u8], func: F)
+    where
+        F: Fn(*mut f32),
+    {
+        let start_idx = col * 4;
+        let end_idx = start_idx + 4;
+        let pointer: *mut u8 = (&mut chunk[start_idx..end_idx]).as_mut_ptr();
+        let value = pointer as *mut f32;
+        func(value);
+    }
+}
 
 /// Calculate embeddings in memory.
 pub fn calculate_embeddings<T1, T2>(
@@ -26,11 +325,8 @@ pub fn calculate_embeddings<T1, T2>(
     T1: SparseMatrixReader + Sync + Send,
     T2: EntityMappingPersistor,
 {
-    let mult = MatrixMultiplicator {
-        dimension: config.embeddings_dimension,
-        sparse_matrix_reader,
-    };
-    let init = mult.initialize();
+    let mult = MatrixMultiplicator::new(config.clone(), sparse_matrix_reader);
+    let init: TwoDimVectorMatrix = mult.initialize();
     let res = mult.propagate(config.max_number_of_iteration, init);
     mult.persist(res, entity_mapping_persistor, embedding_persistor);
 
@@ -39,128 +335,79 @@ pub fn calculate_embeddings<T1, T2>(
 
 /// Provides matrix multiplication based on sparse matrix data.
 #[derive(Debug)]
-pub struct MatrixMultiplicator<T: SparseMatrixReader + Sync + Send> {
-    pub dimension: u16,
-    pub sparse_matrix_reader: Arc<T>,
+struct MatrixMultiplicator<T: SparseMatrixReader + Sync + Send, M: MatrixWrapper> {
+    dimension: usize,
+    number_of_entities: usize,
+    sparse_matrix_reader: Arc<T>,
+    _marker: PhantomData<M>,
 }
 
-impl<T> MatrixMultiplicator<T>
+impl<T, M> MatrixMultiplicator<T, M>
 where
     T: SparseMatrixReader + Sync + Send,
+    M: MatrixWrapper,
 {
-    fn initialize(&self) -> Vec<Vec<f32>> {
-        let entities_count = self.sparse_matrix_reader.get_number_of_entities();
+    fn new(config: Arc<Configuration>, sparse_matrix_reader: Arc<T>) -> Self {
+        Self {
+            dimension: config.embeddings_dimension as usize,
+            number_of_entities: sparse_matrix_reader.get_number_of_entities() as usize,
+            sparse_matrix_reader,
+            _marker: PhantomData,
+        }
+    }
 
+    /// Initialize a matrix
+    fn initialize(&self) -> M {
         info!(
             "Start initialization. Dims: {}, entities: {}.",
-            self.dimension, entities_count
+            self.dimension, self.number_of_entities
         );
 
-        // no specific requirement (ca be lower as well)
-        let max_hash = 8 * 1024 * 1024;
-        let max_hash_float = max_hash as f32;
-
-        let result: Vec<Vec<f32>> = (0..self.dimension)
-            .into_par_iter()
-            .map(|i| {
-                let mut col: Vec<f32> = Vec::with_capacity(entities_count as usize);
-                for (j, hsh) in self.sparse_matrix_reader.iter_hashes().enumerate() {
-                    let col_value = ((hash((hsh.value as i64) + (i as i64)) % max_hash) as f32)
-                        / max_hash_float;
-                    col.insert(j as usize, col_value);
-                }
-                col
-            })
-            .collect();
+        let result = M::init_with_hashes(
+            self.number_of_entities,
+            self.dimension,
+            self.sparse_matrix_reader.clone(),
+        );
 
         info!(
             "Done initializing. Dims: {}, entities: {}.",
-            self.dimension, entities_count
+            self.dimension, self.number_of_entities
         );
         result
     }
 
-    fn propagate(&self, max_iter: u8, res: Vec<Vec<f32>>) -> Vec<Vec<f32>> {
+    /// The sparse matrix is multiplied by a freshly initialized matrix M.
+    /// Multiplication is done against each column of matrix M in a separate thread.
+    /// The obtained columns of the new matrix are subsequently merged into the full matrix.
+    /// The matrix is L2-normalized, again in a multithreaded fashion across matrix columns.
+    /// Finally, depending on the target iteration number, the matrix is either returned
+    /// or fed for next iterations of multiplication against the sparse matrix.
+    fn propagate(&self, max_iter: u8, res: M) -> M {
         info!("Start propagating. Number of iterations: {}.", max_iter);
 
-        let entities_count = self.sparse_matrix_reader.get_number_of_entities();
         let mut new_res = res;
         for i in 0..max_iter {
-            let next = self.next_power(new_res);
-            new_res = self.normalize(next);
+            let mut next = M::multiply(self.sparse_matrix_reader.clone(), new_res);
+            next.normalize();
+            new_res = next;
+
             info!(
                 "Done iter: {}. Dims: {}, entities: {}, num data points: {}.",
                 i,
                 self.dimension,
-                entities_count,
+                self.number_of_entities,
                 self.sparse_matrix_reader.get_number_of_entries()
             );
         }
+
         info!("Done propagating.");
         new_res
     }
 
-    fn next_power(&self, res: Vec<Vec<f32>>) -> Vec<Vec<f32>> {
-        let entities_count = self.sparse_matrix_reader.get_number_of_entities() as usize;
-        let rnew = Self::zero_2d(entities_count, self.dimension as usize);
-
-        let result: Vec<Vec<f32>> = res
-            .into_par_iter()
-            .zip(rnew)
-            .update(|data| {
-                let (res_col, rnew_col) = data;
-                for entry in self.sparse_matrix_reader.iter_entries() {
-                    let elem = rnew_col.get_mut(entry.row as usize).unwrap();
-                    let value = res_col.get(entry.col as usize).unwrap();
-                    *elem += *value * entry.value
-                }
-            })
-            .map(|data| data.1)
-            .collect();
-
-        result
-    }
-
-    fn zero_2d(row: usize, col: usize) -> Vec<Vec<f32>> {
-        let mut res: Vec<Vec<f32>> = Vec::with_capacity(col);
-        for i in 0..col {
-            let col = vec![0f32; row];
-            res.insert(i, col);
-        }
-        res
-    }
-
-    fn normalize(&self, res: Vec<Vec<f32>>) -> Vec<Vec<f32>> {
-        let entities_count = self.sparse_matrix_reader.get_number_of_entities() as usize;
-        let mut row_sum = vec![0f32; entities_count];
-
-        for i in 0..(self.dimension as usize) {
-            for j in 0..entities_count {
-                let sum = row_sum.get_mut(j).unwrap();
-                let col: &Vec<f32> = res.get(i).unwrap();
-                let value = col.get(j).unwrap();
-                *sum += value.powi(2)
-            }
-        }
-
-        let row_sum = Arc::new(row_sum);
-        let result: Vec<Vec<f32>> = res
-            .into_par_iter()
-            .update(|col| {
-                for j in 0..entities_count {
-                    let value = col.get_mut(j).unwrap();
-                    let sum = row_sum.get(j).unwrap();
-                    *value /= sum.sqrt();
-                }
-            })
-            .collect();
-
-        result
-    }
-
+    /// Saves results to output such as textfile, numpy etc
     fn persist<T1>(
         &self,
-        res: Vec<Vec<f32>>,
+        res: M,
         entity_mapping_persistor: Arc<T1>,
         embedding_persistor: &mut dyn EmbeddingPersistor,
     ) where
@@ -168,14 +415,13 @@ where
     {
         info!("Start saving embeddings.");
 
-        let entities_count = self.sparse_matrix_reader.get_number_of_entities();
         embedding_persistor
-            .put_metadata(entities_count, self.dimension)
+            .put_metadata(self.number_of_entities as u32, self.dimension as u16)
             .unwrap_or_else(|_| {
                 // if can't write first data to the file, probably further is the same
                 panic!(
                     "Can't write metadata. Entities: {}. Dimension: {}.",
-                    entities_count, self.dimension
+                    self.number_of_entities, self.dimension
                 )
             });
 
@@ -184,11 +430,10 @@ where
         for (i, hash) in self.sparse_matrix_reader.iter_hashes().enumerate() {
             let entity_name_opt = entity_mapping_persistor.get_entity(hash.value);
             if let Some(entity_name) = entity_name_opt {
-                let mut embedding: Vec<f32> = Vec::with_capacity(self.dimension as usize);
-                for j in 0..(self.dimension as usize) {
-                    let col: &Vec<f32> = res.get(j).unwrap();
-                    let value = col.get(i as usize).unwrap();
-                    embedding.insert(j, *value);
+                let mut embedding: Vec<f32> = Vec::with_capacity(self.dimension);
+                for j in 0..self.dimension {
+                    let value = res.get_value(i, j);
+                    embedding.push(value);
                 }
                 embedding_persistor
                     .put_data(&entity_name, hash.occurrence, embedding)
@@ -208,12 +453,6 @@ where
 
         info!("Done saving embeddings.");
     }
-}
-
-fn hash(num: i64) -> i64 {
-    let mut hasher = FxHasher::default();
-    hasher.write_i64(num);
-    hasher.finish() as i64
 }
 
 fn log_broken_entities(broken_entities: HashSet<String>) {
@@ -238,287 +477,10 @@ pub fn calculate_embeddings_mmap<T1, T2>(
     T1: SparseMatrixReader + Sync + Send,
     T2: EntityMappingPersistor,
 {
-    let matrix_id = sparse_matrix_reader.get_id();
-
-    let mult = MatrixMultiplicatorMMap {
-        dimension: config.embeddings_dimension,
-        sparse_matrix_reader,
-    };
-    let init = mult.initialize();
+    let mult = MatrixMultiplicator::new(config.clone(), sparse_matrix_reader);
+    let init: MMapMatrix = mult.initialize();
     let res = mult.propagate(config.max_number_of_iteration, init);
     mult.persist(res, entity_mapping_persistor, embedding_persistor);
 
-    let work_file = format!("{}_matrix_{}", matrix_id, config.max_number_of_iteration);
-    fs::remove_file(&work_file).unwrap_or_else(|_| {
-        warn!(
-            "File {} can't be removed after work. Remove the file in order to save disk space.",
-            work_file
-        )
-    });
-
     info!("Finalizing embeddings calculations!")
-}
-
-/// Provides matrix multiplication based on sparse matrix data.
-#[derive(Debug)]
-pub struct MatrixMultiplicatorMMap<T: SparseMatrixReader + Sync + Send> {
-    pub dimension: u16,
-    pub sparse_matrix_reader: Arc<T>,
-}
-
-impl<T> MatrixMultiplicatorMMap<T>
-where
-    T: SparseMatrixReader + Sync + Send,
-{
-    fn initialize(&self) -> MmapMut {
-        let entities_count = self.sparse_matrix_reader.get_number_of_entities();
-
-        info!(
-            "Start initialization. Dims: {}, entities: {}.",
-            self.dimension, entities_count
-        );
-
-        let number_of_bytes = entities_count as u64 * self.dimension as u64 * 4;
-        let file_name = format!("{}_matrix_0", self.sparse_matrix_reader.get_id());
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .open(&file_name)
-            .expect("Can't create new set of options for memory mapped file");
-        file.set_len(number_of_bytes).unwrap_or_else(|_| {
-            panic!(
-                "Can't update the size of {} file to {} bytes",
-                &file_name, number_of_bytes
-            )
-        });
-        let mut mmap = unsafe {
-            MmapMut::map_mut(&file).unwrap_or_else(|_| {
-                panic!(
-                    "Can't create memory mapped file for the underlying file {}",
-                    file_name
-                )
-            })
-        };
-
-        // no specific requirement (ca be lower as well)
-        let max_hash = 8 * 1024 * 1024;
-        let max_hash_float = max_hash as f32;
-
-        mmap.par_chunks_mut((entities_count * 4) as usize)
-            .enumerate()
-            .for_each(|(i, chunk)| {
-                // i - number of dimension
-                // chunk - column/vector of bytes
-                for (j, hsh) in self.sparse_matrix_reader.iter_hashes().enumerate() {
-                    let col_value = ((hash((hsh.value as i64) + (i as i64)) % max_hash) as f32)
-                        / max_hash_float;
-
-                    let start_idx = j * 4;
-                    let end_idx = start_idx + 4;
-                    let pointer: *mut u8 = (&mut chunk[start_idx..end_idx]).as_mut_ptr();
-                    unsafe {
-                        let value = pointer as *mut f32;
-                        *value = col_value;
-                    };
-                }
-            });
-
-        info!(
-            "Done initializing. Dims: {}, entities: {}.",
-            self.dimension, entities_count
-        );
-
-        mmap.flush()
-            .expect("Can't flush memory map modifications to disk");
-        mmap
-    }
-
-    fn propagate(&self, max_iter: u8, res: MmapMut) -> MmapMut {
-        info!("Start propagating. Number of iterations: {}.", max_iter);
-
-        let entities_count = self.sparse_matrix_reader.get_number_of_entities();
-        let mut new_res = res;
-        for i in 0..max_iter {
-            let next = self.next_power(i, new_res);
-            new_res = self.normalize(next);
-
-            let work_file = format!("{}_matrix_{}", self.sparse_matrix_reader.get_id(), i);
-            fs::remove_file(&work_file).unwrap_or_else(|_| {
-                warn!("File {} can't be removed after work. Remove the file in order to save disk space.", work_file)
-            });
-
-            info!(
-                "Done iter: {}. Dims: {}, entities: {}, num data points: {}.",
-                i,
-                self.dimension,
-                entities_count,
-                self.sparse_matrix_reader.get_number_of_entries()
-            );
-        }
-        info!("Done propagating.");
-        new_res
-    }
-
-    fn next_power(&self, iteration: u8, res: MmapMut) -> MmapMut {
-        let entities_count = self.sparse_matrix_reader.get_number_of_entities() as usize;
-
-        let number_of_bytes = entities_count as u64 * self.dimension as u64 * 4;
-        let file_name = format!(
-            "{}_matrix_{}",
-            self.sparse_matrix_reader.get_id(),
-            iteration + 1
-        );
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .open(&file_name)
-            .expect("Can't create new set of options for memory mapped file");
-        file.set_len(number_of_bytes).unwrap_or_else(|_| {
-            panic!(
-                "Can't update the size of {} file to {} bytes",
-                &file_name, number_of_bytes
-            )
-        });
-        let mut mmap_output = unsafe {
-            MmapMut::map_mut(&file).unwrap_or_else(|_| {
-                panic!(
-                    "Can't create memory mapped file for the underlying file {}",
-                    file_name
-                )
-            })
-        };
-
-        let input = Arc::new(res);
-        mmap_output
-            .par_chunks_mut(entities_count * 4)
-            .enumerate()
-            .for_each_with(input, |input, (i, chunk)| {
-                for entry in self.sparse_matrix_reader.iter_entries() {
-                    let start_idx_input = ((i * entities_count) + entry.col as usize) * 4;
-                    let end_idx_input = start_idx_input + 4;
-                    let pointer: *const u8 = (&input[start_idx_input..end_idx_input]).as_ptr();
-                    let input_value = unsafe {
-                        let value = pointer as *const f32;
-                        *value
-                    };
-
-                    let start_idx_output = entry.row as usize * 4;
-                    let end_idx_output = start_idx_output + 4;
-                    let pointer: *mut u8 =
-                        (&mut chunk[start_idx_output..end_idx_output]).as_mut_ptr();
-                    unsafe {
-                        let value = pointer as *mut f32;
-                        *value += input_value * entry.value;
-                    };
-                }
-            });
-
-        mmap_output
-            .flush()
-            .expect("Can't flush memory map modifications to disk");
-        mmap_output
-    }
-
-    fn normalize(&self, mut res: MmapMut) -> MmapMut {
-        let entities_count = self.sparse_matrix_reader.get_number_of_entities() as usize;
-        let mut row_sum = vec![0f32; entities_count];
-
-        for i in 0..(self.dimension as usize) {
-            for j in 0..entities_count {
-                let sum = row_sum.get_mut(j).unwrap();
-
-                let start_idx = ((i * entities_count) + j) * 4;
-                let end_idx = start_idx + 4;
-                let pointer: *const u8 = (&res[start_idx..end_idx]).as_ptr();
-                let value = unsafe {
-                    let value = pointer as *const f32;
-                    *value
-                };
-
-                *sum += value.powi(2)
-            }
-        }
-
-        let row_sum = Arc::new(row_sum);
-        res.par_chunks_mut(entities_count * 4)
-            .enumerate()
-            .for_each(|(_i, chunk)| {
-                // i - number of dimension
-                // chunk - column/vector of bytes
-                for j in 0..entities_count {
-                    let sum = *row_sum.get(j).unwrap();
-
-                    let start_idx = j * 4;
-                    let end_idx = start_idx + 4;
-                    let pointer: *mut u8 = (&mut chunk[start_idx..end_idx]).as_mut_ptr();
-                    unsafe {
-                        let value = pointer as *mut f32;
-                        *value /= sum.sqrt();
-                    };
-                }
-            });
-
-        res.flush()
-            .expect("Can't flush memory map modifications to disk");
-        res
-    }
-
-    fn persist<T1>(
-        &self,
-        res: MmapMut,
-        entity_mapping_persistor: Arc<T1>,
-        embedding_persistor: &mut dyn EmbeddingPersistor,
-    ) where
-        T1: EntityMappingPersistor,
-    {
-        info!("Start saving embeddings.");
-
-        let entities_count = self.sparse_matrix_reader.get_number_of_entities();
-        embedding_persistor
-            .put_metadata(entities_count, self.dimension)
-            .unwrap_or_else(|_| {
-                // if can't write first data to the file, probably further is the same
-                panic!(
-                    "Can't write metadata. Entities: {}. Dimension: {}.",
-                    entities_count, self.dimension
-                )
-            });
-
-        // entities which can't be written to the file (error occurs)
-        let mut broken_entities = HashSet::new();
-        for (i, hash) in self.sparse_matrix_reader.iter_hashes().enumerate() {
-            let entity_name_opt = entity_mapping_persistor.get_entity(hash.value);
-            if let Some(entity_name) = entity_name_opt {
-                let mut embedding: Vec<f32> = Vec::with_capacity(self.dimension as usize);
-                for j in 0..(self.dimension as usize) {
-                    let start_idx = ((j * entities_count as usize) + i as usize) * 4;
-                    let end_idx = start_idx + 4;
-                    let pointer: *const u8 = (&res[start_idx..end_idx]).as_ptr();
-                    let value = unsafe {
-                        let value = pointer as *const f32;
-                        *value
-                    };
-
-                    embedding.insert(j, value);
-                }
-                embedding_persistor
-                    .put_data(&entity_name, hash.occurrence, embedding)
-                    .unwrap_or_else(|_| {
-                        broken_entities.insert(entity_name);
-                    });
-            };
-        }
-
-        if !broken_entities.is_empty() {
-            log_broken_entities(broken_entities);
-        }
-
-        embedding_persistor
-            .finish()
-            .unwrap_or_else(|_| warn!("Can't finish writing to the file."));
-
-        info!("Done saving embeddings.");
-    }
 }
