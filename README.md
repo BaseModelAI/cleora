@@ -6,6 +6,8 @@ _**Cleora** is a genus of moths in the family **Geometridae**. Their scientific 
 
 Cleora is a general-purpose model for efficient, scalable learning of stable and inductive entity embeddings for heterogeneous relational data.
 
+**Read the whitepaper ["Cleora: A Simple, Strong and Scalable Graph Embedding Scheme"](https://arxiv.org/abs/2102.02302)**
+
 Cleora embeds entities in *n-dimensional spherical spaces* utilizing extremely fast stable, iterative random projections, which allows for unparalleled performance and scalability.
 
 Types of data which can be embedded include for example:
@@ -261,7 +263,7 @@ Every SparseMatrix is created based on the program argument `--columns`. For our
 - products and brands by M2
 - users and products by M3
 
-![Figure 1](files/images/figure_1.jpg)
+![Figure 1](files/images/figure_1.png)
 
 **Graph construction**
 Graph construction starts with the creation of a helper matrix `P` object as a regular 2-D Rust array, which is built according to the selected 
