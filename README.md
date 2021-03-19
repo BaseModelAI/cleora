@@ -187,6 +187,7 @@ Command line options (for more info use `--help` as program argument):
     -r --relation-name (name of the relation, for output filename generation)
     -d --dimension (number of dimensions for output embeddings)
     -n --number-of-iterations (number of iterations for the algorithm, usually 3 or 4 works well)
+    -s --seed (seed integer for embedding initialization)
     -c --columns (column format specification)
     -p --prepend-field-name (prepend field name to entity in output)
     -l --log-every-n (log output every N lines)
