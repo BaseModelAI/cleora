@@ -28,6 +28,7 @@ trait MatrixWrapper {
     fn init_with_hashes<T: SparseMatrixReader + Sync + Send>(
         rows: usize,
         cols: usize,
+        fixed_random_value: i64,
         sparse_matrix_reader: Arc<T>,
     ) -> Self;
 
@@ -55,6 +56,7 @@ impl MatrixWrapper for TwoDimVectorMatrix {
     fn init_with_hashes<T: SparseMatrixReader + Sync + Send>(
         rows: usize,
         cols: usize,
+        fixed_random_value: i64,
         sparse_matrix_reader: Arc<T>,
     ) -> Self {
         let result: Vec<Vec<f32>> = (0..cols)
@@ -62,7 +64,7 @@ impl MatrixWrapper for TwoDimVectorMatrix {
             .map(|i| {
                 let mut col: Vec<f32> = Vec::with_capacity(rows);
                 for hsh in sparse_matrix_reader.iter_hashes() {
-                    let col_value = init_value(i, hsh.value);
+                    let col_value = init_value(i, hsh.value, fixed_random_value);
                     col.push(col_value);
                 }
                 col
@@ -129,8 +131,8 @@ impl MatrixWrapper for TwoDimVectorMatrix {
     }
 }
 
-fn init_value(col: usize, hsh: u64) -> f32 {
-    ((hash((hsh as i64) + (col as i64)) % MAX_HASH_I64) as f32) / MAX_HASH_F32
+fn init_value(col: usize, hsh: u64, fixed_random_value: i64) -> f32 {
+    ((hash((hsh as i64) + (col as i64) + fixed_random_value) % MAX_HASH_I64) as f32) / MAX_HASH_F32
 }
 
 fn hash(num: i64) -> i64 {
@@ -160,6 +162,7 @@ impl MatrixWrapper for MMapMatrix {
     fn init_with_hashes<T: SparseMatrixReader + Sync + Send>(
         rows: usize,
         cols: usize,
+        fixed_random_value: i64,
         sparse_matrix_reader: Arc<T>,
     ) -> Self {
         let uuid = Uuid::new_v4();
@@ -172,7 +175,7 @@ impl MatrixWrapper for MMapMatrix {
                 // i - number of dimension
                 // chunk - column/vector of bytes
                 for (j, hsh) in sparse_matrix_reader.iter_hashes().enumerate() {
-                    let col_value = init_value(i, hsh.value);
+                    let col_value = init_value(i, hsh.value, fixed_random_value);
                     MMapMatrix::update_column(j, chunk, |value| unsafe { *value = col_value });
                 }
             });
@@ -338,6 +341,7 @@ pub fn calculate_embeddings<T1, T2>(
 struct MatrixMultiplicator<T: SparseMatrixReader + Sync + Send, M: MatrixWrapper> {
     dimension: usize,
     number_of_entities: usize,
+    fixed_random_value: i64,
     sparse_matrix_reader: Arc<T>,
     _marker: PhantomData<M>,
 }
@@ -348,9 +352,11 @@ where
     M: MatrixWrapper,
 {
     fn new(config: Arc<Configuration>, sparse_matrix_reader: Arc<T>) -> Self {
+        let rand_value = config.seed.map(hash).unwrap_or(0);
         Self {
             dimension: config.embeddings_dimension as usize,
             number_of_entities: sparse_matrix_reader.get_number_of_entities() as usize,
+            fixed_random_value: rand_value,
             sparse_matrix_reader,
             _marker: PhantomData,
         }
@@ -366,6 +372,7 @@ where
         let result = M::init_with_hashes(
             self.number_of_entities,
             self.dimension,
+            self.fixed_random_value,
             self.sparse_matrix_reader.clone(),
         );
 

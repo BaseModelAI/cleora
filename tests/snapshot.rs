@@ -83,6 +83,7 @@ fn prepare_config() -> Configuration {
         produce_entity_occurrence_count: true,
         embeddings_dimension: 128,
         max_number_of_iteration: 4,
+        seed: None,
         prepend_field: false,
         log_every_n: 10000,
         in_memory_embedding_calculation: true,
