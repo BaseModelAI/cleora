@@ -22,6 +22,9 @@ pub struct Configuration {
     /// Maximum number of iteration for training
     pub max_number_of_iteration: u8,
 
+    /// Seed for embedding initialization
+    pub seed: Option<i64>,
+
     /// Prepend field name to entity in the output file. It differentiates entities with the same
     /// name from different columns
     pub prepend_field: bool,
@@ -78,6 +81,7 @@ impl Configuration {
             produce_entity_occurrence_count: true,
             embeddings_dimension: 128,
             max_number_of_iteration: 4,
+            seed: None,
             prepend_field: true,
             log_every_n: 1000,
             in_memory_embedding_calculation: true,

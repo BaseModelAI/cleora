@@ -65,6 +65,13 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("seed")
+                .short("s")
+                .long("seed")
+                .help("Seed (integer) for embedding initialization")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("columns")
                 .short("c")
                 .long("columns")
@@ -140,6 +147,7 @@ fn main() {
         .unwrap()
         .parse()
         .unwrap();
+    let seed: Option<i64> = matches.value_of("seed").map(|s| s.parse().unwrap());
     let relation_name = matches.value_of("relation-name").unwrap();
     let prepend_field_name = {
         let value: u8 = matches
@@ -180,6 +188,7 @@ fn main() {
         produce_entity_occurrence_count: true,
         embeddings_dimension: dimension,
         max_number_of_iteration: max_iter,
+        seed,
         prepend_field: prepend_field_name,
         log_every_n: log_every,
         in_memory_embedding_calculation,
