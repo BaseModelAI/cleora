@@ -48,14 +48,14 @@ pub fn build_graphs(
         });
 
     match &config.file_type {
-        FileType::JSON => {
+        FileType::Json => {
             let mut parser = dom::Parser::default();
             read_file(config, |line| {
                 let row = parse_json_line(line, &mut parser, &config.columns);
                 entity_processor.process_row(&row);
             });
         }
-        FileType::TSV => {
+        FileType::Tsv => {
             read_file(config, |line| {
                 let row = parse_tsv_line(line);
                 entity_processor.process_row(&row);
