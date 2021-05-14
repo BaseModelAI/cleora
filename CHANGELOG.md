@@ -1,3 +1,11 @@
+# 1.1.1 (May 14, 2021)
+
+### Added
+- Init embedding with seed during training ([#27]).
+
+[#27]: https://github.com/Synerise/cleora/pull/27
+
+
 # 1.1.0 (December 23, 2020)
 
 ### Changed
