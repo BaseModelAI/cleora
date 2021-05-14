@@ -130,11 +130,11 @@ fn main() {
     let input = matches.value_of("input").unwrap();
     let file_type = match matches.value_of("file-type") {
         Some(type_name) => match type_name {
-            "tsv" => configuration::FileType::TSV,
-            "json" => configuration::FileType::JSON,
+            "tsv" => configuration::FileType::Tsv,
+            "json" => configuration::FileType::Json,
             _ => panic!("Invalid file type {}", type_name),
         },
-        None => configuration::FileType::TSV,
+        None => configuration::FileType::Tsv,
     };
     let output_dir = matches.value_of("output-dir").map(|s| s.to_string());
     // try to create output directory for files with embeddings
