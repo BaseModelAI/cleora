@@ -1,7 +1,7 @@
 #[derive(Debug)]
 pub enum FileType {
-    JSON,
-    TSV,
+    Json,
+    Tsv,
 }
 
 #[derive(Debug)]
@@ -85,7 +85,7 @@ impl Configuration {
             prepend_field: true,
             log_every_n: 1000,
             in_memory_embedding_calculation: true,
-            file_type: FileType::TSV,
+            file_type: FileType::Tsv,
             input,
             output_dir: None,
             output_format: OutputFormat::TextFile,

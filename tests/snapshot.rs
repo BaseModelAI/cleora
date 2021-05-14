@@ -88,7 +88,7 @@ fn prepare_config() -> Configuration {
         log_every_n: 10000,
         in_memory_embedding_calculation: true,
         input: "files/samples/edgelist_1.tsv".to_string(),
-        file_type: FileType::TSV,
+        file_type: FileType::Tsv,
         output_format: OutputFormat::TextFile,
         output_dir: None,
         relation_name: "r1".to_string(),
