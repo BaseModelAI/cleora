@@ -1,12 +1,27 @@
 <p align="center"><img width="50%" src="https://strapi.synerise.com/uploads/Cleora_and_Synerise_logotypes_5cab64ce25.png" /></p>
 
+
+
+## Performance Ranking
+
+Results are collected through the Cleora implementation, which are published in [our paper](https://arxiv.org/abs/2102.02302).
+
+Please feel free to leave comments if you have trouble reproducing the results!
+
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cleora-a-simple-strong-and-scalable-graph/node-classification-on-youtube)](https://paperswithcode.com/sota/node-classification-on-youtube?p=cleora-a-simple-strong-and-scalable-graph)  
+
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cleora-a-simple-strong-and-scalable-graph/node-classification-on-cora)](https://paperswithcode.com/sota/node-classification-on-cora?p=cleora-a-simple-strong-and-scalable-graph) 
+
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cleora-a-simple-strong-and-scalable-graph/node-classification-on-citeseer)](https://paperswithcode.com/sota/node-classification-on-citeseer?p=cleora-a-simple-strong-and-scalable-graph)  
+
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cleora-a-simple-strong-and-scalable-graph/node-classification-on-pubmed)](https://paperswithcode.com/sota/node-classification-on-pubmed?p=cleora-a-simple-strong-and-scalable-graph)  
+
+
 # Cleora
 
 _**Cleora** is a genus of moths in the family **Geometridae**. Their scientific name derives from the Ancient Greek geo γῆ or γαῖα "the earth", and metron μέτρον "measure" in reference to the way their larvae, or "inchworms", appear to "**measure the earth**" as they move along in a looping fashion._
 
 Cleora is a general-purpose model for efficient, scalable learning of stable and inductive entity embeddings for heterogeneous relational data.
-
-**Read the whitepaper ["Cleora: A Simple, Strong and Scalable Graph Embedding Scheme"](https://arxiv.org/abs/2102.02302)**
 
 Cleora embeds entities in *n-dimensional spherical spaces* utilizing extremely fast stable, iterative random projections, which allows for unparalleled performance and scalability.
 
@@ -314,3 +329,29 @@ Every `SparseMatrix` object allocates space for:
 - `2 x |E|` objects (in undirected graphs we need to count an edge in both directions), each occupying 24 bytes.
 
 During training we need additonal `2 x d x |V|` objects, each occupying 4 bytes (this can be avoided by using memory-mapped files, see `--in-memory-embedding-calculation` argument for the program).
+
+## Documentation
+
+More information can be found in [the full documentation](https://cleora.readthedocs.io/).
+
+## Citie
+
+Please cite [our paper](https://arxiv.org/abs/2102.02302) (and the respective papers of the methods used) if you use this code in your own work:
+
+```
+@article{DBLP:journals/corr/abs-2102-02302,
+  author    = {Barbara Rychalska, Piotr Babel, Konrad Goluchowski, Andrzej Michalowski, Jacek Dabrowski},
+  title     = {Cleora: {A} Simple, Strong and Scalable Graph Embedding Scheme},
+  journal   = {CoRR},
+  year      = {2021}
+}
+```
+
+## License
+
+Synerise Cleora is MIT licensed, as found in the [LICENSE](LICENSE) file.
+
+
+## How to Contribute
+
+You are welcomed to contribute to this open-source toolbox. The detailed instructions will be released soon as issues.
