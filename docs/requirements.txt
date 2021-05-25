@@ -1,0 +1,2 @@
+sphinx-iowmd-theme==0.0.17
+sphinx==3.5.3
