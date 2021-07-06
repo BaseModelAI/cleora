@@ -111,6 +111,6 @@ During training we need additonal
 .. math::
 
 
-     2 x d x |V|
+     2 \times d \times | V |
      
 objects, each occupying 4 bytes (this can be avoided by using memory-mapped files, see `--in-memory-embedding-calculation` argument for the program).
