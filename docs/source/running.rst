@@ -133,7 +133,7 @@ Param description: Set output directory for files with embeddings.
 
 -output format
 
-Using output format param: --output-format* or *-o*  
+Using output format param: *--output-format* or *-o*  
 
 Param Description: A parameter that defines the format of the output file. Possible output format are textfile (.txt) and numpy (.npy)
 
