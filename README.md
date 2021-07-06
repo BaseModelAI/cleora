@@ -173,7 +173,7 @@ The technical properties described above imply good production-readiness of Cleo
 
 More information can be found in [the full documentation](https://cleora.readthedocs.io/).
 
-## Citie
+## Cite
 
 Please cite [our paper](https://arxiv.org/abs/2102.02302) (and the respective papers of the methods used) if you use this code in your own work:
 
