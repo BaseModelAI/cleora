@@ -2,6 +2,31 @@
 
 # Cleora
 
+## Achievements
+
+:one:st place at [SIGIR eCom Challenge 2020](https://sigir-ecom.github.io/ecom20DCPapers/SIGIR_eCom20_DC_paper_1.pdf)
+ 
+:two:nd place  and Best Paper Award at [WSDM Booking.com Challenge 2021](http://ceur-ws.org/Vol-2855/challenge_short_3.pdf)
+
+:three:rd place at [KDD Cup 2021](https://ogb.stanford.edu/paper/kddcup2021/mag240m_SyneriseAI.pdf)
+ 
+ 
+
+## Performance Ranking
+
+Results are collected through the Cleora implementation, which are published in [our paper](https://arxiv.org/abs/2102.02302).
+
+Please feel free to leave comments if you have trouble reproducing the results!
+
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cleora-a-simple-strong-and-scalable-graph/node-classification-on-youtube)](https://paperswithcode.com/sota/node-classification-on-youtube?p=cleora-a-simple-strong-and-scalable-graph)  
+
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cleora-a-simple-strong-and-scalable-graph/node-classification-on-cora)](https://paperswithcode.com/sota/node-classification-on-cora?p=cleora-a-simple-strong-and-scalable-graph) 
+
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cleora-a-simple-strong-and-scalable-graph/node-classification-on-citeseer)](https://paperswithcode.com/sota/node-classification-on-citeseer?p=cleora-a-simple-strong-and-scalable-graph)  
+
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cleora-a-simple-strong-and-scalable-graph/node-classification-on-pubmed)](https://paperswithcode.com/sota/node-classification-on-pubmed?p=cleora-a-simple-strong-and-scalable-graph)  
+
+
 _**Cleora** is a genus of moths in the family **Geometridae**. Their scientific name derives from the Ancient Greek geo γῆ or γαῖα "the earth", and metron μέτρον "measure" in reference to the way their larvae, or "inchworms", appear to "**measure the earth**" as they move along in a looping fashion._
 
 Cleora is a general-purpose model for efficient, scalable learning of stable and inductive entity embeddings for heterogeneous relational data.
