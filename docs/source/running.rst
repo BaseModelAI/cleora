@@ -3,7 +3,7 @@
 Running configuration
 ====================== 
 
-This page details how to use the cleora run command to define the embedding resources at runtime.
+This page details how to use the Cleora run command to define the embedding resources at runtime.
 
 Synopsis
 --------
