@@ -106,4 +106,11 @@ Every **SparseMatrix** object allocates space for:
 - **2 x |E|** objects (in undirected graphs we need to count an edge in both directions), each occupying 24 bytes.
 
 
-During training we need additonal `2 x d x |V|` objects, each occupying 4 bytes (this can be avoided by using memory-mapped files, see `--in-memory-embedding-calculation` argument for the program).
+During training we need additonal 
+
+.. math::
+
+
+     2 x d x |V|
+     
+objects, each occupying 4 bytes (this can be avoided by using memory-mapped files, see `--in-memory-embedding-calculation` argument for the program).
