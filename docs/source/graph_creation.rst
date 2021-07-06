@@ -95,3 +95,14 @@ Every SparseMatrix is created based on the program argument **--columns**. For o
 - users and brands by M1
 - products and brands by M2
 - users and products by M3
+
+
+Memory consumption
+-------------------
+
+
+Every `SparseMatrix` object allocates space for:
+- `|V|` objects, each occupying 40 bytes,
+- `2 x |E|` objects (in undirected graphs we need to count an edge in both directions), each occupying 24 bytes.
+
+During training we need additonal `2 x d x |V|` objects, each occupying 4 bytes (this can be avoided by using memory-mapped files, see `--in-memory-embedding-calculation` argument for the program).
