@@ -74,7 +74,7 @@ The specification of an input format is as follows:
 
     .. code-block:: none
 
-        --columns="[column modifiers, ::]<column_name> [column modifiers, ::]..."
+        --columns="[column modifiers, ::]<column_name> ..."
 
 
 Combinations which don't make sense are:
