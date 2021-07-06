@@ -1,3 +1,1 @@
-sphinx-iowmd-theme==0.0.17
-sphinx-pdj-theme==0.2.1
 sphinx==3.5.3

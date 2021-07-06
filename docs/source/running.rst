@@ -3,7 +3,7 @@
 Running configuration
 ====================== 
 
-This page details how to use the cleora run command to define the embedding resources at runtime.
+This page details how to use the Cleora run command to define the embedding resources at runtime.
 
 Synopsis
 --------
@@ -74,7 +74,7 @@ The specification of an input format is as follows:
 
     .. code-block:: none
 
-        --columns="[column modifiers, ::]<column_name> [column modifiers, ::]<column_name> [column modifiers, ::]<column_name> ..."
+        --columns="[column modifiers, ::]<column_name> ..."
 
 
 Combinations which don't make sense are:
@@ -133,7 +133,7 @@ Param description: Set output directory for files with embeddings.
 
 -output format
 
-Using output format param: --output-format* or *-o*  
+Using output format param: *--output-format* or *-o*  
 
 Param Description: A parameter that defines the format of the output file. Possible output format are textfile (.txt) and numpy (.npy)
 
