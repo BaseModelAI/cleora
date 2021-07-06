@@ -12,8 +12,6 @@
 
 ## Performance Ranking
 
-Please feel free to leave comments if you have trouble reproducing the results!
-
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cleora-a-simple-strong-and-scalable-graph/node-classification-on-youtube)](https://paperswithcode.com/sota/node-classification-on-youtube?p=cleora-a-simple-strong-and-scalable-graph)  
 
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cleora-a-simple-strong-and-scalable-graph/node-classification-on-cora)](https://paperswithcode.com/sota/node-classification-on-cora?p=cleora-a-simple-strong-and-scalable-graph) 
@@ -21,6 +19,8 @@ Please feel free to leave comments if you have trouble reproducing the results!
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cleora-a-simple-strong-and-scalable-graph/node-classification-on-citeseer)](https://paperswithcode.com/sota/node-classification-on-citeseer?p=cleora-a-simple-strong-and-scalable-graph)  
 
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cleora-a-simple-strong-and-scalable-graph/node-classification-on-pubmed)](https://paperswithcode.com/sota/node-classification-on-pubmed?p=cleora-a-simple-strong-and-scalable-graph)  
+
+Please feel free to leave comments if you have trouble reproducing the results!
 
 # Cleora
 
