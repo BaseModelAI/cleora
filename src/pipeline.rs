@@ -43,7 +43,7 @@ pub fn build_graphs(
     }
 
     let mut entity_processor =
-        EntityProcessor::new(&config, in_memory_entity_mapping_persistor, |hashes| {
+        EntityProcessor::new(config, in_memory_entity_mapping_persistor, |hashes| {
             bus.broadcast(hashes);
         });
 
@@ -118,7 +118,7 @@ fn parse_json_line(
     parser: &mut dom::Parser,
     columns: &[Column],
 ) -> Vec<SmallVec<[String; SMALL_VECTOR_SIZE]>> {
-    let parsed = parser.parse(&line).unwrap();
+    let parsed = parser.parse(line).unwrap();
     columns
         .iter()
         .map(|c| {

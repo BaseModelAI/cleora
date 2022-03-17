@@ -136,7 +136,7 @@ fn init_value(col: usize, hsh: u64, fixed_random_value: i64) -> f32 {
 }
 
 fn hash(num: i64) -> i64 {
-    let mut hasher = DefaultHasher::new();    
+    let mut hasher = DefaultHasher::new();
     hasher.write_i64(num);
     hasher.finish() as i64
 }
