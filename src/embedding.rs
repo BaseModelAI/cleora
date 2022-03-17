@@ -5,7 +5,7 @@ use crate::sparse_matrix::SparseMatrixReader;
 use log::{info, warn};
 use memmap::MmapMut;
 use rayon::prelude::*;
-use rustc_hash::FxHasher;
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::fs;
 use std::fs::OpenOptions;
@@ -136,7 +136,7 @@ fn init_value(col: usize, hsh: u64, fixed_random_value: i64) -> f32 {
 }
 
 fn hash(num: i64) -> i64 {
-    let mut hasher = FxHasher::default();
+    let mut hasher = DefaultHasher::new();
     hasher.write_i64(num);
     hasher.finish() as i64
 }
