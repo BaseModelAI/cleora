@@ -1,3 +1,11 @@
+# 1.2.0 (March 17, 2022)
+
+### Added
+- Use default hasher for vector init. ([#47]).
+
+[#47]: https://github.com/Synerise/cleora/pull/47
+
+
 # 1.1.1 (May 14, 2021)
 
 ### Added
