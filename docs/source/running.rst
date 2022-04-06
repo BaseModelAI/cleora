@@ -52,9 +52,9 @@ Param description: Set column names (max. 12), with modifiers from list: [transi
      - Description
    * - transient
      - The field is virtual - it is considered during embedding process, no entity is written for the column
-   * - reflexive   
+   * - complex
      - The field is composite, containing multiple entity identifiers separated by space in TSV or an array in JSON
-   * - complex  
+   * - reflexive
      - The field is reflexive, which means that it interacts with itself, additional output file is written for every such field
    * - ignore
      - The field is ignored, no output file is written for the field
