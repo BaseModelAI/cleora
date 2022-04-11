@@ -33,7 +33,7 @@ pub mod entity {
 
 pub mod embedding {
     use memmap::MmapMut;
-    use ndarray::{s, Array, ArrayViewMut1, ArrayViewMut2, Axis};
+    use ndarray::{s, Array, ArrayViewMut2};
     use ndarray_npy::write_zeroed_npy;
     use std::fs::{File, OpenOptions};
     use std::io;
@@ -157,19 +157,20 @@ pub mod embedding {
             write_zeroed_npy::<f32, _>(
                 &self.array_file,
                 [entity_count as usize, dimension as usize],
-            ).map_err(|_| Error::new(ErrorKind::Other, format!("Write zeroed npy error")));
+            )
+            .map_err(|_| Error::new(ErrorKind::Other, "Write zeroed npy error"))?;
 
             let file = OpenOptions::new()
                 .read(true)
                 .write(true)
                 .open(&self.array_file_name)?;
-            let mut mmap = unsafe { MmapMut::map_mut(&file)? };
-            let mut mmap = Box::new(mmap);
-            let mut mmap = Box::leak(mmap);
+            let mmap = unsafe { MmapMut::map_mut(&file)? };
+            let mmap = Box::new(mmap);
+            let mmap = Box::leak(mmap);
             let mmap_ptr: *mut MmapMut = mmap as *mut _;
 
-            let mut mmap_data = ArrayViewMut2::<'static, f32>::view_mut_npy(mmap)
-                .map_err(|_| Error::new(ErrorKind::Other, format!("Mmap view error")))?;
+            let mmap_data = ArrayViewMut2::<'static, f32>::view_mut_npy(mmap)
+                .map_err(|_| Error::new(ErrorKind::Other, "Mmap view error"))?;
 
             self.array_write_context = Some(NpyWriteContext {
                 mmap_ptr, // will be used to free memory
@@ -184,7 +185,7 @@ pub mod embedding {
             occur_count: u32,
             vector: Vec<f32>,
         ) -> Result<(), io::Error> {
-            let mut array = &mut self
+            let array = &mut self
                 .array_write_context
                 .as_mut()
                 .expect("Should be defined. Was put_metadata not called?")
@@ -199,7 +200,6 @@ pub mod embedding {
 
         fn finish(&mut self) -> Result<(), io::Error> {
             use ndarray_npy::WriteNpyExt;
-            use std::io::{Error, ErrorKind};
 
             let array_write_context = self
                 .array_write_context
