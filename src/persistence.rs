@@ -100,10 +100,20 @@ pub mod embedding {
         }
     }
 
-    pub struct NpyWriteContext {
+    struct NpyWriteContext {
         // Pointer needed to move state between put_metadata and put_data
         mmap_ptr: *mut MmapMut,
-        mmap_data: ndarray::ArrayViewMut2<'static, f32>,
+        mmap_data: Option<ndarray::ArrayViewMut2<'static, f32>>,
+    }
+
+    impl Drop for NpyWriteContext {
+        fn drop(&mut self) {
+            // Unwind references with reverse order.
+            // First remove view that points to mmap_ptr
+            self.mmap_data = None;
+            // And now drop mmap_ptr
+            unsafe { Box::from_raw(self.mmap_ptr) };
+        }
     }
 
     pub struct NpyPersistor {
@@ -174,7 +184,7 @@ pub mod embedding {
 
             self.array_write_context = Some(NpyWriteContext {
                 mmap_ptr, // will be used to free memory
-                mmap_data,
+                mmap_data: Some(mmap_data),
             });
             Ok(())
         }
@@ -189,7 +199,10 @@ pub mod embedding {
                 .array_write_context
                 .as_mut()
                 .expect("Should be defined. Was put_metadata not called?")
-                .mmap_data;
+                .mmap_data
+                .as_mut()
+                .expect("Should be always defined. None only used in Drop");
+
             array
                 .slice_mut(s![self.entities.len(), ..])
                 .assign(&Array::from(vector));
@@ -200,14 +213,6 @@ pub mod embedding {
 
         fn finish(&mut self) -> Result<(), io::Error> {
             use ndarray_npy::WriteNpyExt;
-
-            let array_write_context = self
-                .array_write_context
-                .as_ref()
-                .expect("Should be defined. Was put_metadata not called?");
-            let recovered_mmap: Box<MmapMut> =
-                unsafe { Box::from_raw(array_write_context.mmap_ptr) };
-            recovered_mmap.flush()?;
 
             serde_json::to_writer_pretty(&mut self.entities_buf, &self.entities)?;
 
