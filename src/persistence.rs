@@ -100,24 +100,24 @@ pub mod embedding {
         }
     }
 
-    pub struct NpyWriteContext<'a> {
+    pub struct NpyWriteContext {
         // Pointer needed to move state between put_metadata and put_data
         mmap_ptr: *mut MmapMut,
-        mmap_data: ndarray::ArrayViewMut2<'a, f32>,
+        mmap_data: ndarray::ArrayViewMut2<'static, f32>,
     }
 
-    pub struct NpyPersistor<'a> {
+    pub struct NpyPersistor {
         entities: Vec<String>,
         occurences: Vec<u32>,
         array_file_name: String,
         array_file: File,
-        array_write_context: Option<NpyWriteContext<'a>>,
+        array_write_context: Option<NpyWriteContext>,
         occurences_buf: Option<BufWriter<File>>,
         entities_buf: BufWriter<File>,
     }
 
-    impl NpyPersistor<'_> {
-        pub fn new<'a>(filename: String, produce_entity_occurrence_count: bool) -> Self {
+    impl NpyPersistor {
+        pub fn new(filename: String, produce_entity_occurrence_count: bool) -> Self {
             let entities_filename = format!("{}.entities", &filename);
             let entities_buf = BufWriter::new(
                 File::create(&entities_filename)
@@ -151,13 +151,13 @@ pub mod embedding {
         }
     }
 
-    impl<'a> EmbeddingPersistor for NpyPersistor<'a> {
+    impl EmbeddingPersistor for NpyPersistor {
         fn put_metadata(&mut self, entity_count: u32, dimension: u16) -> Result<(), io::Error> {
             use ndarray_npy::ViewMutNpyExt;
             write_zeroed_npy::<f32, _>(
                 &self.array_file,
                 [entity_count as usize, dimension as usize],
-            );
+            ).map_err(|_| Error::new(ErrorKind::Other, format!("Write zeroed npy error")));
 
             let file = OpenOptions::new()
                 .read(true)
@@ -168,8 +168,8 @@ pub mod embedding {
             let mut mmap = Box::leak(mmap);
             let mmap_ptr: *mut MmapMut = mmap as *mut _;
 
-            let mut mmap_data = ArrayViewMut2::<'a, f32>::view_mut_npy(mmap)
-                .map_err(|e| Error::new(ErrorKind::Other, format!("TODO rename")))?;
+            let mut mmap_data = ArrayViewMut2::<'static, f32>::view_mut_npy(mmap)
+                .map_err(|_| Error::new(ErrorKind::Other, format!("Mmap view error")))?;
 
             self.array_write_context = Some(NpyWriteContext {
                 mmap_ptr, // will be used to free memory
