@@ -32,10 +32,10 @@ pub mod entity {
 }
 
 pub mod embedding {
-    use memmap::MmapMut;
-    use ndarray::{s, Array, ArrayViewMut2};
+    use crate::persistence::embedding::memmap::OwnedMmapArrayViewMut;
+    use ndarray::{s, Array};
     use ndarray_npy::write_zeroed_npy;
-    use std::fs::{File, OpenOptions};
+    use std::fs::File;
     use std::io;
     use std::io::{BufWriter, Error, ErrorKind, Write};
 
@@ -100,19 +100,63 @@ pub mod embedding {
         }
     }
 
-    struct NpyWriteContext {
-        // Pointer needed to move state between put_metadata and put_data
-        mmap_ptr: *mut MmapMut,
-        mmap_data: Option<ndarray::ArrayViewMut2<'static, f32>>,
-    }
+    mod memmap {
+        use memmap::MmapMut;
+        use ndarray::ArrayViewMut2;
+        use std::fs::OpenOptions;
+        use std::io;
+        use std::io::{Error, ErrorKind};
+        use std::ptr::drop_in_place;
 
-    impl Drop for NpyWriteContext {
-        fn drop(&mut self) {
-            // Unwind references with reverse order.
-            // First remove view that points to mmap_ptr
-            self.mmap_data = None;
-            // And now drop mmap_ptr
-            unsafe { Box::from_raw(self.mmap_ptr) };
+        pub struct OwnedMmapArrayViewMut {
+            mmap_ptr: *mut MmapMut,
+            mmap_data: Option<ndarray::ArrayViewMut2<'static, f32>>,
+        }
+
+        impl OwnedMmapArrayViewMut {
+            pub fn new(filename: &str) -> Result<Self, io::Error> {
+                use ndarray_npy::ViewMutNpyExt;
+
+                let file = OpenOptions::new().read(true).write(true).open(filename)?;
+                let mmap = unsafe { MmapMut::map_mut(&file)? };
+                let mmap = Box::new(mmap);
+                let mmap = Box::leak(mmap);
+                let mmap_ptr: *mut MmapMut = mmap as *mut _;
+
+                let mmap_data = ArrayViewMut2::<'static, f32>::view_mut_npy(mmap)
+                    .map_err(|_| Error::new(ErrorKind::Other, "Mmap view error"))?;
+
+                Ok(Self {
+                    mmap_ptr,
+                    mmap_data: Some(mmap_data),
+                })
+            }
+
+            pub fn data_view<'a>(&'a mut self) -> &'a mut ArrayViewMut2<'a, f32> {
+                let view = self
+                    .mmap_data
+                    .as_mut()
+                    .expect("Should be always defined. None only used in Drop");
+
+                // SAFETY: shortening lifetime from 'static to 'a is safe because underlying buffer won't be dropped until view is borrowed
+                unsafe {
+                    core::mem::transmute::<
+                        &mut ArrayViewMut2<'static, f32>,
+                        &mut ArrayViewMut2<'a, f32>,
+                    >(view)
+                }
+            }
+        }
+
+        impl Drop for OwnedMmapArrayViewMut {
+            fn drop(&mut self) {
+                // Unwind references with reverse order.
+                // First remove view that points to mmap_ptr
+                self.mmap_data = None;
+                // And now drop mmap_ptr
+                // SAFETY: safe because pointer leaked in constructor.
+                unsafe { drop_in_place(self.mmap_ptr) }
+            }
         }
     }
 
@@ -121,7 +165,7 @@ pub mod embedding {
         occurences: Vec<u32>,
         array_file_name: String,
         array_file: File,
-        array_write_context: Option<NpyWriteContext>,
+        array_write_context: Option<OwnedMmapArrayViewMut>,
         occurences_buf: Option<BufWriter<File>>,
         entities_buf: BufWriter<File>,
     }
@@ -163,29 +207,12 @@ pub mod embedding {
 
     impl EmbeddingPersistor for NpyPersistor {
         fn put_metadata(&mut self, entity_count: u32, dimension: u16) -> Result<(), io::Error> {
-            use ndarray_npy::ViewMutNpyExt;
             write_zeroed_npy::<f32, _>(
                 &self.array_file,
                 [entity_count as usize, dimension as usize],
             )
             .map_err(|_| Error::new(ErrorKind::Other, "Write zeroed npy error"))?;
-
-            let file = OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(&self.array_file_name)?;
-            let mmap = unsafe { MmapMut::map_mut(&file)? };
-            let mmap = Box::new(mmap);
-            let mmap = Box::leak(mmap);
-            let mmap_ptr: *mut MmapMut = mmap as *mut _;
-
-            let mmap_data = ArrayViewMut2::<'static, f32>::view_mut_npy(mmap)
-                .map_err(|_| Error::new(ErrorKind::Other, "Mmap view error"))?;
-
-            self.array_write_context = Some(NpyWriteContext {
-                mmap_ptr, // will be used to free memory
-                mmap_data: Some(mmap_data),
-            });
+            self.array_write_context = Some(OwnedMmapArrayViewMut::new(&self.array_file_name)?);
             Ok(())
         }
 
@@ -199,9 +226,7 @@ pub mod embedding {
                 .array_write_context
                 .as_mut()
                 .expect("Should be defined. Was put_metadata not called?")
-                .mmap_data
-                .as_mut()
-                .expect("Should be always defined. None only used in Drop");
+                .data_view();
 
             array
                 .slice_mut(s![self.entities.len(), ..])
