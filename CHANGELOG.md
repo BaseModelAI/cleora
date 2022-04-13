@@ -1,7 +1,17 @@
+# 1.2.1 (April 13, 2022)
+
+### Changed
+- Optimize "--output-format numpy" mode, so it doesn't require additional memory when writing output file ([#50]).
+- Bump libs ([#52]).
+
+[#50]: https://github.com/Synerise/cleora/pull/50
+[#52]: https://github.com/Synerise/cleora/pull/52
+
+
 # 1.2.0 (March 17, 2022)
 
 ### Added
-- Use default hasher for vector init. ([#47]).
+- Use default hasher for vector init ([#47]).
 
 [#47]: https://github.com/Synerise/cleora/pull/47
 
