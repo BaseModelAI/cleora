@@ -32,9 +32,12 @@ pub mod entity {
 }
 
 pub mod embedding {
+    use crate::persistence::embedding::memmap::OwnedMmapArrayViewMut;
+    use ndarray::{s, Array};
+    use ndarray_npy::write_zeroed_npy;
     use std::fs::File;
     use std::io;
-    use std::io::{BufWriter, Write};
+    use std::io::{BufWriter, Error, ErrorKind, Write};
 
     pub trait EmbeddingPersistor {
         fn put_metadata(&mut self, entity_count: u32, dimension: u16) -> Result<(), io::Error>;
@@ -97,12 +100,73 @@ pub mod embedding {
         }
     }
 
+    mod memmap {
+        use memmap::MmapMut;
+        use ndarray::ArrayViewMut2;
+        use std::fs::OpenOptions;
+        use std::io;
+        use std::io::{Error, ErrorKind};
+        use std::ptr::drop_in_place;
+
+        pub struct OwnedMmapArrayViewMut {
+            mmap_ptr: *mut MmapMut,
+            mmap_data: Option<ndarray::ArrayViewMut2<'static, f32>>,
+        }
+
+        impl OwnedMmapArrayViewMut {
+            pub fn new(filename: &str) -> Result<Self, io::Error> {
+                use ndarray_npy::ViewMutNpyExt;
+
+                let file = OpenOptions::new().read(true).write(true).open(filename)?;
+                let mmap = unsafe { MmapMut::map_mut(&file)? };
+                let mmap = Box::new(mmap);
+                let mmap = Box::leak(mmap);
+                let mmap_ptr: *mut MmapMut = mmap as *mut _;
+
+                let mmap_data = ArrayViewMut2::<'static, f32>::view_mut_npy(mmap)
+                    .map_err(|_| Error::new(ErrorKind::Other, "Mmap view error"))?;
+
+                Ok(Self {
+                    mmap_ptr,
+                    mmap_data: Some(mmap_data),
+                })
+            }
+
+            pub fn data_view<'a>(&'a mut self) -> &'a mut ArrayViewMut2<'a, f32> {
+                let view = self
+                    .mmap_data
+                    .as_mut()
+                    .expect("Should be always defined. None only used in Drop");
+
+                // SAFETY: shortening lifetime from 'static to 'a is safe because underlying buffer won't be dropped until view is borrowed
+                unsafe {
+                    core::mem::transmute::<
+                        &mut ArrayViewMut2<'static, f32>,
+                        &mut ArrayViewMut2<'a, f32>,
+                    >(view)
+                }
+            }
+        }
+
+        impl Drop for OwnedMmapArrayViewMut {
+            fn drop(&mut self) {
+                // Unwind references with reverse order.
+                // First remove view that points to mmap_ptr
+                self.mmap_data = None;
+                // And now drop mmap_ptr
+                // SAFETY: safe because pointer leaked in constructor.
+                unsafe { drop_in_place(self.mmap_ptr) }
+            }
+        }
+    }
+
     pub struct NpyPersistor {
         entities: Vec<String>,
         occurences: Vec<u32>,
-        array: Option<ndarray::Array2<f32>>,
+        array_file_name: String,
+        array_file: File,
+        array_write_context: Option<OwnedMmapArrayViewMut>,
         occurences_buf: Option<BufWriter<File>>,
-        array_buf: BufWriter<File>,
         entities_buf: BufWriter<File>,
     }
 
@@ -125,18 +189,17 @@ pub mod embedding {
                 None
             };
 
-            let array_filename = format!("{}.npy", &filename);
-            let array_buf = BufWriter::new(
-                File::create(&array_filename)
-                    .unwrap_or_else(|_| panic!("Unable to create file: {}", &array_filename)),
-            );
+            let array_file_name = format!("{}.npy", &filename);
+            let array_file = File::create(&array_file_name)
+                .unwrap_or_else(|_| panic!("Unable to create file: {}", &array_file_name));
 
             Self {
                 entities: vec![],
                 occurences: vec![],
-                array: None,
+                array_file_name,
+                array_file,
+                array_write_context: None,
                 occurences_buf,
-                array_buf,
                 entities_buf,
             }
         }
@@ -144,10 +207,12 @@ pub mod embedding {
 
     impl EmbeddingPersistor for NpyPersistor {
         fn put_metadata(&mut self, entity_count: u32, dimension: u16) -> Result<(), io::Error> {
-            self.array = Some(ndarray::Array2::zeros((
-                entity_count as usize,
-                dimension as usize,
-            )));
+            write_zeroed_npy::<f32, _>(
+                &self.array_file,
+                [entity_count as usize, dimension as usize],
+            )
+            .map_err(|_| Error::new(ErrorKind::Other, "Write zeroed npy error"))?;
+            self.array_write_context = Some(OwnedMmapArrayViewMut::new(&self.array_file_name)?);
             Ok(())
         }
 
@@ -157,35 +222,24 @@ pub mod embedding {
             occur_count: u32,
             vector: Vec<f32>,
         ) -> Result<(), io::Error> {
-            let array = self.array.as_mut().unwrap();
+            let array = &mut self
+                .array_write_context
+                .as_mut()
+                .expect("Should be defined. Was put_metadata not called?")
+                .data_view();
+
             array
-                .row_mut(self.entities.len())
-                .assign(&ndarray::ArrayView1::from(vector.as_slice()));
+                .slice_mut(s![self.entities.len(), ..])
+                .assign(&Array::from(vector));
             self.entities.push(entity.to_owned());
             self.occurences.push(occur_count);
-
             Ok(())
         }
 
         fn finish(&mut self) -> Result<(), io::Error> {
-            use ndarray::s;
             use ndarray_npy::WriteNpyExt;
-            use std::io::{Error, ErrorKind};
 
             serde_json::to_writer_pretty(&mut self.entities_buf, &self.entities)?;
-
-            let array = self.array.as_ref().expect("Called before put_metadata");
-            // FIXME: This is workaround a bug that caused invalid entites_count being passed via
-            // put_metadata call
-            let array = array.slice(s![0..self.entities.len(), ..]);
-
-            array.write_npy(&mut self.array_buf).map_err(|e| match e {
-                ndarray_npy::WriteNpyError::Io(err) => err,
-                other => Error::new(
-                    ErrorKind::Other,
-                    format!("Could not save embedding array: {}", other),
-                ),
-            })?;
 
             if let Some(occurences_buf) = self.occurences_buf.as_mut() {
                 let occur = ndarray::ArrayView1::from(&self.occurences);
