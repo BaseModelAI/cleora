@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg};
+use clap::{crate_authors, crate_description, crate_name, crate_version, Arg, Command};
 use cleora::configuration;
 use cleora::configuration::Configuration;
 use cleora::configuration::OutputFormat;
@@ -21,59 +21,59 @@ fn main() {
 
     let now = Instant::now();
 
-    let matches = App::new(crate_name!())
+    let matches = Command::new(crate_name!())
         .version(crate_version!())
         .author(crate_authors!())
         .about(crate_description!())
         .arg(
-            Arg::with_name("input")
-                .short("i")
+            Arg::new("input")
+                .short('i')
                 .long("input")
                 .required(true)
                 .help("Input file path")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("file-type")
-                .short("t")
+            Arg::new("file-type")
+                .short('t')
                 .long("type")
                 .possible_values(&["tsv", "json"])
                 .help("Input file type")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("output-dir")
-                .short("o")
+            Arg::new("output-dir")
+                .short('o')
                 .long("output-dir")
                 .help("Output directory for files with embeddings")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("dimension")
-                .short("d")
+            Arg::new("dimension")
+                .short('d')
                 .long("dimension")
                 .required(true)
                 .help("Embedding dimension size")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("number-of-iterations")
-                .short("n")
+            Arg::new("number-of-iterations")
+                .short('n')
                 .long("number-of-iterations")
                 .required(true)
                 .help("Max number of iterations")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("seed")
-                .short("s")
+            Arg::new("seed")
+                .short('s')
                 .long("seed")
                 .help("Seed (integer) for embedding initialization")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("columns")
-                .short("c")
+            Arg::new("columns")
+                .short('c')
                 .long("columns")
                 .required(true)
                 .help(
@@ -82,16 +82,16 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("relation-name")
-                .short("r")
+            Arg::new("relation-name")
+                .short('r')
                 .long("relation-name")
                 .default_value("emb")
                 .help("Name of the relation, for output filename generation")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("prepend-field-name")
-                .short("p")
+            Arg::new("prepend-field-name")
+                .short('p')
                 .long("prepend-field-name")
                 .possible_values(&["0", "1"])
                 .default_value("0")
@@ -99,16 +99,16 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("log-every-n")
-                .short("l")
+            Arg::new("log-every-n")
+                .short('l')
                 .long("log-every-n")
                 .default_value("10000")
                 .help("Log output every N lines")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("in-memory-embedding-calculation")
-                .short("e")
+            Arg::new("in-memory-embedding-calculation")
+                .short('e')
                 .long("in-memory-embedding-calculation")
                 .possible_values(&["0", "1"])
                 .default_value("1")
@@ -116,8 +116,8 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("output-format")
-                .short("f")
+            Arg::new("output-format")
+                .short('f')
                 .help("Output format. One of: textfile|numpy")
                 .possible_values(&["textfile", "numpy"])
                 .default_value("textfile")
