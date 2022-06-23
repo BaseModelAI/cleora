@@ -36,8 +36,8 @@ pub struct Configuration {
     /// RAM we can support training with mmap files
     pub in_memory_embedding_calculation: bool,
 
-    /// Path to the input file
-    pub input: String,
+    /// Paths to the input files
+    pub input: Vec<String>,
 
     /// Type of the input file
     pub file_type: FileType,
@@ -86,7 +86,7 @@ impl Configuration {
             log_every_n: 1000,
             in_memory_embedding_calculation: true,
             file_type: FileType::Tsv,
-            input,
+            input: vec![input],
             output_dir: None,
             output_format: OutputFormat::TextFile,
             relation_name: String::from("emb"),

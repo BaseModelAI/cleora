@@ -30,7 +30,8 @@ fn main() {
                 .short('i')
                 .long("input")
                 .required(true)
-                .help("Input file path")
+                .use_value_delimiter(true)
+                .help("Input file path. Can be a comma-separated list of input files.")
                 .takes_value(true),
         )
         .arg(
@@ -127,7 +128,11 @@ fn main() {
 
     info!("Reading args...");
 
-    let input = matches.value_of("input").unwrap();
+    let input = matches
+        .values_of("input")
+        .unwrap()
+        .map(|v| v.to_string())
+        .collect();
     let file_type = match matches.value_of("file-type") {
         Some(type_name) => match type_name {
             "tsv" => configuration::FileType::Tsv,
@@ -192,7 +197,7 @@ fn main() {
         prepend_field: prepend_field_name,
         log_every_n: log_every,
         in_memory_embedding_calculation,
-        input: input.to_string(),
+        input,
         file_type,
         output_dir,
         output_format,
