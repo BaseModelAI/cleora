@@ -1,3 +1,11 @@
+# 1.2.2 (June 24, 2022)
+
+### Changed
+- Allow cleora to accept multiple input files as positional args. Named argument 'input' is getting deprecated.
+
+[#55]: https://github.com/Synerise/cleora/pull/55
+
+
 # 1.2.1 (April 13, 2022)
 
 ### Changed
