@@ -81,7 +81,7 @@ pub fn build_graphs(
 }
 
 /// Read file line by line. Pass every valid line to handler for parsing.
-fn read_file<F>(filepath: &String, log_every: u64, mut line_handler: F)
+fn read_file<F>(filepath: &str, log_every: u64, mut line_handler: F)
 where
     F: FnMut(&str),
 {
