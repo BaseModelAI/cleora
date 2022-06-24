@@ -26,11 +26,16 @@ fn main() {
         .author(crate_authors!())
         .about(crate_description!())
         .arg(
+            Arg::new("inputs")
+                .multiple_values(true)
+                .help("Input files paths")
+                .takes_value(true),
+        )
+        .arg(
             Arg::new("input")
                 .short('i')
                 .long("input")
-                .required(true)
-                .help("Input file path")
+                .help("Deprecated. Use positional args for input files")
                 .takes_value(true),
         )
         .arg(
@@ -127,7 +132,22 @@ fn main() {
 
     info!("Reading args...");
 
-    let input = matches.value_of("input").unwrap();
+    let input: Vec<String> = {
+        let named_arg = matches.value_of("input");
+        let position_args = match matches.values_of("inputs") {
+            None => vec![],
+            Some(values) => values.into_iter().collect(),
+        };
+        position_args
+            .into_iter()
+            .chain(named_arg.into_iter())
+            .map(|s| s.to_string())
+            .collect()
+    };
+    if input.is_empty() {
+        panic!("Missing input files")
+    }
+
     let file_type = match matches.value_of("file-type") {
         Some(type_name) => match type_name {
             "tsv" => configuration::FileType::Tsv,
@@ -192,7 +212,7 @@ fn main() {
         prepend_field: prepend_field_name,
         log_every_n: log_every,
         in_memory_embedding_calculation,
-        input: input.to_string(),
+        input,
         file_type,
         output_dir,
         output_format,

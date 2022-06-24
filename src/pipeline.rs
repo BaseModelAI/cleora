@@ -50,16 +50,20 @@ pub fn build_graphs(
     match &config.file_type {
         FileType::Json => {
             let mut parser = dom::Parser::default();
-            read_file(config, |line| {
-                let row = parse_json_line(line, &mut parser, &config.columns);
-                entity_processor.process_row(&row);
-            });
+            for input in config.input.iter() {
+                read_file(input, config.log_every_n as u64, |line| {
+                    let row = parse_json_line(line, &mut parser, &config.columns);
+                    entity_processor.process_row(&row);
+                });
+            }
         }
         FileType::Tsv => {
-            read_file(config, |line| {
-                let row = parse_tsv_line(line);
-                entity_processor.process_row(&row);
-            });
+            for input in config.input.iter() {
+                read_file(input, config.log_every_n as u64, |line| {
+                    let row = parse_tsv_line(line);
+                    entity_processor.process_row(&row);
+                });
+            }
         }
     }
 
@@ -77,11 +81,11 @@ pub fn build_graphs(
 }
 
 /// Read file line by line. Pass every valid line to handler for parsing.
-fn read_file<F>(config: &Configuration, mut line_handler: F)
+fn read_file<F>(filepath: &str, log_every: u64, mut line_handler: F)
 where
     F: FnMut(&str),
 {
-    let input_file = File::open(&config.input).expect("Can't open file");
+    let input_file = File::open(filepath).expect("Can't open file");
     let mut buffered = BufReader::new(input_file);
 
     let mut line_number = 1u64;
@@ -104,7 +108,7 @@ where
         // clear to reuse the buffer
         line.clear();
 
-        if line_number % config.log_every_n as u64 == 0 {
+        if line_number % log_every == 0 {
             info!("Number of lines processed: {}", line_number);
         }
 

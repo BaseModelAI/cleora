@@ -87,7 +87,7 @@ fn prepare_config() -> Configuration {
         prepend_field: false,
         log_every_n: 10000,
         in_memory_embedding_calculation: true,
-        input: "files/samples/edgelist_1.tsv".to_string(),
+        input: vec!["files/samples/edgelist_1.tsv".to_string()],
         file_type: FileType::Tsv,
         output_format: OutputFormat::TextFile,
         output_dir: None,
