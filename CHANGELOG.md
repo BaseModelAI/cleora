@@ -1,3 +1,16 @@
+# 1.2.3 (June 29, 2022)
+
+### Changed
+- Bump libs ([#60]).
+
+[#60]: https://github.com/Synerise/cleora/pull/60
+
+### Fixed
+- Check for malformed lines in input ([#59]).
+
+[#59]: https://github.com/Synerise/cleora/pull/59
+
+
 # 1.2.2 (June 24, 2022)
 
 ### Changed
