@@ -152,7 +152,7 @@ dependencies = [
 
 [[package]]
 name = "cleora"
-version = "1.2.2"
+version = "1.2.3"
 dependencies = [
  "bus",
  "clap 3.1.8",
