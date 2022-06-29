@@ -13,21 +13,21 @@ Cleora is a general-purpose model for efficient, scalable learning of stable and
 rustflags = ["-C", "target-cpu=native"]
 
 [dependencies]
-bus = "2.2.3"
+bus = "2.2.4"
 clap = { version = "3.1.8", features = ["cargo"] }
 env_logger = "0.9.0"
-log = "0.4.11"
+log = "0.4.17"
 memmap = "0.7.0"
-rayon = "1.5.1"
+rayon = "1.5.3"
 rustc-hash = "1.1.0"
-smallvec = "1.8.0"
-twox-hash = "1.6.2"
+smallvec = "1.8.1"
+twox-hash = "1.6.3"
 simdjson-rust = {git = "https://github.com/SunDoge/simdjson-rust"}
-ryu = "1.0.9"
+ryu = "1.0.10"
 ndarray = "0.15.4"
 ndarray-npy = "0.8.1"
-serde_json = "1.0.79"
-uuid = { version = "0.8.2", features = ["v4"] }
+serde_json = "1.0.81"
+uuid = { version = "1.1.2", features = ["v4"] }
 
 [dev-dependencies]
 criterion = "0.3.3"
