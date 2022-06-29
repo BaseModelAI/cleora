@@ -8,7 +8,7 @@ use crate::persistence::embedding::{EmbeddingPersistor, NpyPersistor, TextFileVe
 use crate::persistence::entity::InMemoryEntityMappingPersistor;
 use crate::sparse_matrix::{create_sparse_matrices, SparseMatrix};
 use bus::Bus;
-use log::{error, info};
+use log::{error, info, warn};
 use simdjson_rust::dom;
 use smallvec::{smallvec, SmallVec};
 use std::sync::Arc;
@@ -58,10 +58,16 @@ pub fn build_graphs(
             }
         }
         FileType::Tsv => {
+            let config_col_num = config.columns.len();
             for input in config.input.iter() {
                 read_file(input, config.log_every_n as u64, |line| {
                     let row = parse_tsv_line(line);
-                    entity_processor.process_row(&row);
+                    let line_col_num = row.len();
+                    if line_col_num == config_col_num {
+                        entity_processor.process_row(&row);
+                    } else {
+                        warn!("Wrong number of columns (expected: {}, provided: {}). The line [{}] is skipped.", config_col_num, line_col_num, line);
+                    }
                 });
             }
         }
