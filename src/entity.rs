@@ -179,7 +179,7 @@ where
     }
 
     #[inline(always)]
-    fn update_entity_mapping(&mut self, entity: &str, hash: u64, column: &Column) {
+    fn update_entity_mapping(&self, entity: &str, hash: u64, column: &Column) {
         if !column.transient && !self.entity_mapping_persistor.contains(hash) {
             let entry = if self.config.prepend_field {
                 let mut entry = column.name.clone();
@@ -229,11 +229,6 @@ where
             }
             arr
         })
-    }
-
-    pub fn finish(&mut self) {
-        let end_vec = vec![0u64];
-        (self.hashes_handler)(SmallVec::from_vec(end_vec));
     }
 }
 
