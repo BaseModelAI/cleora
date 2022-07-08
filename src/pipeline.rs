@@ -214,7 +214,7 @@ pub fn train(
     }
 
     for join_handle in embedding_threads {
-        let _ = join_handle
+        join_handle
             .join()
             .expect("Couldn't join on the associated thread");
     }
