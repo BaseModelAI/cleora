@@ -4,8 +4,8 @@ use cleora::persistence::embedding::EmbeddingPersistor;
 use cleora::persistence::entity::InMemoryEntityMappingPersistor;
 use cleora::pipeline::build_graphs;
 use insta::assert_debug_snapshot;
-use std::io;
 use std::sync::Arc;
+use std::{fmt, io};
 
 /// This test performs work for sample case and saves snapshot file.
 /// Snapshot testing takes advantage of deterministic character of Cleora.
@@ -46,6 +46,10 @@ fn test_build_graphs_and_create_embeddings() {
             in_memory_entity_mapping_persistor.clone(),
             &mut in_memory_embedding_persistor,
         );
+        in_memory_embedding_persistor
+            .entities
+            .sort_by_key(|e| e.entity.clone());
+
         assert_debug_snapshot!(snapshot_name.clone(), in_memory_embedding_persistor);
 
         let mut in_memory_embedding_persistor = InMemoryEmbeddingPersistor::default();
@@ -56,6 +60,10 @@ fn test_build_graphs_and_create_embeddings() {
             in_memory_entity_mapping_persistor.clone(),
             &mut in_memory_embedding_persistor,
         );
+        in_memory_embedding_persistor
+            .entities
+            .sort_by_key(|e| e.entity.clone());
+
         assert_debug_snapshot!(snapshot_name, in_memory_embedding_persistor);
     }
 }
@@ -104,11 +112,28 @@ struct InMemoryEmbeddingPersistor {
     entities: Vec<InMemoryEntity>,
 }
 
-#[derive(Debug)]
 struct InMemoryEntity {
     entity: String,
     occur_count: u32,
     vector: Vec<f32>,
+}
+
+/// Custom implementation used so we can round up floats in vector
+/// Depending on order of floating operations we might have different results on the last digits
+/// Print floats up to 3 digits to not hard-wire our snapshot tests to specific operation order
+impl fmt::Debug for InMemoryEntity {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "InMemoryEntity {{")?;
+        writeln!(f, "    entity: \"{}\",", self.entity)?;
+        writeln!(f, "    occur_count: {},", self.occur_count)?;
+        writeln!(f, "    vector: [")?;
+        for val in &self.vector {
+            writeln!(f, "        {:.3?},", val)?;
+        }
+        writeln!(f, "    ],")?;
+        write!(f, "}}")?;
+        Ok(())
+    }
 }
 
 impl EmbeddingPersistor for InMemoryEmbeddingPersistor {
