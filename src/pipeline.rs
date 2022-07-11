@@ -30,37 +30,34 @@ pub fn build_graphs(
         let rx = bus.add_rx();
         let handle = thread::spawn(move || {
             for received in rx {
-                if received[0] != 0 {
-                    sparse_matrix.handle_pair(&received);
-                } else {
-                    sparse_matrix.finish();
-                    break;
-                }
+                sparse_matrix.handle_pair(&received);
             }
+            sparse_matrix.finish();
             sparse_matrix
         });
         sparse_matrix_threads.push(handle);
     }
 
-    let mut entity_processor =
-        EntityProcessor::new(config, in_memory_entity_mapping_persistor, |hashes| {
-            bus.broadcast(hashes);
-        });
+    for input in config.input.iter() {
+        let mut entity_processor = EntityProcessor::new(
+            config,
+            in_memory_entity_mapping_persistor.clone(),
+            |hashes| {
+                bus.broadcast(hashes);
+            },
+        );
 
-    match &config.file_type {
-        FileType::Json => {
-            let mut parser = dom::Parser::default();
-            for input in config.input.iter() {
-                read_file(input, config.log_every_n as u64, |line| {
+        match &config.file_type {
+            FileType::Json => {
+                let mut parser = dom::Parser::default();
+                read_file(input, config.log_every_n as u64, move |line| {
                     let row = parse_json_line(line, &mut parser, &config.columns);
                     entity_processor.process_row(&row);
                 });
             }
-        }
-        FileType::Tsv => {
-            let config_col_num = config.columns.len();
-            for input in config.input.iter() {
-                read_file(input, config.log_every_n as u64, |line| {
+            FileType::Tsv => {
+                let config_col_num = config.columns.len();
+                read_file(input, config.log_every_n as u64, move |line| {
                     let row = parse_tsv_line(line);
                     let line_col_num = row.len();
                     if line_col_num == config_col_num {
@@ -73,7 +70,7 @@ pub fn build_graphs(
         }
     }
 
-    entity_processor.finish();
+    drop(bus);
 
     let mut sparse_matrices = vec![];
     for join_handle in sparse_matrix_threads {
@@ -217,7 +214,7 @@ pub fn train(
     }
 
     for join_handle in embedding_threads {
-        let _ = join_handle
+        join_handle
             .join()
             .expect("Couldn't join on the associated thread");
     }
