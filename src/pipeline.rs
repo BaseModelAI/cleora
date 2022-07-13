@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
@@ -6,13 +7,17 @@ use crate::embedding::{calculate_embeddings, calculate_embeddings_mmap};
 use crate::entity::{EntityProcessor, SMALL_VECTOR_SIZE};
 use crate::persistence::embedding::{EmbeddingPersistor, NpyPersistor, TextFileVectorPersistor};
 use crate::persistence::entity::InMemoryEntityMappingPersistor;
-use crate::sparse_matrix::{create_sparse_matrices, SparseMatrix};
-use bus::Bus;
+use crate::sparse_matrix::{create_sparse_matrices_descriptors, SparseMatrix};
+use crate::sparse_matrix_builder::{NodeIndexerBuilder, SparseMatrixBuffersReducer};
+use crossbeam::channel;
+use crossbeam::thread as cb_thread;
 use log::{error, info, warn};
+use num_cpus;
 use simdjson_rust::dom;
 use smallvec::{smallvec, SmallVec};
 use std::sync::Arc;
 use std::thread;
+use std::time::Instant;
 
 /// Create SparseMatrix'es based on columns config. Every SparseMatrix operates in separate
 /// thread. EntityProcessor reads data in main thread and broadcast cartesian products
@@ -21,66 +26,149 @@ pub fn build_graphs(
     config: &Configuration,
     in_memory_entity_mapping_persistor: Arc<InMemoryEntityMappingPersistor>,
 ) -> Vec<SparseMatrix> {
-    let sparse_matrices = create_sparse_matrices(&config.columns);
-    dbg!(&sparse_matrices);
+    let sparse_matrices_desc = Arc::new(create_sparse_matrices_descriptors(&config.columns));
+    dbg!(&sparse_matrices_desc);
 
-    let mut bus: Bus<SmallVec<[u64; SMALL_VECTOR_SIZE]>> = Bus::new(128);
-    let mut sparse_matrix_threads = Vec::new();
-    for mut sparse_matrix in sparse_matrices {
-        let rx = bus.add_rx();
-        let handle = thread::spawn(move || {
-            for received in rx {
-                sparse_matrix.handle_pair(&received);
+    let node_indexer_builders: Vec<Box<NodeIndexerBuilder>> = sparse_matrices_desc
+        .iter()
+        .map(|md| Box::new(NodeIndexerBuilder::new(md)))
+        .collect();
+
+    let processing_worker_num = num_cpus::get();
+    let buffers: Vec<_> = cb_thread::scope(|s| {
+        let (hyperedges_s, hyperedges_r) = channel::bounded(processing_worker_num * 64);
+
+        {
+            let (files_s, files_r) = channel::unbounded();
+            for input in &config.input {
+                files_s.send(input).unwrap()
             }
-            sparse_matrix.finish();
-            sparse_matrix
-        });
-        sparse_matrix_threads.push(handle);
-    }
 
-    for input in config.input.iter() {
-        let mut entity_processor = EntityProcessor::new(
-            config,
-            in_memory_entity_mapping_persistor.clone(),
-            |hashes| {
-                bus.broadcast(hashes);
-            },
-        );
+            let file_reading_worker_num = min(4, config.input.len());
 
-        match &config.file_type {
-            FileType::Json => {
-                let mut parser = dom::Parser::default();
-                read_file(input, config.log_every_n as u64, move |line| {
-                    let row = parse_json_line(line, &mut parser, &config.columns);
-                    entity_processor.process_row(&row);
-                });
-            }
-            FileType::Tsv => {
-                let config_col_num = config.columns.len();
-                read_file(input, config.log_every_n as u64, move |line| {
-                    let row = parse_tsv_line(line);
-                    let line_col_num = row.len();
-                    if line_col_num == config_col_num {
-                        entity_processor.process_row(&row);
-                    } else {
-                        warn!("Wrong number of columns (expected: {}, provided: {}). The line [{}] is skipped.", config_col_num, line_col_num, line);
+            for _ in 0..file_reading_worker_num {
+                let row_s = hyperedges_s.clone();
+                let files_r = files_r.clone();
+
+                match &config.file_type {
+                    FileType::Json => {
+                        s.spawn(move |_| {
+                            let mut parser = dom::Parser::default();
+
+                            for input in files_r {
+                                read_file(input, config.log_every_n as u64, |line| {
+                                    let row = parse_json_line(line, &mut parser, &config.columns);
+                                    row_s.send(row).unwrap();
+                                })
+                            }
+                        });
                     }
-                });
+                    FileType::Tsv => {
+                        let config_col_num = config.columns.len();
+                        s.spawn(move |_| {
+                            for input in files_r {
+                                read_file(input, config.log_every_n as u64, |line| {
+                                    let row = parse_tsv_line(line);
+                                    let line_col_num = row.len();
+                                    if line_col_num == config_col_num {
+                                        row_s.send(row).unwrap();
+                                    } else {
+                                        warn!("Wrong number of columns (expected: {}, provided: {}). The line [{}] is skipped.", config_col_num, line_col_num, line);
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }
             }
         }
+
+        #[allow(clippy::needless_collect)]  // Must collect because of 'drop' calls below
+        let buffers_handles: Vec<_> = (0..processing_worker_num).map(|_| {
+            let hyperedges_r = hyperedges_r.clone();
+            let entity_processor = EntityProcessor::new(
+                config,
+                in_memory_entity_mapping_persistor.clone(),
+            );
+            let sparse_matrices = sparse_matrices_desc.clone();
+            let hyperedge_indexers = &node_indexer_builders;
+
+            s.spawn(move |_| {
+                let mut buffers: Vec<_> = sparse_matrices.iter().map(|smd| smd.make_buffer()).collect();
+
+                for row in hyperedges_r {
+                    let hyperedge = entity_processor.process_row_and_get_edges(&row);
+
+                    for i in 0..sparse_matrices.len() {
+                        let buffer = &mut buffers[i];
+                        let hyperedge_indexer = &hyperedge_indexers[i];
+
+                        hyperedge_indexer.process(&hyperedge);
+
+                        for hashes in hyperedge.edges_iter() {
+                            buffer.handle_pair(&hashes);
+                        }
+                    }
+                }
+
+                buffers
+            })
+        }).collect();
+
+        // Drop it so all channels are closed when work is finished
+        drop(hyperedges_s);
+        drop(hyperedges_r);
+
+        buffers_handles.into_iter().map(|h| h.join().expect("Thread finished job")).collect()
+    }).expect("Threads finished work");
+
+    let merging_time = Instant::now();
+
+    // (WORKER_IX, MATRIX_IX) -> (MATRIX_IX, WORKER_IX)
+    let buffers = transpose(buffers);
+
+    let result = buffers
+        .into_iter()
+        .zip(node_indexer_builders.into_iter())
+        .map(|(parts, node_indexer_builder)| {
+            assert_eq!(parts.len(), processing_worker_num);
+            let node_indexer = node_indexer_builder.finish();
+            SparseMatrixBuffersReducer::new(node_indexer, parts).reduce()
+        })
+        .collect();
+
+    info!(
+        "Merging finished in {} sec",
+        merging_time.elapsed().as_secs()
+    );
+
+    result
+}
+
+fn transpose<T>(vec_2d: Vec<Vec<T>>) -> Vec<Vec<T>> {
+    let dim_0_size = vec_2d.len();
+    if dim_0_size == 0 {
+        panic!("Cannot transpose empty list. Dim=0")
+    }
+    let dim_1_size = vec_2d[0].len();
+    if dim_1_size == 0 {
+        panic!("Cannot transpose empty list. Dim=1")
     }
 
-    drop(bus);
-
-    let mut sparse_matrices = vec![];
-    for join_handle in sparse_matrix_threads {
-        let sparse_matrix = join_handle
-            .join()
-            .expect("Couldn't join on the associated thread");
-        sparse_matrices.push(sparse_matrix);
+    let mut vec_2d_transposed = Vec::with_capacity(dim_1_size);
+    for _ in 0..dim_1_size {
+        vec_2d_transposed.push(Vec::with_capacity(dim_0_size))
     }
+    for row in vec_2d.into_iter() {
+        if row.len() != dim_1_size {
+            panic!("Not aligned DIM=1")
+        }
 
-    sparse_matrices
+        for (col_ix, v) in row.into_iter().enumerate() {
+            vec_2d_transposed[col_ix].push(v)
+        }
+    }
+    vec_2d_transposed
 }
 
 /// Read file line by line. Pass every valid line to handler for parsing.
@@ -154,9 +242,11 @@ fn parse_json_line(
 }
 
 /// Parse a line of TSV and read its columns into a vector for processing.
-fn parse_tsv_line(line: &str) -> Vec<SmallVec<[&str; SMALL_VECTOR_SIZE]>> {
+fn parse_tsv_line(line: &str) -> Vec<SmallVec<[String; SMALL_VECTOR_SIZE]>> {
     let values = line.trim().split('\t');
-    values.map(|c| c.split(' ').collect()).collect()
+    values
+        .map(|c| c.split(' ').map(|s| s.to_owned()).collect())
+        .collect()
 }
 
 /// Train SparseMatrix'es (graphs) in separated threads.
@@ -180,8 +270,8 @@ pub fn train(
                 "{}{}__{}__{}.out",
                 directory,
                 config.relation_name,
-                sparse_matrix.col_a_name.as_str(),
-                sparse_matrix.col_b_name.as_str()
+                sparse_matrix.descriptor.col_a_name.as_str(),
+                sparse_matrix.descriptor.col_b_name.as_str()
             );
 
             let mut persistor: Box<dyn EmbeddingPersistor> = match &config.output_format {

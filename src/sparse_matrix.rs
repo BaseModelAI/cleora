@@ -1,8 +1,4 @@
 use crate::configuration::Column;
-use log::info;
-use rustc_hash::FxHashMap;
-use std::collections::hash_map;
-use std::mem;
 
 /// Creates combinations of column pairs as sparse matrices.
 /// Let's say that we have such columns configuration: complex::a reflexive::complex::b c. This is provided
@@ -20,8 +16,8 @@ use std::mem;
 /// Apart from column names in sparse matrix we provide indices for incoming data. We have 3 columns such as a, b and c
 /// but column b is reflexive so we need to include this column. The result is: (a, b, c, b).
 /// The rule is that every reflexive column is append with the order of occurrence to the end of constructed array.
-pub fn create_sparse_matrices(cols: &[Column]) -> Vec<SparseMatrix> {
-    let mut sparse_matrices: Vec<SparseMatrix> = Vec::new();
+pub fn create_sparse_matrices_descriptors(cols: &[Column]) -> Vec<SparseMatrixDescriptor> {
+    let mut sparse_matrix_builders: Vec<SparseMatrixDescriptor> = Vec::new();
     let num_fields = cols.len();
     let mut reflexive_count = 0;
 
@@ -30,26 +26,31 @@ pub fn create_sparse_matrices(cols: &[Column]) -> Vec<SparseMatrix> {
             let col_i = &cols[i];
             let col_j = &cols[j];
             if i < j && !(col_i.transient && col_j.transient) {
-                let sm =
-                    SparseMatrix::new(i as u8, col_i.name.clone(), j as u8, col_j.name.clone());
-                sparse_matrices.push(sm);
+                let sm = SparseMatrixDescriptor::new(
+                    i as u8,
+                    col_i.name.clone(),
+                    j as u8,
+                    col_j.name.clone(),
+                );
+                sparse_matrix_builders.push(sm);
             } else if i == j && col_i.reflexive {
                 let new_j = num_fields + reflexive_count;
                 reflexive_count += 1;
-                let sm =
-                    SparseMatrix::new(i as u8, col_i.name.clone(), new_j as u8, col_j.name.clone());
-                sparse_matrices.push(sm);
+                let sm = SparseMatrixDescriptor::new(
+                    i as u8,
+                    col_i.name.clone(),
+                    new_j as u8,
+                    col_j.name.clone(),
+                );
+                sparse_matrix_builders.push(sm);
             }
         }
     }
-    sparse_matrices
+    sparse_matrix_builders
 }
 
-/// Represents graph based on incoming data.
-/// It follows the sparse matrix coordinate format (COO). Its purpose is to save space by holding only
-/// the coordinates and values of nonzero entities.
-#[derive(Debug)]
-pub struct SparseMatrix {
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct SparseMatrixDescriptor {
     /// First column index for which we creates subgraph
     pub col_a_id: u8,
 
@@ -61,24 +62,34 @@ pub struct SparseMatrix {
 
     /// Second column name
     pub col_b_name: String,
+}
 
-    /// Counts every occurrence of entity relationships from first and second column
-    edge_count: u32,
-
-    /// Maps entity hash to the id in such a way that each new hash gets another id (id + 1)
-    hash_2_id: FxHashMap<u64, u32>,
+/// Represents graph based on incoming data.
+/// It follows the sparse matrix coordinate format (COO). Its purpose is to save space by holding only
+/// the coordinates and values of nonzero entities.
+#[derive(Debug)]
+pub struct SparseMatrix {
+    pub descriptor: SparseMatrixDescriptor,
 
     /// Maps id to hash value and occurrence
     id_2_hash: Vec<Hash>,
 
-    /// Holds the sum of the values for each row
-    row_sum: Vec<f32>,
-
-    /// Maps a unique value (as combination of two numbers) to `entries` index
-    pair_index: FxHashMap<u64, u32>,
-
     /// Coordinates and values of nonzero entities
     entries: Vec<Entry>,
+}
+
+impl SparseMatrix {
+    pub fn new(
+        descriptor: SparseMatrixDescriptor,
+        id_2_hash: Vec<Hash>,
+        entries: Vec<Entry>,
+    ) -> Self {
+        Self {
+            descriptor,
+            id_2_hash,
+            entries,
+        }
+    }
 }
 
 /// Hash data
@@ -89,15 +100,6 @@ pub struct Hash {
 
     /// Number of hash occurrences
     pub occurrence: u32,
-}
-
-impl Hash {
-    fn new(value: u64) -> Self {
-        Self {
-            value,
-            occurrence: 1,
-        }
-    }
 }
 
 /// Sparse matrix coordinate entry
@@ -142,167 +144,9 @@ impl<T: Copy> Iterator for CopyIter<'_, T> {
     }
 }
 
-impl SparseMatrix {
-    pub fn new(col_a_id: u8, col_a_name: String, col_b_id: u8, col_b_name: String) -> Self {
-        Self {
-            col_a_id,
-            col_a_name,
-            col_b_id,
-            col_b_name,
-            edge_count: 0,
-            hash_2_id: FxHashMap::default(),
-            id_2_hash: Vec::new(),
-            row_sum: Vec::new(),
-            pair_index: FxHashMap::default(),
-            entries: Vec::new(),
-        }
-    }
-
-    /// Handles hashes for one combination of incoming data. Let's say that input row looks like:
-    /// userId1   | productId1, productId2  | brandId1, brandId2
-    /// Note! To simplify explanation there is no any reflexive column so the result is:
-    /// (userId1, productId1, brandId1),
-    /// (userId1, productId1, brandId2),
-    /// (userId1, productId2, brandId1),
-    /// (userId1, productId2, brandId2)
-    /// These cartesian products are provided as array of hashes. Sparse matrix has indices
-    /// `col_a_id` and `col_b_id` (to corresponding columns) in order to read interesting hashes
-    /// from provided slice. For one input row we actually call this function 4 times.
-    pub fn handle_pair(&mut self, hashes: &[u64]) {
-        let a = self.col_a_id;
-        let b = self.col_b_id;
-        self.add_pair_symmetric(
-            hashes[(a + 1) as usize],
-            hashes[(b + 1) as usize],
-            hashes[0],
-        );
-    }
-
-    /// It creates sparse matrix for two columns in the incoming data.
-    /// Let's say that we have such columns:
-    /// customers | products                | brands
-    /// incoming data:
-    /// userId1   | productId1, productId2  | brandId1, brandId2
-    /// userId2   | productId1              | brandId3, brandId4, brandId5
-    /// etc.
-    /// One of the sparse matrices could represent customers and products relation (products and brands relation, customers and brands relation).
-    /// This sparse matrix (customers and products relation) handles every combination in these columns according to
-    /// total combinations in a row.
-    /// The first row in the incoming data produces two combinations according to 4 total combinations:
-    /// userId1, productId1 and userId1, productId2
-    /// The second row produces one combination userId2, productId1 according to 3 total combinations.
-    /// `a_hash` - hash of a entity for a column A
-    /// `b_hash` - hash of a entity for a column B
-    /// `count` - total number of combinations in a row
-    fn add_pair_symmetric(&mut self, a_hash: u64, b_hash: u64, count: u64) {
-        let a = self.update_hash_and_get_id(a_hash);
-        let b = self.update_hash_and_get_id(b_hash);
-
-        let value = 1f32 / (count as f32);
-
-        self.edge_count += 1;
-
-        self.add_or_update_entry(a, b, value);
-        self.add_or_update_entry(b, a, value);
-
-        self.update_row_sum(a, value);
-        self.update_row_sum(b, value);
-    }
-
-    fn update_hash_and_get_id(&mut self, hash: u64) -> u32 {
-        match self.hash_2_id.entry(hash) {
-            hash_map::Entry::Vacant(entry) => {
-                let id = self.id_2_hash.len() as u32;
-                entry.insert(id);
-                self.id_2_hash.push(Hash::new(hash));
-                id
-            }
-            hash_map::Entry::Occupied(entry) => {
-                let id = *entry.get();
-                self.id_2_hash[id as usize].occurrence += 1;
-                id
-            }
-        }
-    }
-
-    fn add_or_update_entry(&mut self, x: u32, y: u32, val: f32) {
-        let magic = Self::magic_pair(x, y);
-        let num_of_entries = self.entries.len() as u32;
-        let position = *self.pair_index.entry(magic).or_insert(num_of_entries);
-
-        if position < num_of_entries {
-            self.entries[position as usize].value += val;
-        } else {
-            let entry = Entry {
-                row: x,
-                col: y,
-                value: val,
-            };
-            self.entries.push(entry);
-        }
-    }
-
-    /// Combining two numbers into a unique one: pairing functions.
-    /// It uses "elegant pairing" (https://odino.org/combining-two-numbers-into-a-unique-one-pairing-functions/).
-    fn magic_pair(a: u32, b: u32) -> u64 {
-        let x = u64::from(a);
-        let y = u64::from(b);
-        if x >= y {
-            x * x + x + y
-        } else {
-            y * y + x
-        }
-    }
-
-    fn update_row_sum(&mut self, id: u32, val: f32) {
-        let id = id as usize;
-        if id < self.row_sum.len() {
-            self.row_sum[id] += val;
-        } else {
-            self.row_sum.push(val);
-        };
-    }
-
-    /// Normalization and other tasks after sparse matrix construction.
-    pub fn finish(&mut self) {
-        self.normalize();
-
-        info!("Number of entities: {}", self.get_number_of_entities());
-        info!("Number of edges: {}", self.edge_count);
-        info!("Number of entries: {}", self.get_number_of_entries());
-
-        let hash_2_id_mem_size = self.hash_2_id.capacity() * 12;
-        let hash_mem_size = mem::size_of::<Hash>();
-        let id_2_hash_mem_size = self.id_2_hash.capacity() * hash_mem_size;
-        let row_sum_mem_size = self.row_sum.capacity() * 4;
-        let pair_index_mem_size = self.pair_index.capacity() * 12;
-
-        let entry_mem_size = mem::size_of::<Entry>();
-        let entries_mem_size = self.entries.capacity() * entry_mem_size;
-
-        let total_mem_size = hash_2_id_mem_size
-            + id_2_hash_mem_size
-            + row_sum_mem_size
-            + pair_index_mem_size
-            + entries_mem_size;
-
-        info!(
-            "Total memory usage by the struct ~ {} MB",
-            (total_mem_size / 1048576)
-        );
-    }
-
-    /// Normalize entries by dividing every entry value by row sum
-    fn normalize(&mut self) {
-        for entry in self.entries.iter_mut() {
-            entry.value /= self.row_sum[entry.row as usize];
-        }
-    }
-}
-
 impl SparseMatrixReader for SparseMatrix {
     fn get_id(&self) -> String {
-        format!("{}_{}", self.col_a_id, self.col_b_id)
+        format!("{}_{}", self.descriptor.col_a_id, self.descriptor.col_b_id)
     }
 
     fn get_number_of_entities(&self) -> u32 {
@@ -327,26 +171,36 @@ impl SparseMatrixReader for SparseMatrix {
 #[cfg(test)]
 mod tests {
     use crate::configuration::Column;
-    use crate::sparse_matrix::{create_sparse_matrices, Entry, SparseMatrix, SparseMatrixReader};
+    use crate::sparse_matrix::{
+        create_sparse_matrices_descriptors, Entry, SparseMatrixDescriptor, SparseMatrixReader,
+    };
+    use crate::sparse_matrix_builder::{NodeIndexer, SparseMatrixBuffersReducer};
     use rustc_hash::FxHasher;
     use std::collections::{HashMap, HashSet};
     use std::hash::Hasher;
 
-    fn map_to_ids_and_names(sparse_matrices: &[SparseMatrix]) -> HashSet<(u8, &str, u8, &str)> {
+    fn map_to_ids_and_names(
+        sparse_matrices: &[SparseMatrixDescriptor],
+    ) -> HashSet<(u8, &str, u8, &str)> {
         sparse_matrices
             .iter()
-            .map(|sm| {
+            .map(|desc| {
                 (
-                    sm.col_a_id,
-                    sm.col_a_name.as_str(),
-                    sm.col_b_id,
-                    sm.col_b_name.as_str(),
+                    desc.col_a_id,
+                    desc.col_a_name.as_str(),
+                    desc.col_b_id,
+                    desc.col_b_name.as_str(),
                 )
             })
             .collect()
     }
 
     fn prepare_entries(hash_2_id: HashMap<u64, u32>, edges: Vec<(&str, &str, f32)>) -> Vec<Entry> {
+        let mut row_sum: Vec<f32> = Vec::with_capacity(hash_2_id.len() as usize);
+        for _ in 0..hash_2_id.len() {
+            row_sum.push(0.0);
+        }
+
         let mut entries: Vec<_> = Vec::new();
         for (row, col, val) in edges {
             // undirected graph needs (row, col) and (col, row) edges
@@ -357,14 +211,22 @@ mod tests {
                 col,
                 value: val,
             };
+            entries.push(entry_row_col);
+            row_sum[entry_row_col.row as usize] += val;
+
             let entry_col_row = Entry {
                 row: col,
                 col: row,
                 value: val,
             };
-            entries.push(entry_row_col);
             entries.push(entry_col_row);
+            row_sum[entry_col_row.row as usize] += val;
         }
+
+        for mut entry in entries.iter_mut() {
+            entry.value /= row_sum[entry.row as usize]
+        }
+
         entries
     }
 
@@ -376,7 +238,7 @@ mod tests {
 
     #[test]
     fn create_sparse_matrices_if_no_columns_provided() {
-        let sparse_matrices = create_sparse_matrices(&[]);
+        let sparse_matrices = create_sparse_matrices_descriptors(&[]);
         assert_eq!(true, sparse_matrices.is_empty())
     }
 
@@ -394,7 +256,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let sparse_matrices = create_sparse_matrices(&columns);
+        let sparse_matrices = create_sparse_matrices_descriptors(&columns);
         assert_eq!(true, sparse_matrices.is_empty());
 
         columns.push(Column {
@@ -402,7 +264,7 @@ mod tests {
             complex: true,
             ..Default::default()
         });
-        let sparse_matrices = create_sparse_matrices(&columns);
+        let sparse_matrices: Vec<_> = create_sparse_matrices_descriptors(&columns);
         let sparse_matrices: HashSet<_> = map_to_ids_and_names(&sparse_matrices);
         let expected_sparse_matrices: HashSet<_> = [(0, "a", 2, "c"), (1, "b", 2, "c")]
             .iter()
@@ -413,7 +275,7 @@ mod tests {
 
     #[test]
     fn create_sparse_matrices_if_reflexive_columns_provided() {
-        let sparse_matrices = create_sparse_matrices(&[
+        let sparse_matrices = create_sparse_matrices_descriptors(&[
             Column {
                 name: String::from("a"),
                 ..Default::default()
@@ -435,6 +297,7 @@ mod tests {
                 ..Default::default()
             },
         ]);
+
         let sparse_matrices: HashSet<_> = map_to_ids_and_names(&sparse_matrices);
         let expected_sparse_matrices: HashSet<_> = [
             (0, "a", 1, "b"),
@@ -453,7 +316,10 @@ mod tests {
 
     #[test]
     fn create_sparse_matrix_for_undirected_graph() {
-        let mut sm = SparseMatrix::new(0u8, String::from("col_0"), 1u8, String::from("col_1"));
+        let sm_desc =
+            SparseMatrixDescriptor::new(0u8, String::from("col_0"), 1u8, String::from("col_1"));
+
+        let mut sm = sm_desc.make_buffer();
 
         // input line:
         // u1	p1 p2	b1 b2
@@ -467,6 +333,21 @@ mod tests {
         sm.handle_pair(&[3, hash("u2"), hash("p2"), hash("b1")]);
         sm.handle_pair(&[3, hash("u2"), hash("p3"), hash("b1")]);
         sm.handle_pair(&[3, hash("u2"), hash("p4"), hash("b1")]);
+
+        let node_indexer = {
+            // [user, product] columns specified in sparse matrix description
+            let nodes = vec!["u1", "u2", "p1", "p2", "p3", "p4"];
+            let node_hashes: Vec<_> = nodes.iter().map(|n| hash(n)).collect();
+            NodeIndexer {
+                key_2_index: node_hashes
+                    .iter()
+                    .enumerate()
+                    .map(|(ix, hash)| (*hash, ix))
+                    .collect(),
+                index_2_key: node_hashes,
+            }
+        };
+        let sm = SparseMatrixBuffersReducer::new(node_indexer, vec![sm]).reduce();
 
         // number of unique entities
         assert_eq!(6, sm.get_number_of_entities());
@@ -491,8 +372,12 @@ mod tests {
             ("u2", "p3", 1.0 / 3.0),
             ("u2", "p4", 1.0 / 3.0),
         ];
-        let expected_entries = prepare_entries(hash_2_id, edges);
-        let entries: Vec<_> = sm.iter_entries().collect();
+        let mut expected_entries = prepare_entries(hash_2_id, edges);
+        let mut entries: Vec<_> = sm.iter_entries().collect();
+
+        expected_entries.sort_by_key(|e| (e.row, e.col));
+        entries.sort_by_key(|e| (e.row, e.col));
+
         assert_eq!(expected_entries, entries);
     }
 }

@@ -1,6 +1,7 @@
 pub mod entity {
-    use rustc_hash::FxHashMap;
-    use std::sync::RwLock;
+    use dashmap::DashMap;
+    use rustc_hash::FxHasher;
+    use std::hash::BuildHasherDefault;
 
     pub trait EntityMappingPersistor {
         fn get_entity(&self, hash: u64) -> Option<String>;
@@ -10,23 +11,20 @@ pub mod entity {
 
     #[derive(Debug, Default)]
     pub struct InMemoryEntityMappingPersistor {
-        entity_mappings: RwLock<FxHashMap<u64, String>>,
+        entity_mappings: DashMap<u64, String, BuildHasherDefault<FxHasher>>,
     }
 
     impl EntityMappingPersistor for InMemoryEntityMappingPersistor {
         fn get_entity(&self, hash: u64) -> Option<String> {
-            let entity_mappings_read = self.entity_mappings.read().unwrap();
-            entity_mappings_read.get(&hash).map(|s| s.to_string())
+            self.entity_mappings.get(&hash).map(|s| s.to_string())
         }
 
         fn put_data(&self, hash: u64, entity: String) {
-            let mut entity_mappings_write = self.entity_mappings.write().unwrap();
-            entity_mappings_write.insert(hash, entity);
+            self.entity_mappings.insert(hash, entity);
         }
 
         fn contains(&self, hash: u64) -> bool {
-            let entity_mappings_read = self.entity_mappings.read().unwrap();
-            entity_mappings_read.contains_key(&hash)
+            self.entity_mappings.contains_key(&hash)
         }
     }
 }

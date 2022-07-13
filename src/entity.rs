@@ -12,7 +12,7 @@ pub const SMALL_VECTOR_SIZE: usize = 8;
 /// Marker for elements in a vector. Let's say that we have `vec![1, 2, 3, 4]`
 /// and `LengthAndOffset { length: 2, offset : 1 }`. Offset points to the second element in the vector
 /// and length tell us how many elements we should take (in that case 2 elements: 2 and 3).
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone)]
 struct LengthAndOffset {
     length: u32,
     offset: u32,
@@ -70,29 +70,74 @@ impl Iterator for CartesianProduct {
     }
 }
 
-pub struct EntityProcessor<'a, T, F>
+#[derive(Debug, Clone)]
+pub struct Hyperedge {
+    hashes: SmallVec<[u64; SMALL_VECTOR_SIZE]>,
+    lens_and_offsets: SmallVec<[LengthAndOffset; SMALL_VECTOR_SIZE]>,
+}
+
+impl Hyperedge {
+    #[inline]
+    pub fn nodes(&self, column_id: usize) -> SmallVec<[u64; SMALL_VECTOR_SIZE]> {
+        let LengthAndOffset { offset, length } = self.lens_and_offsets[column_id];
+        let mut arr: SmallVec<[u64; SMALL_VECTOR_SIZE]> = SmallVec::with_capacity(length as usize);
+        for index in offset..offset + length {
+            arr.push(self.hashes[(index as usize)])
+        }
+        arr
+    }
+
+    /// It creates Cartesian Product for incoming data.
+    /// Let's say that we have such columns:
+    /// customers | products                | brands
+    /// incoming data:
+    /// userId1   | productId1, productId2  | brandId1, brandId2
+    /// Total number of combinations is equal to 4 (1 * 2 * 2) based on:
+    /// number of entities in customers column * number of entities in products column * number of entities in brands column
+    /// Cartesian Products for our data:
+    /// (userId1, productId1, brandId1), (userId1, productId1, brandId2), (userId1, productId2, brandId1), (userId1, productId2, brandId2)
+    /// `hashes` - entity hashes
+    /// `lens_and_offsets` - number of entities per column
+    /// return entity hashes Cartesian Products. Size of the array (matrix) is equal to number of combinations x number of columns (including reflexive column)
+    ///
+    #[inline(always)]
+    pub fn edges_iter(&self) -> impl Iterator<Item = SmallVec<[u64; SMALL_VECTOR_SIZE]>> + '_ {
+        let row_length = self.lens_and_offsets.len();
+        let mut total_combinations = 1;
+        for len_and_offset in &self.lens_and_offsets {
+            total_combinations *= len_and_offset.length;
+        }
+
+        let cartesian = CartesianProduct::new(self.lens_and_offsets.clone());
+        cartesian.map(move |indices| {
+            let mut arr: SmallVec<[u64; SMALL_VECTOR_SIZE]> =
+                SmallVec::with_capacity(row_length + 1);
+            arr.push(total_combinations as u64);
+            for i in indices {
+                let value = self.hashes[i as usize];
+                arr.push(value);
+            }
+            arr
+        })
+    }
+}
+
+pub struct EntityProcessor<'a, T>
 where
-    T: EntityMappingPersistor,
-    F: FnMut(SmallVec<[u64; SMALL_VECTOR_SIZE]>),
+    T: EntityMappingPersistor + Sync,
 {
     config: &'a Configuration,
     field_hashes: SmallVec<[u64; SMALL_VECTOR_SIZE]>,
     not_ignored_columns_count: u16,
     columns_count: u16,
     entity_mapping_persistor: Arc<T>,
-    hashes_handler: F,
 }
 
-impl<'a, T, F> EntityProcessor<'a, T, F>
+impl<'a, T: Sync> EntityProcessor<'a, T>
 where
     T: EntityMappingPersistor,
-    F: FnMut(SmallVec<[u64; SMALL_VECTOR_SIZE]>),
 {
-    pub fn new(
-        config: &'a Configuration,
-        persistor: Arc<T>,
-        hashes_handler: F,
-    ) -> EntityProcessor<'a, T, F> {
+    pub fn new(config: &'a Configuration, persistor: Arc<T>) -> EntityProcessor<'a, T> {
         let columns = &config.columns;
         // hashes for column names are used to differentiate entities with the same name
         // from different columns
@@ -116,13 +161,15 @@ where
             not_ignored_columns_count,
             columns_count,
             entity_mapping_persistor: persistor,
-            hashes_handler,
         }
     }
 
     /// Every row can create few combinations (cartesian products) which are hashed and provided for sparse matrix creation.
     /// `row` - array of strings such as: ("userId1", "productId1 productId2", "brandId1").
-    pub fn process_row<S: AsRef<str>>(&mut self, row: &[SmallVec<[S; SMALL_VECTOR_SIZE]>]) {
+    pub fn process_row_and_get_edges<S: AsRef<str>>(
+        &self,
+        row: &[SmallVec<[S; SMALL_VECTOR_SIZE]>],
+    ) -> Hyperedge {
         let mut hashes: SmallVec<[u64; SMALL_VECTOR_SIZE]> =
             SmallVec::with_capacity(self.not_ignored_columns_count as usize);
         let mut lens_and_offsets: SmallVec<[LengthAndOffset; SMALL_VECTOR_SIZE]> =
@@ -171,10 +218,9 @@ where
                 idx += 1;
             }
         }
-
-        let hash_rows = self.generate_combinations_with_length(hashes, lens_and_offsets);
-        for hash_row in hash_rows {
-            (self.hashes_handler)(hash_row);
+        Hyperedge {
+            hashes,
+            lens_and_offsets,
         }
     }
 
@@ -192,44 +238,6 @@ where
             self.entity_mapping_persistor.put_data(hash, entry);
         }
     }
-
-    /// It creates Cartesian Product for incoming data.
-    /// Let's say that we have such columns:
-    /// customers | products                | brands
-    /// incoming data:
-    /// userId1   | productId1, productId2  | brandId1, brandId2
-    /// Total number of combinations is equal to 4 (1 * 2 * 2) based on:
-    /// number of entities in customers column * number of entities in products column * number of entities in brands column
-    /// Cartesian Products for our data:
-    /// (userId1, productId1, brandId1), (userId1, productId1, brandId2), (userId1, productId2, brandId1), (userId1, productId2, brandId2)
-    /// `hashes` - entity hashes
-    /// `lens_and_offsets` - number of entities per column
-    /// return entity hashes Cartesian Products. Size of the array (matrix) is equal to number of combinations x number of columns (including reflexive column)
-    #[inline(always)]
-    fn generate_combinations_with_length(
-        &self,
-        hashes: SmallVec<[u64; SMALL_VECTOR_SIZE]>,
-        lens_and_offsets: SmallVec<[LengthAndOffset; SMALL_VECTOR_SIZE]>,
-    ) -> impl Iterator<Item = SmallVec<[u64; SMALL_VECTOR_SIZE]>> {
-        let row_length = lens_and_offsets.len();
-        let mut total_combinations = 1;
-        for len_and_offset in &lens_and_offsets {
-            total_combinations *= len_and_offset.length;
-        }
-
-        let cartesian = CartesianProduct::new(lens_and_offsets);
-
-        cartesian.map(move |indices| {
-            let mut arr: SmallVec<[u64; SMALL_VECTOR_SIZE]> =
-                SmallVec::with_capacity(row_length + 1);
-            arr.push(total_combinations as u64);
-            for i in indices {
-                let value = hashes[i as usize];
-                arr.push(value);
-            }
-            arr
-        })
-    }
 }
 
 #[inline(always)]
@@ -243,7 +251,7 @@ fn hash(entity: &str) -> u64 {
 mod tests {
     use crate::configuration::{Column, Configuration};
     use crate::entity::{
-        hash, CartesianProduct, EntityProcessor, LengthAndOffset, SMALL_VECTOR_SIZE,
+        hash, CartesianProduct, EntityProcessor, Hyperedge, LengthAndOffset, SMALL_VECTOR_SIZE,
     };
     use crate::persistence::entity::InMemoryEntityMappingPersistor;
     use smallvec::{smallvec, SmallVec};
@@ -298,30 +306,22 @@ mod tests {
 
     #[test]
     fn generate_cartesian_product_hashes() {
-        let dummy_config = Configuration::default(String::from(""), vec![]);
-
         // hashes for entities in every column
         // column_1: 1 entity
         // column_2: 2 entities
         // column_3: 3 entities
-        let lengths_and_offsets = prepare_lengths_and_offsets(&[1, 2, 3]);
+        let lens_and_offsets = prepare_lengths_and_offsets(&[1, 2, 3]);
         let hashes: SmallVec<[u64; SMALL_VECTOR_SIZE]> = smallvec![10, 20, 30, 40, 50, 60];
         let mut total_combinations = 1u64;
-        for len_and_offset in &lengths_and_offsets {
+        for len_and_offset in &lens_and_offsets {
             total_combinations *= len_and_offset.length as u64;
         }
 
-        let in_memory_entity_mapping_persistor = InMemoryEntityMappingPersistor::default();
-        let in_memory_entity_mapping_persistor = Arc::new(in_memory_entity_mapping_persistor);
-        let entity_processor = EntityProcessor::new(
-            &dummy_config,
-            in_memory_entity_mapping_persistor.clone(),
-            |_hashes| {},
-        );
-
-        let combinations: Vec<_> = entity_processor
-            .generate_combinations_with_length(hashes, lengths_and_offsets)
-            .collect();
+        let hyperedge = Hyperedge {
+            hashes,
+            lens_and_offsets,
+        };
+        let combinations: Vec<_> = hyperedge.edges_iter().collect();
         assert_eq!(
             &SmallVec::from([total_combinations, 10, 20, 40]),
             combinations.get(0).unwrap()
@@ -401,21 +401,22 @@ mod tests {
         let in_memory_entity_mapping_persistor = Arc::new(in_memory_entity_mapping_persistor);
         let mut result: SmallVec<[SmallVec<[u64; SMALL_VECTOR_SIZE]>; SMALL_VECTOR_SIZE]> =
             SmallVec::new();
-        let mut entity_processor = EntityProcessor::new(
-            &dummy_config,
-            in_memory_entity_mapping_persistor.clone(),
-            |hashes| {
-                result.push(hashes);
-            },
-        );
 
+        let entity_processor =
+            EntityProcessor::new(&dummy_config, in_memory_entity_mapping_persistor.clone());
         let row = vec![
             smallvec!["a"],
             smallvec!["bb"],
             smallvec!["ccc", "ddd"],
             smallvec!["eeee"],
         ];
-        entity_processor.process_row(&row);
+
+        for hashes in entity_processor
+            .process_row_and_get_edges(&row)
+            .edges_iter()
+        {
+            result.push(hashes);
+        }
 
         // first column is ignored, third one is reflexive so the entities go at the end
         // input: "bb", "ccc ddd", "eeee", "ccc ddd"
