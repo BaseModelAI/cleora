@@ -18,6 +18,7 @@ struct LengthAndOffset {
     offset: u32,
 }
 
+#[derive(Clone)]
 struct CartesianProduct {
     has_next: bool,
     lengths_and_offsets: SmallVec<[LengthAndOffset; SMALL_VECTOR_SIZE]>,
@@ -70,29 +71,22 @@ impl Iterator for CartesianProduct {
     }
 }
 
-pub struct EntityProcessor<'a, T, F>
+pub struct EntityProcessor<'a, T>
 where
-    T: EntityMappingPersistor,
-    F: FnMut(SmallVec<[u64; SMALL_VECTOR_SIZE]>),
+    T: EntityMappingPersistor + Sync,
 {
     config: &'a Configuration,
     field_hashes: SmallVec<[u64; SMALL_VECTOR_SIZE]>,
     not_ignored_columns_count: u16,
     columns_count: u16,
     entity_mapping_persistor: Arc<T>,
-    hashes_handler: F,
 }
 
-impl<'a, T, F> EntityProcessor<'a, T, F>
+impl<'a, T: Sync> EntityProcessor<'a, T>
 where
     T: EntityMappingPersistor,
-    F: FnMut(SmallVec<[u64; SMALL_VECTOR_SIZE]>),
 {
-    pub fn new(
-        config: &'a Configuration,
-        persistor: Arc<T>,
-        hashes_handler: F,
-    ) -> EntityProcessor<'a, T, F> {
+    pub fn new(config: &'a Configuration, persistor: Arc<T>) -> EntityProcessor<'a, T> {
         let columns = &config.columns;
         // hashes for column names are used to differentiate entities with the same name
         // from different columns
@@ -116,13 +110,15 @@ where
             not_ignored_columns_count,
             columns_count,
             entity_mapping_persistor: persistor,
-            hashes_handler,
         }
     }
 
     /// Every row can create few combinations (cartesian products) which are hashed and provided for sparse matrix creation.
     /// `row` - array of strings such as: ("userId1", "productId1 productId2", "brandId1").
-    pub fn process_row<S: AsRef<str>>(&mut self, row: &[SmallVec<[S; SMALL_VECTOR_SIZE]>]) {
+    pub fn process_row_and_get_edges<S: AsRef<str>>(
+        &self,
+        row: &[SmallVec<[S; SMALL_VECTOR_SIZE]>],
+    ) -> impl Iterator<Item = SmallVec<[u64; SMALL_VECTOR_SIZE]>> + Clone {
         let mut hashes: SmallVec<[u64; SMALL_VECTOR_SIZE]> =
             SmallVec::with_capacity(self.not_ignored_columns_count as usize);
         let mut lens_and_offsets: SmallVec<[LengthAndOffset; SMALL_VECTOR_SIZE]> =
@@ -172,10 +168,7 @@ where
             }
         }
 
-        let hash_rows = self.generate_combinations_with_length(hashes, lens_and_offsets);
-        for hash_row in hash_rows {
-            (self.hashes_handler)(hash_row);
-        }
+        self.generate_combinations_with_length(hashes, lens_and_offsets)
     }
 
     #[inline(always)]
@@ -210,7 +203,7 @@ where
         &self,
         hashes: SmallVec<[u64; SMALL_VECTOR_SIZE]>,
         lens_and_offsets: SmallVec<[LengthAndOffset; SMALL_VECTOR_SIZE]>,
-    ) -> impl Iterator<Item = SmallVec<[u64; SMALL_VECTOR_SIZE]>> {
+    ) -> impl Iterator<Item = SmallVec<[u64; SMALL_VECTOR_SIZE]>> + Clone {
         let row_length = lens_and_offsets.len();
         let mut total_combinations = 1;
         for len_and_offset in &lens_and_offsets {
@@ -313,11 +306,9 @@ mod tests {
 
         let in_memory_entity_mapping_persistor = InMemoryEntityMappingPersistor::default();
         let in_memory_entity_mapping_persistor = Arc::new(in_memory_entity_mapping_persistor);
-        let entity_processor = EntityProcessor::new(
-            &dummy_config,
-            in_memory_entity_mapping_persistor.clone(),
-            |_hashes| {},
-        );
+
+        let entity_processor =
+            EntityProcessor::new(&dummy_config, in_memory_entity_mapping_persistor.clone());
 
         let combinations: Vec<_> = entity_processor
             .generate_combinations_with_length(hashes, lengths_and_offsets)
@@ -401,21 +392,19 @@ mod tests {
         let in_memory_entity_mapping_persistor = Arc::new(in_memory_entity_mapping_persistor);
         let mut result: SmallVec<[SmallVec<[u64; SMALL_VECTOR_SIZE]>; SMALL_VECTOR_SIZE]> =
             SmallVec::new();
-        let mut entity_processor = EntityProcessor::new(
-            &dummy_config,
-            in_memory_entity_mapping_persistor.clone(),
-            |hashes| {
-                result.push(hashes);
-            },
-        );
 
+        let entity_processor =
+            EntityProcessor::new(&dummy_config, in_memory_entity_mapping_persistor.clone());
         let row = vec![
             smallvec!["a"],
             smallvec!["bb"],
             smallvec!["ccc", "ddd"],
             smallvec!["eeee"],
         ];
-        entity_processor.process_row(&row);
+
+        for hashes in entity_processor.process_row_and_get_edges(&row) {
+            result.push(hashes);
+        }
 
         // first column is ignored, third one is reflexive so the entities go at the end
         // input: "bb", "ccc ddd", "eeee", "ccc ddd"

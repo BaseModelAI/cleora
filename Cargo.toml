@@ -13,7 +13,6 @@ Cleora is a general-purpose model for efficient, scalable learning of stable and
 rustflags = ["-C", "target-cpu=native"]
 
 [dependencies]
-bus = "2.2.4"
 clap = { version = "3.1.8", features = ["cargo"] }
 env_logger = "0.9.0"
 log = "0.4.17"
@@ -28,6 +27,9 @@ ndarray = "0.15.4"
 ndarray-npy = "0.8.1"
 serde_json = "1.0.81"
 uuid = { version = "1.1.2", features = ["v4"] }
+crossbeam = "0.8.1"
+dashmap = "5.3.4"
+num_cpus = "1.13.1"
 
 [dev-dependencies]
 criterion = "0.3.3"
