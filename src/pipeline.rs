@@ -32,7 +32,6 @@ pub fn build_graphs(
 ) -> Vec<SparseMatrix> {
     let sparse_matrices_desc = Arc::new(create_sparse_matrices_descriptors(&config.columns));
     dbg!(&sparse_matrices_desc);
-    let matrices_n = sparse_matrices_desc.len();
 
     let processing_worker_num = num_cpus::get();
     let buffers: Vec<_> = cb_thread::scope(|s| {
@@ -118,17 +117,10 @@ pub fn build_graphs(
 
     let merging_time = Instant::now();
 
-    let mut buffers_transposed = Vec::with_capacity(matrices_n);
-    for _ in 0..matrices_n {
-        buffers_transposed.push(Vec::with_capacity(processing_worker_num))
-    }
-    for buffers in buffers.into_iter() {
-        for (matrix_ix, buffer) in buffers.into_iter().enumerate() {
-            buffers_transposed[matrix_ix].push(buffer)
-        }
-    }
+    // (WORKER_IX, MATRIX_IX) -> (MATRIX_IX, WORKER_IX)
+    let buffers = transpose(buffers);
 
-    let result = buffers_transposed
+    let result = buffers
         .into_par_iter()
         .zip(sparse_matrices_desc.par_iter())
         .map(|(parts, desc)| {
@@ -143,6 +135,32 @@ pub fn build_graphs(
     );
 
     result
+}
+
+fn transpose<T>(vec_2d: Vec<Vec<T>>) -> Vec<Vec<T>> {
+    let dim_0_size = vec_2d.len();
+    if dim_0_size == 0 {
+        panic!("Cannot transpose empty list. Dim=0")
+    }
+    let dim_1_size = vec_2d[0].len();
+    if dim_1_size == 0 {
+        panic!("Cannot transpose empty list. Dim=1")
+    }
+
+    let mut vec_2d_transposed = Vec::with_capacity(dim_1_size);
+    for _ in 0..dim_1_size {
+        vec_2d_transposed.push(Vec::with_capacity(dim_0_size))
+    }
+    for row in vec_2d.into_iter() {
+        if row.len() != dim_1_size {
+            panic!("Not aligned DIM=1")
+        }
+
+        for (col_ix, v) in row.into_iter().enumerate() {
+            vec_2d_transposed[col_ix].push(v)
+        }
+    }
+    vec_2d_transposed
 }
 
 /// Read file line by line. Pass every valid line to handler for parsing.
