@@ -149,46 +149,51 @@ impl SparseMatrixBuffer {
     }
 
     pub fn finish(desc: &SparseMatrixDescriptor, buffers: Vec<SparseMatrixBuffer>) -> SparseMatrix {
-        // There are duplicated keys. Empirically it works faster without handling dupes
-        let row_keys: Vec<_> = buffers.iter().flat_map(|b| b.hash_2_row.keys()).collect();
+        let hash_2_row: HashMap<u64, Entity, BuildHasherDefault<FxHasher>> = {
+            // There are duplicated keys. Empirically it works faster without handling dupes
+            let row_keys: Vec<_> = buffers.iter().flat_map(|b| b.hash_2_row.keys()).collect();
 
-        let mut hash_2_row: HashMap<u64, Entity, BuildHasherDefault<FxHasher>> = row_keys
-            .into_par_iter()
-            .map(|hash| {
-                let mut entity_agg = Entity::default();
-                for b in buffers.iter() {
-                    if let Some(entity) = b.hash_2_row.get(hash) {
-                        entity_agg.occurrence += entity.occurrence;
-                        entity_agg.row_sum += entity.row_sum;
+            let mut hash_2_row: HashMap<u64, Entity, BuildHasherDefault<FxHasher>> = row_keys
+                .into_par_iter()
+                .map(|hash| {
+                    let mut entity_agg = Entity::default();
+                    for b in buffers.iter() {
+                        if let Some(entity) = b.hash_2_row.get(hash) {
+                            entity_agg.occurrence += entity.occurrence;
+                            entity_agg.row_sum += entity.row_sum;
+                        }
                     }
-                }
-                (*hash, entity_agg)
-            })
-            .collect();
+                    (*hash, entity_agg)
+                })
+                .collect();
 
-        hash_2_row
-            .iter_mut()
-            .enumerate()
-            .for_each(|(ix, (_, mut row))| row.index = ix as u32);
+            hash_2_row
+                .iter_mut()
+                .enumerate()
+                .for_each(|(ix, (_, mut row))| row.index = ix as u32);
+            hash_2_row
+        };
 
-        // There are duplicated keys. Empirically it works faster without handling dupes
-        let edges_keys: Vec<_> = buffers
-            .iter()
-            .flat_map(|b| b.hashes_2_edge.keys())
-            .collect();
+        let hashes_2_edge: HashMap<(u64, u64), Edge, BuildHasherDefault<FxHasher>> = {
+            // There are duplicated keys. Empirically it works faster without handling dupes
+            let edges_keys: Vec<_> = buffers
+                .iter()
+                .flat_map(|b| b.hashes_2_edge.keys())
+                .collect();
 
-        let hashes_2_edge: HashMap<(u64, u64), Edge, BuildHasherDefault<FxHasher>> = edges_keys
-            .into_par_iter()
-            .map(|hash| {
-                let mut edge_agg = Edge::default();
-                for b in buffers.iter() {
-                    if let Some(edge) = b.hashes_2_edge.get(hash) {
-                        edge_agg.value += edge.value;
+            edges_keys
+                .into_par_iter()
+                .map(|hash| {
+                    let mut edge_agg = Edge::default();
+                    for b in buffers.iter() {
+                        if let Some(edge) = b.hashes_2_edge.get(hash) {
+                            edge_agg.value += edge.value;
+                        }
                     }
-                }
-                (*hash, edge_agg)
-            })
-            .collect();
+                    (*hash, edge_agg)
+                })
+                .collect()
+        };
 
         let entities = {
             hashes_2_edge
