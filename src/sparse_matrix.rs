@@ -50,8 +50,6 @@ pub struct Hash {
 
     /// Number of hash occurrences
     pub occurrence: u32,
-
-    pub id: u32,
 }
 
 /// Sparse matrix coordinate entry

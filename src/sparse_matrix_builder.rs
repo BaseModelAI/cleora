@@ -235,7 +235,6 @@ impl SparseMatrixBuffer {
             .par_iter()
             .map(|(entity_hash, entity)| Hash {
                 value: *entity_hash,
-                id: entity.index,
                 occurrence: entity.occurrence,
             })
             .collect();
