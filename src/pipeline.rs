@@ -96,7 +96,6 @@ pub fn build_graphs(
                 let mut buffers: Vec<_> = sparse_matrices.iter().map(|smd| smd.make_buffer()).collect();
 
                 for row in hyperedges_r {
-                    let row: Vec<SmallVec<[_; SMALL_VECTOR_SIZE]>> = row;
                     let iterator = entity_processor.process_row_and_get_edges(&row);
 
                     for buffer in &mut buffers {
