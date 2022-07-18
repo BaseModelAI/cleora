@@ -66,16 +66,6 @@ struct Entity {
     pub index: u32, // set in second stage
 }
 
-impl Entity {
-    pub fn new(initial_value: f32) -> Self {
-        Self {
-            occurrence: 1,
-            row_sum: initial_value,
-            index: 0,
-        }
-    }
-}
-
 #[derive(Debug, Default, Clone)]
 struct Edge {
     value: f32,
@@ -148,27 +138,14 @@ impl SparseMatrixBuffer {
     }
 
     fn update_row(&mut self, hash: u64, val: f32) {
-        match self.hash_2_row.entry(hash) {
-            std::collections::hash_map::Entry::Vacant(entry) => {
-                entry.insert(Entity::new(val));
-            }
-            std::collections::hash_map::Entry::Occupied(mut entry) => {
-                let row = entry.get_mut();
-                row.occurrence += 1;
-                row.row_sum += val;
-            }
-        }
+        let mut e = self.hash_2_row.entry(hash).or_default();
+        e.occurrence += 1;
+        e.row_sum += val;
     }
 
     fn update_edge(&mut self, a_hash: u64, b_hash: u64, val: f32) {
-        match self.hashes_2_edge.entry((a_hash, b_hash)) {
-            std::collections::hash_map::Entry::Vacant(entry) => {
-                entry.insert(Edge { value: val });
-            }
-            std::collections::hash_map::Entry::Occupied(mut entry) => {
-                entry.get_mut().value += val;
-            }
-        };
+        let mut e = self.hashes_2_edge.entry((a_hash, b_hash)).or_default();
+        e.value += val;
     }
 
     pub fn finish(desc: &SparseMatrixDescriptor, buffers: Vec<SparseMatrixBuffer>) -> SparseMatrix {
