@@ -8,14 +8,14 @@ use crate::entity::{EntityProcessor, SMALL_VECTOR_SIZE};
 use crate::persistence::embedding::{EmbeddingPersistor, NpyPersistor, TextFileVectorPersistor};
 use crate::persistence::entity::InMemoryEntityMappingPersistor;
 use crate::sparse_matrix::SparseMatrix;
-use crate::sparse_matrix_builder::{create_sparse_matrices_descriptors, SparseMatrixBuffer};
+use crate::sparse_matrix_builder::{
+    create_sparse_matrices_descriptors, SparseMatrixBuffersReducer,
+};
 use crossbeam::channel;
 use crossbeam::thread as cb_thread;
 use log::{error, info, warn};
 use num_cpus;
-use rayon::iter::IndexedParallelIterator;
 use rayon::iter::IntoParallelIterator;
-use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
 use simdjson_rust::dom;
 use smallvec::{smallvec, SmallVec};
@@ -122,10 +122,9 @@ pub fn build_graphs(
 
     let result = buffers
         .into_par_iter()
-        .zip(sparse_matrices_desc.par_iter())
-        .map(|(parts, desc)| {
+        .map(|parts| {
             assert_eq!(parts.len(), processing_worker_num);
-            SparseMatrixBuffer::finish(desc, parts)
+            SparseMatrixBuffersReducer::new(parts).reduce()
         })
         .collect();
 

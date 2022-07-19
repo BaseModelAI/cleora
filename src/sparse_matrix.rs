@@ -123,7 +123,8 @@ mod tests {
     use crate::configuration::Column;
     use crate::sparse_matrix::{Entry, SparseMatrix, SparseMatrixReader};
     use crate::sparse_matrix_builder::{
-        create_sparse_matrices_descriptors, SparseMatrixBuffer, SparseMatrixDescriptor,
+        create_sparse_matrices_descriptors, SparseMatrixBuffer, SparseMatrixBuffersReducer,
+        SparseMatrixDescriptor,
     };
     use rustc_hash::FxHasher;
     use std::collections::{HashMap, HashSet};
@@ -214,7 +215,7 @@ mod tests {
         });
         let sparse_matrices: Vec<SparseMatrix> = create_sparse_matrices_descriptors(&columns)
             .into_iter()
-            .map(|b| SparseMatrixBuffer::finish(&b, vec![b.make_buffer()]))
+            .map(|b| SparseMatrixBuffersReducer::new(vec![b.make_buffer()]).reduce())
             .collect();
 
         let sparse_matrices: HashSet<_> = map_to_ids_and_names(&sparse_matrices);
@@ -251,7 +252,7 @@ mod tests {
         ]);
         let sparse_matrices: Vec<SparseMatrix> = sparse_matrices
             .into_iter()
-            .map(|b| SparseMatrixBuffer::finish(&b, vec![b.make_buffer()]))
+            .map(|b| SparseMatrixBuffersReducer::new(vec![b.make_buffer()]).reduce())
             .collect();
 
         let sparse_matrices: HashSet<_> = map_to_ids_and_names(&sparse_matrices);
@@ -290,7 +291,7 @@ mod tests {
         sm.handle_pair(&[3, hash("u2"), hash("p3"), hash("b1")]);
         sm.handle_pair(&[3, hash("u2"), hash("p4"), hash("b1")]);
 
-        let sm = SparseMatrixBuffer::finish(&sm_desc, vec![sm]);
+        let sm = SparseMatrixBuffersReducer::new(vec![sm]).reduce();
 
         // number of unique entities
         assert_eq!(6, sm.get_number_of_entities());
