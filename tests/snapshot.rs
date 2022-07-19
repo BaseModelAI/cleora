@@ -35,7 +35,7 @@ fn test_build_graphs_and_create_embeddings() {
         let sparse_matrix = Arc::new(sparse_matrix);
         let snapshot_name = format!(
             "embeddings_{}_{}",
-            sparse_matrix.col_a_name, sparse_matrix.col_b_name
+            sparse_matrix.descriptor.col_a_name, sparse_matrix.descriptor.col_b_name
         );
 
         let mut in_memory_embedding_persistor = InMemoryEmbeddingPersistor::default();

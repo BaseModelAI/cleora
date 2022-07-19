@@ -209,14 +209,7 @@ impl SparseMatrixBuffersReducer {
             })
             .collect();
 
-        SparseMatrix::new(
-            self.descriptor.col_a_id,
-            self.descriptor.col_a_name,
-            self.descriptor.col_b_id,
-            self.descriptor.col_b_name,
-            hashes,
-            entities,
-        )
+        SparseMatrix::new(self.descriptor, hashes, entities)
     }
 
     fn reduce_row_maps(&self) -> HashMap<u64, Entity, BuildHasherDefault<FxHasher>> {

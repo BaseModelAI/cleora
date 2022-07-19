@@ -261,8 +261,8 @@ pub fn train(
                 "{}{}__{}__{}.out",
                 directory,
                 config.relation_name,
-                sparse_matrix.col_a_name.as_str(),
-                sparse_matrix.col_b_name.as_str()
+                sparse_matrix.descriptor.col_a_name.as_str(),
+                sparse_matrix.descriptor.col_b_name.as_str()
             );
 
             let mut persistor: Box<dyn EmbeddingPersistor> = match &config.output_format {

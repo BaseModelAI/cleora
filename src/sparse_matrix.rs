@@ -1,19 +1,11 @@
+use crate::sparse_matrix_builder::SparseMatrixDescriptor;
+
 /// Represents graph based on incoming data.
 /// It follows the sparse matrix coordinate format (COO). Its purpose is to save space by holding only
 /// the coordinates and values of nonzero entities.
 #[derive(Debug)]
 pub struct SparseMatrix {
-    /// First column index for which we creates subgraph
-    pub col_a_id: u8,
-
-    /// First column name
-    pub col_a_name: String,
-
-    /// Second column index for which we creates subgraph
-    pub col_b_id: u8,
-
-    /// Second column name
-    pub col_b_name: String,
+    pub descriptor: SparseMatrixDescriptor,
 
     /// Maps id to hash value and occurrence
     id_2_hash: Vec<Hash>,
@@ -24,18 +16,12 @@ pub struct SparseMatrix {
 
 impl SparseMatrix {
     pub fn new(
-        col_a_id: u8,
-        col_a_name: String,
-        col_b_id: u8,
-        col_b_name: String,
+        descriptor: SparseMatrixDescriptor,
         id_2_hash: Vec<Hash>,
         entries: Vec<Entry>,
     ) -> Self {
         Self {
-            col_a_id,
-            col_a_name,
-            col_b_id,
-            col_b_name,
+            descriptor,
             id_2_hash,
             entries,
         }
@@ -96,7 +82,7 @@ impl<T: Copy> Iterator for CopyIter<'_, T> {
 
 impl SparseMatrixReader for SparseMatrix {
     fn get_id(&self) -> String {
-        format!("{}_{}", self.col_a_id, self.col_b_id)
+        format!("{}_{}", self.descriptor.col_a_id, self.descriptor.col_b_id)
     }
 
     fn get_number_of_entities(&self) -> u32 {
@@ -135,10 +121,10 @@ mod tests {
             .iter()
             .map(|sm| {
                 (
-                    sm.col_a_id,
-                    sm.col_a_name.as_str(),
-                    sm.col_b_id,
-                    sm.col_b_name.as_str(),
+                    sm.descriptor.col_a_id,
+                    sm.descriptor.col_a_name.as_str(),
+                    sm.descriptor.col_b_id,
+                    sm.descriptor.col_b_name.as_str(),
                 )
             })
             .collect()
