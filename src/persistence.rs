@@ -1,12 +1,16 @@
 pub mod entity {
     use dashmap::DashMap;
     use rustc_hash::FxHasher;
+    use std::collections::HashMap;
     use std::hash::BuildHasherDefault;
 
-    pub trait EntityMappingPersistor {
+    pub trait EntityMappingPersistorReader {
         fn get_entity(&self, hash: u64) -> Option<String>;
-        fn put_data(&self, hash: u64, entity: String);
         fn contains(&self, hash: u64) -> bool;
+    }
+
+    pub trait EntityMappingPersistorWriter {
+        fn put_data(&self, hash: u64, entity: String);
     }
 
     #[derive(Debug, Default)]
@@ -14,15 +18,37 @@ pub mod entity {
         entity_mappings: DashMap<u64, String, BuildHasherDefault<FxHasher>>,
     }
 
-    impl EntityMappingPersistor for InMemoryEntityMappingPersistor {
+    pub struct FrozenInMemoryEntityMappingPersistor {
+        entity_mappings: HashMap<u64, String, BuildHasherDefault<FxHasher>>,
+    }
+
+    impl EntityMappingPersistorReader for InMemoryEntityMappingPersistor {
         fn get_entity(&self, hash: u64) -> Option<String> {
             self.entity_mappings.get(&hash).map(|s| s.to_string())
         }
+        fn contains(&self, hash: u64) -> bool {
+            self.entity_mappings.contains_key(&hash)
+        }
+    }
 
+    impl EntityMappingPersistorWriter for InMemoryEntityMappingPersistor {
         fn put_data(&self, hash: u64, entity: String) {
             self.entity_mappings.insert(hash, entity);
         }
+    }
 
+    impl InMemoryEntityMappingPersistor {
+        pub fn to_read_only(self) -> FrozenInMemoryEntityMappingPersistor {
+            FrozenInMemoryEntityMappingPersistor {
+                entity_mappings: self.entity_mappings.into_iter().collect(),
+            }
+        }
+    }
+
+    impl EntityMappingPersistorReader for FrozenInMemoryEntityMappingPersistor {
+        fn get_entity(&self, hash: u64) -> Option<String> {
+            self.entity_mappings.get(&hash).map(|s| s.to_string())
+        }
         fn contains(&self, hash: u64) -> bool {
             self.entity_mappings.contains_key(&hash)
         }

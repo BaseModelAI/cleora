@@ -6,7 +6,9 @@ use crate::configuration::{Column, Configuration, FileType, OutputFormat};
 use crate::embedding::{calculate_embeddings, calculate_embeddings_mmap};
 use crate::entity::{EntityProcessor, SMALL_VECTOR_SIZE};
 use crate::persistence::embedding::{EmbeddingPersistor, NpyPersistor, TextFileVectorPersistor};
-use crate::persistence::entity::InMemoryEntityMappingPersistor;
+use crate::persistence::entity::{
+    FrozenInMemoryEntityMappingPersistor, InMemoryEntityMappingPersistor,
+};
 use crate::sparse_matrix::SparseMatrix;
 use crate::sparse_matrix_builder::{
     create_sparse_matrices_descriptors, SparseMatrixBuffersReducer,
@@ -20,7 +22,6 @@ use rayon::iter::ParallelIterator;
 use simdjson_rust::dom;
 use smallvec::{smallvec, SmallVec};
 use std::sync::Arc;
-use std::thread;
 use std::time::Instant;
 
 /// Create SparseMatrix'es based on columns config. Every SparseMatrix operates in separate
@@ -243,60 +244,56 @@ fn parse_tsv_line(line: &str) -> Vec<SmallVec<[String; SMALL_VECTOR_SIZE]>> {
 /// Train SparseMatrix'es (graphs) in separated threads.
 pub fn train(
     config: Configuration,
-    in_memory_entity_mapping_persistor: Arc<InMemoryEntityMappingPersistor>,
+    in_memory_entity_mapping_persistor: &FrozenInMemoryEntityMappingPersistor,
     sparse_matrices: Vec<SparseMatrix>,
 ) {
     let config = Arc::new(config);
-    let mut embedding_threads = Vec::new();
-    for sparse_matrix in sparse_matrices {
-        let sparse_matrix = Arc::new(sparse_matrix);
-        let config = config.clone();
-        let in_memory_entity_mapping_persistor = in_memory_entity_mapping_persistor.clone();
-        let handle = thread::spawn(move || {
-            let directory = match config.output_dir.as_ref() {
-                Some(out) => format!("{}/", out.clone()),
-                None => String::from(""),
-            };
-            let ofp = format!(
-                "{}{}__{}__{}.out",
-                directory,
-                config.relation_name,
-                sparse_matrix.descriptor.col_a_name.as_str(),
-                sparse_matrix.descriptor.col_b_name.as_str()
-            );
 
-            let mut persistor: Box<dyn EmbeddingPersistor> = match &config.output_format {
-                OutputFormat::TextFile => Box::new(TextFileVectorPersistor::new(
-                    ofp,
-                    config.produce_entity_occurrence_count,
-                )),
-                OutputFormat::Numpy => Box::new(NpyPersistor::new(
-                    ofp,
-                    config.produce_entity_occurrence_count,
-                )),
-            };
-            if config.in_memory_embedding_calculation {
-                calculate_embeddings(
-                    config.clone(),
-                    sparse_matrix.clone(),
-                    in_memory_entity_mapping_persistor,
-                    persistor.as_mut(),
+    cb_thread::scope(|s| {
+        for sparse_matrix in sparse_matrices {
+            let sparse_matrix = Arc::new(sparse_matrix);
+            let config = config.clone();
+            // let in_memory_entity_mapping_persistor = in_memory_entity_mapping_persistor.clone();
+            s.spawn(move |_| {
+                let directory = match config.output_dir.as_ref() {
+                    Some(out) => format!("{}/", out.clone()),
+                    None => String::from(""),
+                };
+                let ofp = format!(
+                    "{}{}__{}__{}.out",
+                    directory,
+                    config.relation_name,
+                    sparse_matrix.descriptor.col_a_name.as_str(),
+                    sparse_matrix.descriptor.col_b_name.as_str()
                 );
-            } else {
-                calculate_embeddings_mmap(
-                    config.clone(),
-                    sparse_matrix.clone(),
-                    in_memory_entity_mapping_persistor,
-                    persistor.as_mut(),
-                );
-            }
-        });
-        embedding_threads.push(handle);
-    }
 
-    for join_handle in embedding_threads {
-        join_handle
-            .join()
-            .expect("Couldn't join on the associated thread");
-    }
+                let mut persistor: Box<dyn EmbeddingPersistor> = match &config.output_format {
+                    OutputFormat::TextFile => Box::new(TextFileVectorPersistor::new(
+                        ofp,
+                        config.produce_entity_occurrence_count,
+                    )),
+                    OutputFormat::Numpy => Box::new(NpyPersistor::new(
+                        ofp,
+                        config.produce_entity_occurrence_count,
+                    )),
+                };
+                if config.in_memory_embedding_calculation {
+                    calculate_embeddings(
+                        config.clone(),
+                        sparse_matrix.clone(),
+                        in_memory_entity_mapping_persistor,
+                        persistor.as_mut(),
+                    );
+                } else {
+                    calculate_embeddings_mmap(
+                        config.clone(),
+                        sparse_matrix.clone(),
+                        in_memory_entity_mapping_persistor,
+                        persistor.as_mut(),
+                    );
+                }
+            });
+        }
+    })
+    .unwrap();
 }

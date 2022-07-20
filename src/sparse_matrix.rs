@@ -109,8 +109,7 @@ mod tests {
     use crate::configuration::Column;
     use crate::sparse_matrix::{Entry, SparseMatrix, SparseMatrixReader};
     use crate::sparse_matrix_builder::{
-        create_sparse_matrices_descriptors, SparseMatrixBuffer, SparseMatrixBuffersReducer,
-        SparseMatrixDescriptor,
+        create_sparse_matrices_descriptors, SparseMatrixBuffersReducer, SparseMatrixDescriptor,
     };
     use rustc_hash::FxHasher;
     use std::collections::{HashMap, HashSet};
