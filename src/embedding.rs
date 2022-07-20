@@ -1,6 +1,6 @@
 use crate::configuration::Configuration;
 use crate::persistence::embedding::EmbeddingPersistor;
-use crate::persistence::entity::EntityMappingPersistor;
+use crate::persistence::entity::EntityMappingPersistorReader;
 use crate::sparse_matrix::SparseMatrixReader;
 use log::{info, warn};
 use memmap::MmapMut;
@@ -322,11 +322,11 @@ impl MMapMatrix {
 pub fn calculate_embeddings<T1, T2>(
     config: Arc<Configuration>,
     sparse_matrix_reader: Arc<T1>,
-    entity_mapping_persistor: Arc<T2>,
+    entity_mapping_persistor: &T2,
     embedding_persistor: &mut dyn EmbeddingPersistor,
 ) where
     T1: SparseMatrixReader + Sync + Send,
-    T2: EntityMappingPersistor,
+    T2: EntityMappingPersistorReader,
 {
     let mult = MatrixMultiplicator::new(config.clone(), sparse_matrix_reader);
     let init: TwoDimVectorMatrix = mult.initialize();
@@ -415,10 +415,10 @@ where
     fn persist<T1>(
         &self,
         res: M,
-        entity_mapping_persistor: Arc<T1>,
+        entity_mapping_persistor: &T1,
         embedding_persistor: &mut dyn EmbeddingPersistor,
     ) where
-        T1: EntityMappingPersistor,
+        T1: EntityMappingPersistorReader,
     {
         info!("Start saving embeddings.");
 
@@ -478,11 +478,11 @@ fn log_broken_entities(broken_entities: HashSet<String>) {
 pub fn calculate_embeddings_mmap<T1, T2>(
     config: Arc<Configuration>,
     sparse_matrix_reader: Arc<T1>,
-    entity_mapping_persistor: Arc<T2>,
+    entity_mapping_persistor: &T2,
     embedding_persistor: &mut dyn EmbeddingPersistor,
 ) where
     T1: SparseMatrixReader + Sync + Send,
-    T2: EntityMappingPersistor,
+    T2: EntityMappingPersistorReader,
 {
     let mult = MatrixMultiplicator::new(config.clone(), sparse_matrix_reader);
     let init: MMapMatrix = mult.initialize();

@@ -1,5 +1,5 @@
 use crate::configuration::{Column, Configuration};
-use crate::persistence::entity::EntityMappingPersistor;
+use crate::persistence::entity::{EntityMappingPersistorReader, EntityMappingPersistorWriter};
 use smallvec::{smallvec, SmallVec};
 use std::hash::Hasher;
 use std::sync::Arc;
@@ -73,7 +73,7 @@ impl Iterator for CartesianProduct {
 
 pub struct EntityProcessor<'a, T>
 where
-    T: EntityMappingPersistor + Sync,
+    T: EntityMappingPersistorWriter + Sync,
 {
     config: &'a Configuration,
     field_hashes: SmallVec<[u64; SMALL_VECTOR_SIZE]>,
@@ -84,7 +84,7 @@ where
 
 impl<'a, T: Sync> EntityProcessor<'a, T>
 where
-    T: EntityMappingPersistor,
+    T: EntityMappingPersistorReader + EntityMappingPersistorWriter,
 {
     pub fn new(config: &'a Configuration, persistor: Arc<T>) -> EntityProcessor<'a, T> {
         let columns = &config.columns;

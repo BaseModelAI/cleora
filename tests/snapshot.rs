@@ -27,6 +27,8 @@ fn test_build_graphs_and_create_embeddings() {
 
     // build sparse matrices
     let sparse_matrices = build_graphs(&config, in_memory_entity_mapping_persistor.clone());
+    let in_memory_entity_mapping_persistor =
+        Arc::try_unwrap(in_memory_entity_mapping_persistor).expect("All other references dropped");
 
     let config = Arc::new(config);
 
@@ -43,7 +45,7 @@ fn test_build_graphs_and_create_embeddings() {
         calculate_embeddings(
             config.clone(),
             sparse_matrix.clone(),
-            in_memory_entity_mapping_persistor.clone(),
+            &in_memory_entity_mapping_persistor,
             &mut in_memory_embedding_persistor,
         );
         in_memory_embedding_persistor
@@ -57,7 +59,7 @@ fn test_build_graphs_and_create_embeddings() {
         calculate_embeddings_mmap(
             config.clone(),
             sparse_matrix.clone(),
-            in_memory_entity_mapping_persistor.clone(),
+            &in_memory_entity_mapping_persistor,
             &mut in_memory_embedding_persistor,
         );
         in_memory_embedding_persistor

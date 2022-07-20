@@ -222,15 +222,17 @@ fn main() {
     dbg!(&config);
 
     info!("Starting calculation...");
-    let in_memory_entity_mapping_persistor = InMemoryEntityMappingPersistor::default();
-    let in_memory_entity_mapping_persistor = Arc::new(in_memory_entity_mapping_persistor);
-
+    let in_memory_entity_mapping_persistor = Arc::new(InMemoryEntityMappingPersistor::default());
     let sparse_matrices = build_graphs(&config, in_memory_entity_mapping_persistor.clone());
+    let in_memory_entity_mapping_persistor = Arc::try_unwrap(in_memory_entity_mapping_persistor)
+        .expect("All other references are dropped");
+
     info!(
         "Finished Sparse Matrices calculation in {} sec",
         now.elapsed().as_secs()
     );
 
-    train(config, in_memory_entity_mapping_persistor, sparse_matrices);
+    let in_memory_entity_mapping_persistor = in_memory_entity_mapping_persistor.to_read_only();
+    train(config, &in_memory_entity_mapping_persistor, sparse_matrices);
     info!("Finished in {} sec", now.elapsed().as_secs());
 }
