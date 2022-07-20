@@ -6,6 +6,7 @@ use rustc_hash::FxHasher;
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
+use rayon::prelude::ParallelSliceMut;
 
 use crate::configuration::Column;
 use crate::sparse_matrix::{Entry, Hash, SparseMatrix};
@@ -183,7 +184,7 @@ impl SparseMatrixBuffersReducer {
 
         let hashes_2_edge = self.reduce_edge_maps();
 
-        let entities = {
+        let mut entries: Vec<_> = {
             hashes_2_edge
                 .par_iter()
                 .map(|((row_hash, col_hash), edge)| {
@@ -201,6 +202,9 @@ impl SparseMatrixBuffersReducer {
                 .collect()
         };
 
+        // Sort so we have better data locality in matrix propagation phase
+        entries.par_sort_by_key(|e| (e.row, e.col));
+
         let hashes = hash_2_row
             .par_iter()
             .map(|(entity_hash, entity)| Hash {
@@ -209,7 +213,7 @@ impl SparseMatrixBuffersReducer {
             })
             .collect();
 
-        SparseMatrix::new(self.descriptor, hashes, entities)
+        SparseMatrix::new(self.descriptor, hashes, entries)
     }
 
     fn reduce_row_maps(&self) -> HashMap<u64, Entity, BuildHasherDefault<FxHasher>> {
