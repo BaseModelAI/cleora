@@ -29,7 +29,7 @@ impl SparseMatrix {
 }
 
 /// Hash data
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Hash {
     /// Value of the hash
     pub value: u64,

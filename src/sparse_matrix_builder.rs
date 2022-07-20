@@ -3,8 +3,10 @@ use std::hash::BuildHasherDefault;
 
 use rustc_hash::FxHasher;
 
+use rayon::iter::IndexedParallelIterator;
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::IntoParallelRefMutIterator;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::ParallelSliceMut;
 
@@ -177,10 +179,15 @@ impl SparseMatrixBuffersReducer {
 
     pub fn reduce(self) -> SparseMatrix {
         let mut hash_2_row = self.reduce_row_maps();
-        hash_2_row
-            .iter_mut()
-            .enumerate()
-            .for_each(|(ix, (_, mut row))| row.index = ix as u32);
+        {
+            // Sort by occurence for better data locality
+            let mut values: Vec<_> = hash_2_row.values_mut().collect();
+            values.par_sort_by_key(|r| u32::MAX - r.occurrence);
+            values
+                .par_iter_mut()
+                .enumerate()
+                .for_each(|(ix, mut row)| row.index = ix as u32);
+        }
 
         let hashes_2_edge = self.reduce_edge_maps();
 
@@ -205,13 +212,13 @@ impl SparseMatrixBuffersReducer {
         // Sort so we have better data locality in matrix propagation phase
         entries.par_sort_by_key(|e| (e.row, e.col));
 
-        let hashes = hash_2_row
-            .par_iter()
-            .map(|(entity_hash, entity)| Hash {
+        let mut hashes = vec![Hash::default(); hash_2_row.len()];
+        hash_2_row.iter().for_each(|(entity_hash, entity)| {
+            hashes[entity.index as usize] = Hash {
                 value: *entity_hash,
                 occurrence: entity.occurrence,
-            })
-            .collect();
+            };
+        });
 
         SparseMatrix::new(self.descriptor, hashes, entries)
     }
