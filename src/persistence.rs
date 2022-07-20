@@ -1,6 +1,7 @@
 pub mod entity {
-    use dashmap::{DashMap, ReadOnlyView};
+    use dashmap::DashMap;
     use rustc_hash::FxHasher;
+    use std::collections::HashMap;
     use std::hash::BuildHasherDefault;
 
     pub trait EntityMappingPersistorReader {
@@ -18,7 +19,7 @@ pub mod entity {
     }
 
     pub struct FrozenInMemoryEntityMappingPersistor {
-        entity_mappings: ReadOnlyView<u64, String, BuildHasherDefault<FxHasher>>,
+        entity_mappings: HashMap<u64, String, BuildHasherDefault<FxHasher>>,
     }
 
     impl EntityMappingPersistorReader for InMemoryEntityMappingPersistor {
@@ -39,7 +40,7 @@ pub mod entity {
     impl InMemoryEntityMappingPersistor {
         pub fn to_read_only(self) -> FrozenInMemoryEntityMappingPersistor {
             FrozenInMemoryEntityMappingPersistor {
-                entity_mappings: self.entity_mappings.into_read_only(),
+                entity_mappings: self.entity_mappings.into_iter().collect(),
             }
         }
     }
