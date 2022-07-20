@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::BuildHasherDefault;
 
 use rustc_hash::FxHasher;
@@ -66,7 +66,6 @@ pub fn create_sparse_matrices_descriptors(cols: &[Column]) -> Vec<SparseMatrixDe
 struct Entity {
     pub occurrence: u32,
     pub row_sum: f32,
-    pub index: u32, // set in second stage
 }
 
 #[derive(Debug, Default, Clone)]
@@ -105,6 +104,8 @@ impl SparseMatrixDescriptor {
             edge_count: 0,
             hash_2_row: Default::default(),
             hashes_2_edge: Default::default(),
+            hash_seen: Default::default(),
+            hash_seen_in_order: Default::default(),
         }
     }
 }
@@ -115,6 +116,10 @@ pub struct SparseMatrixBuffer {
     pub edge_count: u32,
     hash_2_row: HashMap<u64, Entity, BuildHasherDefault<FxHasher>>,
     hashes_2_edge: HashMap<(u64, u64), Edge, BuildHasherDefault<FxHasher>>,
+
+    // Assigning ids in the order we see data allows for better data locality
+    hash_seen_in_order: Vec<u64>,
+    hash_seen: HashSet<u64>,
 }
 
 impl SparseMatrixBuffer {
@@ -141,6 +146,11 @@ impl SparseMatrixBuffer {
     }
 
     fn update_row(&mut self, hash: u64, val: f32) {
+        if !self.hash_seen.contains(&hash) {
+            self.hash_seen.insert(hash);
+            self.hash_seen_in_order.push(hash);
+        }
+
         let mut e = self.hash_2_row.entry(hash).or_default();
         e.occurrence += 1;
         e.row_sum += val;
@@ -179,15 +189,18 @@ impl SparseMatrixBuffersReducer {
 
     pub fn reduce(self) -> SparseMatrix {
         let mut hash_2_row = self.reduce_row_maps();
-        {
-            // Sort by occurence for better data locality
-            let mut values: Vec<_> = hash_2_row.values_mut().collect();
-            values.par_sort_by_key(|r| u32::MAX - r.occurrence);
-            values
-                .par_iter_mut()
-                .enumerate()
-                .for_each(|(ix, mut row)| row.index = ix as u32);
-        }
+
+        let hash_2_index: HashMap<u64, usize> = {
+            let mut map: HashMap<u64, usize> = Default::default();
+            for part in self.buffers.iter() {
+                for hash in part.hash_seen_in_order.iter() {
+                    if !map.contains_key(hash) {
+                        map.insert(*hash, map.len());
+                    }
+                }
+            }
+            map
+        };
 
         let hashes_2_edge = self.reduce_edge_maps();
 
@@ -196,13 +209,14 @@ impl SparseMatrixBuffersReducer {
                 .par_iter()
                 .map(|((row_hash, col_hash), edge)| {
                     let row_entity = hash_2_row.get(row_hash).unwrap();
-                    let col_entity = hash_2_row.get(col_hash).unwrap();
-
                     let normalized_edge_value = edge.value / row_entity.row_sum;
 
+                    let row_index = hash_2_index[row_hash];
+                    let col_index = hash_2_index[col_hash];
+
                     Entry {
-                        row: row_entity.index,
-                        col: col_entity.index,
+                        row: row_index as u32,
+                        col: col_index as u32,
                         value: normalized_edge_value,
                     }
                 })
@@ -214,7 +228,8 @@ impl SparseMatrixBuffersReducer {
 
         let mut hashes = vec![Hash::default(); hash_2_row.len()];
         hash_2_row.iter().for_each(|(entity_hash, entity)| {
-            hashes[entity.index as usize] = Hash {
+            let index = hash_2_index[entity_hash];
+            hashes[index] = Hash {
                 value: *entity_hash,
                 occurrence: entity.occurrence,
             };
