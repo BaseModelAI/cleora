@@ -62,11 +62,9 @@ pub trait SparseMatrixReader {
     /// Returns total number of entries
     fn get_number_of_entries(&self) -> u32;
 
-    /// Returns iterator for hash data such as id and occurrence
-    fn iter_hashes(&self) -> CopyIter<'_, Hash>;
+    fn get_entries(&self) -> &Vec<Entry>;
 
-    /// Returns iterator for entries
-    fn iter_entries(&self) -> CopyIter<'_, Entry>;
+    fn get_hashes(&self) -> &Vec<Hash>;
 }
 
 pub struct CopyIter<'a, T: Copy>(std::slice::Iter<'a, T>);
@@ -94,13 +92,13 @@ impl SparseMatrixReader for SparseMatrix {
     }
 
     #[inline]
-    fn iter_hashes(&self) -> CopyIter<'_, Hash> {
-        CopyIter(self.id_2_hash.iter())
+    fn get_entries(&self) -> &Vec<Entry> {
+        &self.entries
     }
 
     #[inline]
-    fn iter_entries(&self) -> CopyIter<'_, Entry> {
-        CopyIter(self.entries.iter())
+    fn get_hashes(&self) -> &Vec<Hash> {
+        &self.id_2_hash
     }
 }
 
@@ -285,7 +283,8 @@ mod tests {
         assert_eq!(10, sm.get_number_of_entries());
 
         let hash_2_id: HashMap<_, _> = sm
-            .iter_hashes()
+            .get_hashes()
+            .iter()
             .enumerate()
             .map(|id_and_hash| (id_and_hash.1.value, id_and_hash.0 as u32))
             .collect();
@@ -302,7 +301,7 @@ mod tests {
             ("u2", "p4", 1.0 / 3.0),
         ];
         let mut expected_entries = prepare_entries(hash_2_id, edges);
-        let mut entries: Vec<_> = sm.iter_entries().collect();
+        let mut entries: Vec<_> = sm.entries;
 
         expected_entries.sort_by_key(|e| (e.row, e.col));
         entries.sort_by_key(|e| (e.row, e.col));

@@ -63,7 +63,7 @@ impl MatrixWrapper for TwoDimVectorMatrix {
             .into_par_iter()
             .map(|i| {
                 let mut col: Vec<f32> = Vec::with_capacity(rows);
-                for hsh in sparse_matrix_reader.iter_hashes() {
+                for hsh in sparse_matrix_reader.get_hashes() {
                     let col_value = init_value(i, hsh.value, fixed_random_value);
                     col.push(col_value);
                 }
@@ -114,7 +114,7 @@ impl MatrixWrapper for TwoDimVectorMatrix {
             .zip(rnew)
             .update(|data| {
                 let (res_col, rnew_col) = data;
-                for entry in sparse_matrix_reader.iter_entries() {
+                for entry in sparse_matrix_reader.get_entries() {
                     let elem = rnew_col.get_mut(entry.row as usize).unwrap();
                     let value = res_col[entry.col as usize];
                     *elem += value * entry.value;
@@ -174,7 +174,7 @@ impl MatrixWrapper for MMapMatrix {
             .for_each(|(i, chunk)| {
                 // i - number of dimension
                 // chunk - column/vector of bytes
-                for (j, hsh) in sparse_matrix_reader.iter_hashes().enumerate() {
+                for (j, hsh) in sparse_matrix_reader.get_hashes().iter().enumerate() {
                     let col_value = init_value(i, hsh.value, fixed_random_value);
                     MMapMatrix::update_column(j, chunk, |value| unsafe { *value = col_value });
                 }
@@ -246,7 +246,7 @@ impl MatrixWrapper for MMapMatrix {
             .par_chunks_mut(rows * 4)
             .enumerate()
             .for_each_with(input, |input, (i, chunk)| {
-                for entry in sparse_matrix_reader.iter_entries() {
+                for entry in sparse_matrix_reader.get_entries() {
                     let input_value = input.get_value(entry.col as usize, i);
                     MMapMatrix::update_column(entry.row as usize, chunk, |value| unsafe {
                         *value += input_value * entry.value
@@ -394,6 +394,7 @@ where
 
         let mut new_res = res;
         for i in 0..max_iter {
+            // Double buffering zrobic
             let mut next = M::multiply(self.sparse_matrix_reader.clone(), new_res);
             next.normalize();
             new_res = next;
@@ -434,7 +435,7 @@ where
 
         // entities which can't be written to the file (error occurs)
         let mut broken_entities = HashSet::new();
-        for (i, hash) in self.sparse_matrix_reader.iter_hashes().enumerate() {
+        for (i, hash) in self.sparse_matrix_reader.get_hashes().iter().enumerate() {
             let entity_name_opt = entity_mapping_persistor.get_entity(hash.value);
             if let Some(entity_name) = entity_name_opt {
                 let mut embedding: Vec<f32> = Vec::with_capacity(self.dimension);
