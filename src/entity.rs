@@ -1,6 +1,7 @@
 use crate::configuration::{Column, Configuration};
 use crate::persistence::entity::{EntityMappingPersistorReader, EntityMappingPersistorWriter};
 use smallvec::{smallvec, SmallVec};
+use std::iter::FromIterator;
 use std::hash::Hasher;
 use std::sync::Arc;
 use twox_hash::XxHash64;
@@ -12,7 +13,7 @@ pub const SMALL_VECTOR_SIZE: usize = 8;
 /// Marker for elements in a vector. Let's say that we have `vec![1, 2, 3, 4]`
 /// and `LengthAndOffset { length: 2, offset : 1 }`. Offset points to the second element in the vector
 /// and length tell us how many elements we should take (in that case 2 elements: 2 and 3).
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 struct LengthAndOffset {
     length: u32,
     offset: u32,
@@ -84,13 +85,22 @@ impl Iterator for CartesianProduct {
 /// `lens_and_offsets` - number of entities per column
 /// return entity hashes Cartesian Products. Size of the array (matrix) is equal to number of combinations x number of columns (including reflexive column)
 ///
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Hyperedge {
     hashes: SmallVec<[u64; SMALL_VECTOR_SIZE]>,
     lens_and_offsets: SmallVec<[LengthAndOffset; SMALL_VECTOR_SIZE]>,
 }
 
 impl Hyperedge {
+
+    pub fn nodes(&self, column_id: usize) -> SmallVec<[u64; SMALL_VECTOR_SIZE]> {
+        let LengthAndOffset{offset, length} = self.lens_and_offsets[column_id];
+        let mut arr: SmallVec<[u64; SMALL_VECTOR_SIZE]> = SmallVec::with_capacity(length as usize);
+        for index in offset..offset+length {
+            arr.push(self.hashes[(index as usize)])
+        }
+        arr
+    }
 
     #[inline(always)]
     pub fn edges_iter(&self) -> impl Iterator<Item = SmallVec<[u64; SMALL_VECTOR_SIZE]>> + '_ {
@@ -101,7 +111,6 @@ impl Hyperedge {
         }
 
         let cartesian = CartesianProduct::new(self.lens_and_offsets.clone());
-
         cartesian.map(move |indices| {
             let mut arr: SmallVec<[u64; SMALL_VECTOR_SIZE]> =
                 SmallVec::with_capacity(row_length + 1);

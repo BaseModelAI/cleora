@@ -10,19 +10,16 @@ use crate::persistence::entity::{
     FrozenInMemoryEntityMappingPersistor, InMemoryEntityMappingPersistor,
 };
 use crate::sparse_matrix::SparseMatrix;
-use crate::sparse_matrix_builder::{
-    create_sparse_matrices_descriptors, SparseMatrixBuffersReducer,
-};
+use crate::sparse_matrix_builder::{create_sparse_matrices_descriptors, HyperedgesIndexer, SparseMatrixBuffersReducer};
 use crossbeam::channel;
 use crossbeam::thread as cb_thread;
 use log::{error, info, warn};
 use num_cpus;
-use rayon::iter::IntoParallelIterator;
-use rayon::iter::ParallelIterator;
 use simdjson_rust::dom;
 use smallvec::{smallvec, SmallVec};
 use std::sync::Arc;
 use std::time::Instant;
+
 
 /// Create SparseMatrix'es based on columns config. Every SparseMatrix operates in separate
 /// thread. EntityProcessor reads data in main thread and broadcast cartesian products
@@ -33,6 +30,8 @@ pub fn build_graphs(
 ) -> Vec<SparseMatrix> {
     let sparse_matrices_desc = Arc::new(create_sparse_matrices_descriptors(&config.columns));
     dbg!(&sparse_matrices_desc);
+
+    let hyperedge_indexers: Vec<Box<HyperedgesIndexer>> = sparse_matrices_desc.iter().map(|md|Box::new(HyperedgesIndexer::new(md))).collect();
 
     let processing_worker_num = num_cpus::get();
     let buffers: Vec<_> = cb_thread::scope(|s| {
@@ -91,6 +90,7 @@ pub fn build_graphs(
                 in_memory_entity_mapping_persistor.clone(),
             );
             let sparse_matrices = sparse_matrices_desc.clone();
+            let hyperedge_indexers = &hyperedge_indexers;
 
             s.spawn(move |_| {
                 let mut buffers: Vec<_> = sparse_matrices.iter().map(|smd| smd.make_buffer()).collect();
@@ -98,7 +98,12 @@ pub fn build_graphs(
                 for row in hyperedges_r {
                     let hyperedge = entity_processor.process_row_and_get_edges(&row);
 
-                    for buffer in &mut buffers {
+                    for i in 0..sparse_matrices.len() {
+                        let buffer = &mut buffers[i];
+                        let hyperedge_indexer = &hyperedge_indexers[i];
+
+                        hyperedge_indexer.process(&hyperedge);
+
                         for hashes in hyperedge.edges_iter() {
                             buffer.handle_pair(&hashes);
                         }
@@ -122,10 +127,12 @@ pub fn build_graphs(
     let buffers = transpose(buffers);
 
     let result = buffers
-        .into_par_iter()
-        .map(|parts| {
+        .into_iter()
+        .zip(hyperedge_indexers.into_iter())
+        .map(|(parts, hyperedge_indexers)| {
             assert_eq!(parts.len(), processing_worker_num);
-            SparseMatrixBuffersReducer::new(parts).reduce()
+            let row_indexer = hyperedge_indexers.finish();
+            SparseMatrixBuffersReducer::new(row_indexer, parts).reduce()
         })
         .collect();
 
