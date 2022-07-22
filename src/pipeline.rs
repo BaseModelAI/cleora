@@ -95,10 +95,10 @@ pub fn build_graphs(
                 let mut buffers: Vec<_> = sparse_matrices.iter().map(|smd| smd.make_buffer()).collect();
 
                 for row in hyperedges_r {
-                    let iterator = entity_processor.process_row_and_get_edges(&row);
+                    let hyperedge = entity_processor.process_row_and_get_edges(&row);
 
                     for buffer in &mut buffers {
-                        for hashes in iterator.clone() {
+                        for hashes in hyperedge.edges_iter() {
                             buffer.handle_pair(&hashes);
                         }
                     }
