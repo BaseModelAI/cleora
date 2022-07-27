@@ -1,9 +1,11 @@
 use crate::configuration::Configuration;
 use crate::persistence::embedding::EmbeddingPersistor;
 use crate::persistence::entity::EntityMappingPersistor;
-use crate::sparse_matrix::SparseMatrixReader;
+use crate::sparse_matrix::Edge;
+use crate::sparse_matrix::{SparseMatrix, SparseMatrixReader};
 use log::{info, warn};
 use memmap::MmapMut;
+use ndarray::{Array, Array1, Array2, Axis};
 use rayon::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
@@ -11,6 +13,7 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::hash::Hasher;
 use std::marker::PhantomData;
+use std::ops::DivAssign;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -25,109 +28,100 @@ const MAX_HASH_F32: f32 = MAX_HASH_I64 as f32;
 /// Wrapper for different types of matrix structures such as 2-dim vectors or memory-mapped files
 trait MatrixWrapper {
     /// Initializing a matrix with values from its dimensions and the hash values from the sparse matrix
-    fn init_with_hashes<T: SparseMatrixReader + Sync + Send>(
-        rows: usize,
-        cols: usize,
+    fn init_with_hashes(
+        entities_n: usize,
+        features_n: usize,
         fixed_random_value: i64,
-        sparse_matrix_reader: Arc<T>,
+        sparse_matrix_reader: Arc<SparseMatrix>,
     ) -> Self;
 
     /// Returns value for specific coordinates
-    fn get_value(&self, row: usize, col: usize) -> f32;
+    fn get_value(&self, entity_ix: usize, feature_ix: usize) -> f32;
 
     /// Normalizing a matrix by rows sum
     fn normalize(&mut self);
 
     /// Multiplies sparse matrix by the matrix
-    fn multiply<T: SparseMatrixReader + Sync + Send>(
-        sparse_matrix_reader: Arc<T>,
-        other: Self,
-    ) -> Self;
+    fn multiply(sparse_matrix_reader: Arc<SparseMatrix>, other: Self) -> Self;
 }
 
 /// Two dimensional vectors as matrix representation
-struct TwoDimVectorMatrix {
-    rows: usize,
-    cols: usize,
-    matrix: Vec<Vec<f32>>,
+struct NdArrayMatrix {
+    matrix: Array2<f32>,
 }
 
-impl MatrixWrapper for TwoDimVectorMatrix {
-    fn init_with_hashes<T: SparseMatrixReader + Sync + Send>(
-        rows: usize,
-        cols: usize,
+impl MatrixWrapper for NdArrayMatrix {
+    fn init_with_hashes(
+        entities_n: usize,
+        features_n: usize,
         fixed_random_value: i64,
-        sparse_matrix_reader: Arc<T>,
+        sparse_matrix_reader: Arc<SparseMatrix>,
     ) -> Self {
-        let result: Vec<Vec<f32>> = (0..cols)
+        let rows = entities_n;
+        let cols = features_n;
+
+        let entities = &sparse_matrix_reader.entities;
+        let mut matrix: Array2<f32> = ndarray::Array::zeros((rows, cols));
+
+        matrix
+            .axis_iter_mut(Axis(0))
             .into_par_iter()
-            .map(|i| {
-                let mut col: Vec<f32> = Vec::with_capacity(rows);
-                for hsh in sparse_matrix_reader.iter_hashes() {
-                    let col_value = init_value(i, hsh.value, fixed_random_value);
-                    col.push(col_value);
-                }
-                col
-            })
-            .collect();
-        Self {
-            rows,
-            cols,
-            matrix: result,
-        }
+            .enumerate()
+            .for_each(|(row_ix, mut row)| {
+                row.indexed_iter_mut().for_each(|(col_ix, v)| {
+                    let value = init_value(col_ix, entities[row_ix].hash_value, fixed_random_value);
+                    *v = value
+                });
+            });
+        Self { matrix }
     }
 
     #[inline]
-    fn get_value(&self, row: usize, col: usize) -> f32 {
-        let column: &Vec<f32> = self.matrix.get(col).unwrap();
-        column[row]
+    fn get_value(&self, entity_ix: usize, feature_ix: usize) -> f32 {
+        self.matrix[[entity_ix, feature_ix]]
     }
 
     fn normalize(&mut self) {
-        let mut row_sum = vec![0f32; self.rows];
-
-        for col in self.matrix.iter() {
-            for (j, sum) in row_sum.iter_mut().enumerate() {
-                let value = col[j];
-                *sum += value.powi(2)
-            }
-        }
-
-        let row_sum = Arc::new(row_sum);
-        self.matrix.par_iter_mut().for_each(|col| {
-            for (j, value) in col.iter_mut().enumerate() {
-                let sum = row_sum[j];
-                *value /= sum.sqrt();
-            }
-        });
+        self.matrix
+            .axis_iter_mut(Axis(0))
+            .into_par_iter()
+            .for_each(|mut row| {
+                let norm_l2 = row.mapv(|a| a.powi(2)).sum().sqrt();
+                row.div_assign(norm_l2)
+            });
     }
 
-    fn multiply<T: SparseMatrixReader + Sync + Send>(
-        sparse_matrix_reader: Arc<T>,
-        other: Self,
-    ) -> Self {
-        let rnew = zero_2d(other.rows, other.cols);
+    fn multiply(sparse_matrix_reader: Arc<SparseMatrix>, other: Self) -> Self {
+        let mut new_matrix: Array2<f32> = Array::zeros(other.matrix.raw_dim());
 
-        let result: Vec<Vec<f32>> = other
-            .matrix
+        new_matrix
+            .axis_iter_mut(Axis(0))
             .into_par_iter()
-            .zip(rnew)
-            .update(|data| {
-                let (res_col, rnew_col) = data;
-                for entry in sparse_matrix_reader.iter_entries() {
-                    let elem = rnew_col.get_mut(entry.row as usize).unwrap();
-                    let value = res_col[entry.col as usize];
-                    *elem += value * entry.value;
-                }
-            })
-            .map(|data| data.1)
-            .collect();
+            .zip(sparse_matrix_reader.slices.par_iter())
+            .for_each(|(mut row, (start, end))| {
+                let edges = &sparse_matrix_reader.edges[*start..*end];
 
-        Self {
-            rows: other.rows,
-            cols: other.cols,
-            matrix: result,
-        }
+                let new_row: Array1<f32> = edges
+                    .par_iter()
+                    .fold(
+                        || Array1::zeros(other.matrix.shape()[1]),
+                        |mut row, edge| {
+                            let Edge {
+                                value,
+                                other_entity_ix,
+                            } = edge;
+                            let other_row = &other.matrix.row(*other_entity_ix as usize);
+                            row.scaled_add(*value, other_row);
+                            row
+                        },
+                    )
+                    .reduce_with(|v1, v2| v1 + v2)
+                    .unwrap();
+
+                row.assign(&new_row);
+            });
+
+        Self { matrix: new_matrix }
     }
 }
 
@@ -141,15 +135,6 @@ fn hash(num: i64) -> i64 {
     hasher.finish() as i64
 }
 
-fn zero_2d(row: usize, col: usize) -> Vec<Vec<f32>> {
-    let mut res: Vec<Vec<f32>> = Vec::with_capacity(col);
-    for _i in 0..col {
-        let col = vec![0f32; row];
-        res.push(col);
-    }
-    res
-}
-
 /// Memory-mapped file as matrix representation. Every column of the matrix is placed side by side in the file.
 struct MMapMatrix {
     rows: usize,
@@ -159,12 +144,15 @@ struct MMapMatrix {
 }
 
 impl MatrixWrapper for MMapMatrix {
-    fn init_with_hashes<T: SparseMatrixReader + Sync + Send>(
-        rows: usize,
-        cols: usize,
+    fn init_with_hashes(
+        entities_n: usize,
+        features_n: usize,
         fixed_random_value: i64,
-        sparse_matrix_reader: Arc<T>,
+        sparse_matrix_reader: Arc<SparseMatrix>,
     ) -> Self {
+        let rows = entities_n;
+        let cols = features_n;
+
         let uuid = Uuid::new_v4();
         let file_name = format!("{}_matrix_{}", sparse_matrix_reader.get_id(), uuid);
         let mut mmap = create_mmap(rows, cols, file_name.as_str());
@@ -174,8 +162,8 @@ impl MatrixWrapper for MMapMatrix {
             .for_each(|(i, chunk)| {
                 // i - number of dimension
                 // chunk - column/vector of bytes
-                for (j, hsh) in sparse_matrix_reader.iter_hashes().enumerate() {
-                    let col_value = init_value(i, hsh.value, fixed_random_value);
+                for (j, hsh) in sparse_matrix_reader.entities.iter().enumerate() {
+                    let col_value = init_value(i, hsh.hash_value, fixed_random_value);
                     MMapMatrix::update_column(j, chunk, |value| unsafe { *value = col_value });
                 }
             });
@@ -192,7 +180,9 @@ impl MatrixWrapper for MMapMatrix {
     }
 
     #[inline]
-    fn get_value(&self, row: usize, col: usize) -> f32 {
+    fn get_value(&self, entity_ix: usize, feature_ix: usize) -> f32 {
+        let row = entity_ix;
+        let col = feature_ix;
         let start_idx = ((col * self.rows) + row) * 4;
         let end_idx = start_idx + 4;
         let pointer: *const u8 = (&self.matrix[start_idx..end_idx]).as_ptr();
@@ -230,10 +220,7 @@ impl MatrixWrapper for MMapMatrix {
             .expect("Can't flush memory map modifications to disk");
     }
 
-    fn multiply<T: SparseMatrixReader + Sync + Send>(
-        sparse_matrix_reader: Arc<T>,
-        other: Self,
-    ) -> Self {
+    fn multiply(sparse_matrix_reader: Arc<SparseMatrix>, other: Self) -> Self {
         let rows = other.rows;
         let cols = other.cols;
 
@@ -242,15 +229,18 @@ impl MatrixWrapper for MMapMatrix {
         let mut mmap_output = create_mmap(rows, cols, file_name.as_str());
 
         let input = Arc::new(other);
+
         mmap_output
             .par_chunks_mut(rows * 4)
             .enumerate()
             .for_each_with(input, |input, (i, chunk)| {
-                for entry in sparse_matrix_reader.iter_entries() {
-                    let input_value = input.get_value(entry.col as usize, i);
-                    MMapMatrix::update_column(entry.row as usize, chunk, |value| unsafe {
-                        *value += input_value * entry.value
-                    });
+                for (row_ix, (start, end)) in sparse_matrix_reader.slices.iter().enumerate() {
+                    for edge in &sparse_matrix_reader.edges[*start..*end] {
+                        let input_value = input.get_value(edge.other_entity_ix as usize, i);
+                        MMapMatrix::update_column(row_ix, chunk, |value| unsafe {
+                            *value += input_value * edge.value
+                        });
+                    }
                 }
             });
 
@@ -319,18 +309,18 @@ impl MMapMatrix {
 }
 
 /// Calculate embeddings in memory.
-pub fn calculate_embeddings<T1, T2>(
+pub fn calculate_embeddings<T2>(
     config: Arc<Configuration>,
-    sparse_matrix_reader: Arc<T1>,
+    sparse_matrix_reader: Arc<SparseMatrix>,
     entity_mapping_persistor: Arc<T2>,
     embedding_persistor: &mut dyn EmbeddingPersistor,
 ) where
-    T1: SparseMatrixReader + Sync + Send,
     T2: EntityMappingPersistor,
 {
     let mult = MatrixMultiplicator::new(config.clone(), sparse_matrix_reader);
-    let init: TwoDimVectorMatrix = mult.initialize();
+    let init: NdArrayMatrix = mult.initialize();
     let res = mult.propagate(config.max_number_of_iteration, init);
+
     mult.persist(res, entity_mapping_persistor, embedding_persistor);
 
     info!("Finalizing embeddings calculations!")
@@ -338,20 +328,19 @@ pub fn calculate_embeddings<T1, T2>(
 
 /// Provides matrix multiplication based on sparse matrix data.
 #[derive(Debug)]
-struct MatrixMultiplicator<T: SparseMatrixReader + Sync + Send, M: MatrixWrapper> {
+struct MatrixMultiplicator<M: MatrixWrapper> {
     dimension: usize,
     number_of_entities: usize,
     fixed_random_value: i64,
-    sparse_matrix_reader: Arc<T>,
+    sparse_matrix_reader: Arc<SparseMatrix>,
     _marker: PhantomData<M>,
 }
 
-impl<T, M> MatrixMultiplicator<T, M>
+impl<M> MatrixMultiplicator<M>
 where
-    T: SparseMatrixReader + Sync + Send,
     M: MatrixWrapper,
 {
-    fn new(config: Arc<Configuration>, sparse_matrix_reader: Arc<T>) -> Self {
+    fn new(config: Arc<Configuration>, sparse_matrix_reader: Arc<SparseMatrix>) -> Self {
         let rand_value = config.seed.map(hash).unwrap_or(0);
         Self {
             dimension: config.embeddings_dimension as usize,
@@ -434,12 +423,12 @@ where
 
         // entities which can't be written to the file (error occurs)
         let mut broken_entities = HashSet::new();
-        for (i, hash) in self.sparse_matrix_reader.iter_hashes().enumerate() {
-            let entity_name_opt = entity_mapping_persistor.get_entity(hash.value);
+        for (entity_ix, hash) in self.sparse_matrix_reader.entities.iter().enumerate() {
+            let entity_name_opt = entity_mapping_persistor.get_entity(hash.hash_value);
             if let Some(entity_name) = entity_name_opt {
                 let mut embedding: Vec<f32> = Vec::with_capacity(self.dimension);
                 for j in 0..self.dimension {
-                    let value = res.get_value(i, j);
+                    let value = res.get_value(entity_ix, j);
                     embedding.push(value);
                 }
                 embedding_persistor
@@ -475,13 +464,12 @@ fn log_broken_entities(broken_entities: HashSet<String>) {
 }
 
 /// Calculate embeddings with memory-mapped files.
-pub fn calculate_embeddings_mmap<T1, T2>(
+pub fn calculate_embeddings_mmap<T2>(
     config: Arc<Configuration>,
-    sparse_matrix_reader: Arc<T1>,
+    sparse_matrix_reader: Arc<SparseMatrix>,
     entity_mapping_persistor: Arc<T2>,
     embedding_persistor: &mut dyn EmbeddingPersistor,
 ) where
-    T1: SparseMatrixReader + Sync + Send,
     T2: EntityMappingPersistor,
 {
     let mult = MatrixMultiplicator::new(config.clone(), sparse_matrix_reader);

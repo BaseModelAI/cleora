@@ -23,13 +23,14 @@ smallvec = "1.8.1"
 twox-hash = "1.6.3"
 simdjson-rust = {git = "https://github.com/SunDoge/simdjson-rust"}
 ryu = "1.0.10"
-ndarray = "0.15.4"
+ndarray = { version = "0.15.4", features = ["rayon"]}
 ndarray-npy = "0.8.1"
 serde_json = "1.0.81"
 uuid = { version = "1.1.2", features = ["v4"] }
 crossbeam = "0.8.1"
 dashmap = "5.3.4"
 num_cpus = "1.13.1"
+itertools = "0.10.3"
 
 [dev-dependencies]
 criterion = "0.3.3"

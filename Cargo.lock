@@ -149,6 +149,7 @@ dependencies = [
  "dashmap",
  "env_logger",
  "insta",
+ "itertools",
  "log",
  "memmap",
  "ndarray",
@@ -645,6 +646,7 @@ dependencies = [
  "num-integer",
  "num-traits",
  "rawpointer",
+ "rayon",
 ]
 
 [[package]]

@@ -70,49 +70,43 @@ pub struct SparseMatrixDescriptor {
 #[derive(Debug)]
 pub struct SparseMatrix {
     pub descriptor: SparseMatrixDescriptor,
+    // Graph nodes
+    pub entities: Vec<Entity>,
+    pub edges: Vec<Edge>,
+    /// Maps entities to its edges
+    pub slices: Vec<(usize, usize)>,
+}
 
-    /// Maps id to hash value and occurrence
-    id_2_hash: Vec<Hash>,
-
-    /// Coordinates and values of nonzero entities
-    entries: Vec<Entry>,
+#[derive(Debug)]
+pub struct Edge {
+    pub other_entity_ix: u32,
+    pub value: f32,
 }
 
 impl SparseMatrix {
     pub fn new(
         descriptor: SparseMatrixDescriptor,
-        id_2_hash: Vec<Hash>,
-        entries: Vec<Entry>,
+        entities: Vec<Entity>,
+        edges: Vec<Edge>,
+        slices: Vec<(usize, usize)>,
     ) -> Self {
         Self {
             descriptor,
-            id_2_hash,
-            entries,
+            entities,
+            edges,
+            slices,
         }
     }
 }
 
 /// Hash data
 #[derive(Debug, Clone, Copy)]
-pub struct Hash {
+pub struct Entity {
     /// Value of the hash
-    pub value: u64,
+    pub hash_value: u64,
 
     /// Number of hash occurrences
     pub occurrence: u32,
-}
-
-/// Sparse matrix coordinate entry
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub struct Entry {
-    /// Matrix row
-    pub row: u32,
-
-    /// Matrix column
-    pub col: u32,
-
-    /// Matrix value
-    pub value: f32,
 }
 
 /// Sparse matrix reader used in embedding process
@@ -125,12 +119,6 @@ pub trait SparseMatrixReader {
 
     /// Returns total number of entries
     fn get_number_of_entries(&self) -> u32;
-
-    /// Returns iterator for hash data such as id and occurrence
-    fn iter_hashes(&self) -> CopyIter<'_, Hash>;
-
-    /// Returns iterator for entries
-    fn iter_entries(&self) -> CopyIter<'_, Entry>;
 }
 
 pub struct CopyIter<'a, T: Copy>(std::slice::Iter<'a, T>);
@@ -150,21 +138,11 @@ impl SparseMatrixReader for SparseMatrix {
     }
 
     fn get_number_of_entities(&self) -> u32 {
-        self.id_2_hash.len() as u32
+        self.entities.len() as u32
     }
 
     fn get_number_of_entries(&self) -> u32 {
-        self.entries.len() as u32
-    }
-
-    #[inline]
-    fn iter_hashes(&self) -> CopyIter<'_, Hash> {
-        CopyIter(self.id_2_hash.iter())
-    }
-
-    #[inline]
-    fn iter_entries(&self) -> CopyIter<'_, Entry> {
-        CopyIter(self.entries.iter())
+        self.edges.len() as u32
     }
 }
 
@@ -172,7 +150,7 @@ impl SparseMatrixReader for SparseMatrix {
 mod tests {
     use crate::configuration::Column;
     use crate::sparse_matrix::{
-        create_sparse_matrices_descriptors, Entry, SparseMatrixDescriptor, SparseMatrixReader,
+        create_sparse_matrices_descriptors, SparseMatrixDescriptor, SparseMatrixReader,
     };
     use crate::sparse_matrix_builder::{NodeIndexer, SparseMatrixBuffersReducer};
     use rustc_hash::FxHasher;
@@ -193,47 +171,6 @@ mod tests {
                 )
             })
             .collect()
-    }
-
-    fn prepare_entries(hash_2_id: HashMap<u64, u32>, edges: Vec<(&str, &str, f32)>) -> Vec<Entry> {
-        let mut row_sum: Vec<f32> = Vec::with_capacity(hash_2_id.len() as usize);
-        for _ in 0..hash_2_id.len() {
-            row_sum.push(0.0);
-        }
-
-        let mut entries: Vec<_> = Vec::new();
-        for (row, col, val) in edges {
-            // undirected graph needs (row, col) and (col, row) edges
-            let row = *hash_2_id.get(&hash(row)).unwrap();
-            let col = *hash_2_id.get(&hash(col)).unwrap();
-            let entry_row_col = Entry {
-                row,
-                col,
-                value: val,
-            };
-            entries.push(entry_row_col);
-            row_sum[entry_row_col.row as usize] += val;
-
-            let entry_col_row = Entry {
-                row: col,
-                col: row,
-                value: val,
-            };
-            entries.push(entry_col_row);
-            row_sum[entry_col_row.row as usize] += val;
-        }
-
-        for mut entry in entries.iter_mut() {
-            entry.value /= row_sum[entry.row as usize]
-        }
-
-        entries
-    }
-
-    fn hash(entity: &str) -> u64 {
-        let mut hasher = FxHasher::default();
-        hasher.write(entity.as_bytes());
-        hasher.finish()
     }
 
     #[test]
@@ -312,72 +249,5 @@ mod tests {
         .cloned()
         .collect();
         assert_eq!(expected_sparse_matrices, sparse_matrices)
-    }
-
-    #[test]
-    fn create_sparse_matrix_for_undirected_graph() {
-        let sm_desc =
-            SparseMatrixDescriptor::new(0u8, String::from("col_0"), 1u8, String::from("col_1"));
-
-        let mut sm = sm_desc.make_buffer();
-
-        // input line:
-        // u1	p1 p2	b1 b2
-        sm.handle_pair(&[4, hash("u1"), hash("p1"), hash("b1")]);
-        sm.handle_pair(&[4, hash("u1"), hash("p1"), hash("b2")]);
-        sm.handle_pair(&[4, hash("u1"), hash("p2"), hash("b1")]);
-        sm.handle_pair(&[4, hash("u1"), hash("p2"), hash("b2")]);
-
-        // input line:
-        // u2	p2 p3 p4	b1
-        sm.handle_pair(&[3, hash("u2"), hash("p2"), hash("b1")]);
-        sm.handle_pair(&[3, hash("u2"), hash("p3"), hash("b1")]);
-        sm.handle_pair(&[3, hash("u2"), hash("p4"), hash("b1")]);
-
-        let node_indexer = {
-            // [user, product] columns specified in sparse matrix description
-            let nodes = vec!["u1", "u2", "p1", "p2", "p3", "p4"];
-            let node_hashes: Vec<_> = nodes.iter().map(|n| hash(n)).collect();
-            NodeIndexer {
-                key_2_index: node_hashes
-                    .iter()
-                    .enumerate()
-                    .map(|(ix, hash)| (*hash, ix))
-                    .collect(),
-                index_2_key: node_hashes,
-            }
-        };
-        let sm = SparseMatrixBuffersReducer::new(node_indexer, vec![sm]).reduce();
-
-        // number of unique entities
-        assert_eq!(6, sm.get_number_of_entities());
-
-        // number of edges for entities
-        assert_eq!(10, sm.get_number_of_entries());
-
-        let hash_2_id: HashMap<_, _> = sm
-            .iter_hashes()
-            .enumerate()
-            .map(|id_and_hash| (id_and_hash.1.value, id_and_hash.0 as u32))
-            .collect();
-        // number of hashes
-        assert_eq!(6, hash_2_id.len());
-
-        // every relation for undirected graph is represented as two edges, for example:
-        // (u1, p1, value) and (p1, u1, value)
-        let edges = vec![
-            ("u1", "p1", 1.0 / 2.0),
-            ("u1", "p2", 1.0 / 2.0),
-            ("u2", "p2", 1.0 / 3.0),
-            ("u2", "p3", 1.0 / 3.0),
-            ("u2", "p4", 1.0 / 3.0),
-        ];
-        let mut expected_entries = prepare_entries(hash_2_id, edges);
-        let mut entries: Vec<_> = sm.iter_entries().collect();
-
-        expected_entries.sort_by_key(|e| (e.row, e.col));
-        entries.sort_by_key(|e| (e.row, e.col));
-
-        assert_eq!(expected_entries, entries);
     }
 }
