@@ -2,8 +2,7 @@ use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 use std::sync::Mutex;
 
-use crossbeam::queue::SegQueue;
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use itertools::Itertools;
 use rayon::iter::IndexedParallelIterator;
 use rayon::iter::IntoParallelIterator;
@@ -37,8 +36,8 @@ pub struct NodeIndexerBuilder {
     col_a_id: u8,
     col_b_id: u8,
     key_2_index: DashMap<u64, usize, BuildHasherDefault<FxHasher>>,
+    unprocessed_keys: DashSet<u64, BuildHasherDefault<FxHasher>>,
     index_2_key: Mutex<Vec<u64>>,
-    inserts_queue: SegQueue<u64>,
 }
 
 impl NodeIndexerBuilder {
@@ -47,8 +46,8 @@ impl NodeIndexerBuilder {
             col_a_id: descriptor.col_a_id,
             col_b_id: descriptor.col_b_id,
             key_2_index: Default::default(),
+            unprocessed_keys: Default::default(),
             index_2_key: Default::default(),
-            inserts_queue: Default::default(),
         }
     }
 
@@ -67,7 +66,7 @@ impl NodeIndexerBuilder {
             .try_lock()
             .expect("No one inserting at finish time")
             .to_owned();
-        self.process_queue(&mut index_to_key);
+        self.process_queued(&mut index_to_key);
         NodeIndexer {
             key_2_index: self.key_2_index.into_iter().collect(),
             index_2_key: index_to_key,
@@ -75,22 +74,25 @@ impl NodeIndexerBuilder {
     }
 
     fn insert_nonblocking(&self, key: &u64) {
-        if self.key_2_index.contains_key(key) {
+        if self.key_2_index.contains_key(key) || self.unprocessed_keys.contains(key) {
             return;
         }
-        self.inserts_queue.push(*key);
+        self.unprocessed_keys.insert(*key);
         if let Ok(mut index_2_key) = self.index_2_key.try_lock() {
             // One worker that succeeds to lock it -> will process the queue.
-            self.process_queue(&mut index_2_key);
+            self.process_queued(&mut index_2_key);
         }
     }
 
-    fn process_queue(&self, index_2_key: &mut Vec<u64>) {
-        while let Some(key) = self.inserts_queue.pop() {
-            if !self.key_2_index.contains_key(&key) {
-                let next_id = index_2_key.len();
-                index_2_key.push(key);
-                self.key_2_index.insert(key, next_id);
+    fn process_queued(&self, index_2_key: &mut Vec<u64>) {
+        let keys: Vec<u64> = self.unprocessed_keys.iter().map(|k| *k).collect();
+        for key in keys {
+            if let Some(key) = self.unprocessed_keys.remove(&key) {
+                if !self.key_2_index.contains_key(&key) {
+                    let next_id = index_2_key.len();
+                    index_2_key.push(key);
+                    self.key_2_index.insert(key, next_id);
+                }
             }
         }
     }
