@@ -47,8 +47,13 @@ pub fn build_graphs(
             let file_reading_worker_num = min(4, config.input.len());
 
             for _ in 0..file_reading_worker_num {
-                let row_s = hyperedges_s.clone();
+                let hyperedges_s = hyperedges_s.clone();
                 let files_r = files_r.clone();
+
+                let entity_processor = EntityProcessor::new(
+                    config,
+                    in_memory_entity_mapping_persistor.clone(),
+                );
 
                 match &config.file_type {
                     FileType::Json => {
@@ -57,8 +62,11 @@ pub fn build_graphs(
 
                             for input in files_r {
                                 read_file(input, config.log_every_n as u64, |line| {
+                                    // TODO przehaszowac rzeczy juz tutaj
+                                    // Przewalanie GIGA linii bardzo kosztowne
                                     let row = parse_json_line(line, &mut parser, &config.columns);
-                                    row_s.send(row).unwrap();
+                                    let hyperedge = entity_processor.process_row_and_get_edges(&row);
+                                    hyperedges_s.send(hyperedge).unwrap();
                                 })
                             }
                         });
@@ -71,7 +79,8 @@ pub fn build_graphs(
                                     let row = parse_tsv_line(line);
                                     let line_col_num = row.len();
                                     if line_col_num == config_col_num {
-                                        row_s.send(row).unwrap();
+                                        let hyperedge = entity_processor.process_row_and_get_edges(&row);
+                                        hyperedges_s.send(hyperedge).unwrap();
                                     } else {
                                         warn!("Wrong number of columns (expected: {}, provided: {}). The line [{}] is skipped.", config_col_num, line_col_num, line);
                                     }
@@ -86,19 +95,13 @@ pub fn build_graphs(
         #[allow(clippy::needless_collect)]  // Must collect because of 'drop' calls below
         let buffers_handles: Vec<_> = (0..processing_worker_num).map(|_| {
             let hyperedges_r = hyperedges_r.clone();
-            let entity_processor = EntityProcessor::new(
-                config,
-                in_memory_entity_mapping_persistor.clone(),
-            );
             let sparse_matrices = sparse_matrices_desc.clone();
             let hyperedge_indexers = &node_indexer_builders;
 
             s.spawn(move |_| {
                 let mut buffers: Vec<_> = sparse_matrices.iter().map(|smd| smd.make_buffer()).collect();
 
-                for row in hyperedges_r {
-                    let hyperedge = entity_processor.process_row_and_get_edges(&row);
-
+                for hyperedge in hyperedges_r {
                     for i in 0..sparse_matrices.len() {
                         let buffer = &mut buffers[i];
                         let hyperedge_indexer = &hyperedge_indexers[i];
