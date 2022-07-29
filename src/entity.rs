@@ -78,13 +78,21 @@ pub struct Hyperedge {
 
 impl Hyperedge {
     #[inline]
-    pub fn nodes(&self, column_id: usize) -> SmallVec<[u64; SMALL_VECTOR_SIZE]> {
-        let LengthAndOffset { offset, length } = self.lens_and_offsets[column_id];
+    pub fn nodes(&self, column_id: u8) -> SmallVec<[u64; SMALL_VECTOR_SIZE]> {
+        let LengthAndOffset { offset, length } = self.lens_and_offsets[column_id as usize];
         let mut arr: SmallVec<[u64; SMALL_VECTOR_SIZE]> = SmallVec::with_capacity(length as usize);
         for index in offset..offset + length {
             arr.push(self.hashes[(index as usize)])
         }
         arr
+    }
+
+    pub fn edges_num(&self) -> u32 {
+        let mut total_combinations = 1;
+        for len_and_offset in &self.lens_and_offsets {
+            total_combinations *= len_and_offset.length;
+        }
+        total_combinations
     }
 
     /// It creates Cartesian Product for incoming data.

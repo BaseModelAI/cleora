@@ -104,10 +104,7 @@ pub fn build_graphs(
                         let hyperedge_indexer = &hyperedge_indexers[i];
 
                         hyperedge_indexer.process(&hyperedge);
-
-                        for hashes in hyperedge.edges_iter() {
-                            buffer.handle_pair(&hashes);
-                        }
+                        buffer.handle_hyperedge(&hyperedge);
                     }
                 }
 

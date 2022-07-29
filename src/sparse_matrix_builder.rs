@@ -52,10 +52,10 @@ impl NodeIndexerBuilder {
     }
 
     pub fn process(&self, hyperedge: &Hyperedge) {
-        for hash in hyperedge.nodes(self.col_a_id as usize) {
+        for hash in hyperedge.nodes(self.col_a_id) {
             self.insert_nonblocking(&hash)
         }
-        for hash in hyperedge.nodes(self.col_b_id as usize) {
+        for hash in hyperedge.nodes(self.col_b_id) {
             self.insert_nonblocking(&hash)
         }
     }
@@ -127,26 +127,30 @@ pub struct SparseMatrixBuffer {
 }
 
 impl SparseMatrixBuffer {
-    pub fn handle_pair(&mut self, hashes: &[u64]) {
-        let a = self.descriptor.col_a_id;
-        let b = self.descriptor.col_b_id;
-        self.add_pair_symmetric(
-            hashes[(a + 1) as usize],
-            hashes[(b + 1) as usize],
-            hashes[0],
-        );
-    }
 
-    fn add_pair_symmetric(&mut self, a_hash: u64, b_hash: u64, count: u64) {
-        let value = 1f32 / (count as f32);
+    pub fn handle_hyperedge(&mut self, hyperedge: &Hyperedge) {
+        let edges_num = hyperedge.edges_num();
 
-        self.update_row(a_hash, value);
-        self.update_row(b_hash, value);
+        let nodes_a = hyperedge.nodes(self.descriptor.col_a_id);
+        let nodes_a_len = nodes_a.len();
+        for node in nodes_a.into_iter() {
+            self.update_row(node, (nodes_a_len as f32) / (edges_num as f32));
+        }
+        let nodes_b = hyperedge.nodes(self.descriptor.col_b_id);
+        let nodes_b_len = nodes_b.len();
+        for node in nodes_b.into_iter() {
+            self.update_row(node, (nodes_b_len as f32) / (edges_num as f32));
+        }
 
-        self.edge_count += 1;
+        self.edge_count += edges_num;
 
-        self.update_edge(a_hash, b_hash, value);
-        self.update_edge(b_hash, a_hash, value);
+        let edge_value = 1f32 / (edges_num as f32);
+        for hashes in hyperedge.edges_iter() {
+            let a_hash = hashes[(self.descriptor.col_a_id + 1) as usize];
+            let b_hash = hashes[(self.descriptor.col_b_id + 1) as usize];
+            self.update_edge(a_hash, b_hash, edge_value);
+            self.update_edge(b_hash, a_hash, edge_value);
+        }
     }
 
     fn update_row(&mut self, hash: u64, val: f32) {
