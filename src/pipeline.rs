@@ -245,11 +245,9 @@ fn parse_json_line(
 }
 
 /// Parse a line of TSV and read its columns into a vector for processing.
-fn parse_tsv_line(line: &str) -> Vec<SmallVec<[String; SMALL_VECTOR_SIZE]>> {
+fn parse_tsv_line(line: &str) -> Vec<SmallVec<[&str; SMALL_VECTOR_SIZE]>> {
     let values = line.trim().split('\t');
-    values
-        .map(|c| c.split(' ').map(|s| s.to_owned()).collect())
-        .collect()
+    values.map(|c| c.split(' ').collect()).collect()
 }
 
 /// Train SparseMatrix'es (graphs) in separated threads.
