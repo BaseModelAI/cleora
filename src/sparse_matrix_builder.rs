@@ -74,12 +74,13 @@ impl NodeIndexerBuilder {
     }
 
     fn insert_nonblocking(&self, key: &u64) {
+        // Rozrzucac po haszu do workerow?
+        // ale na 1 workerze tez jest problem
         if self.key_2_index.contains_key(key) || self.unprocessed_keys.contains(key) {
             return;
         }
         self.unprocessed_keys.insert(*key);
         if let Ok(mut index_2_key) = self.index_2_key.try_lock() {
-            println!("DEBUG PROCESS QUEUE {}", self.unprocessed_keys.len());
             // One worker that succeeds to lock it -> will process the queue.
             self.process_queued(&mut index_2_key);
         }
