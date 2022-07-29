@@ -167,6 +167,12 @@ pub struct SparseMatrixBuffersReducer {
     node_indexer: NodeIndexer,
 }
 
+pub struct EdgeEntry {
+    pub row: u32,
+    pub col: u32,
+    pub value: f32,
+}
+
 impl SparseMatrixBuffersReducer {
     pub fn new(node_indexer: NodeIndexer, buffers: Vec<SparseMatrixBuffer>) -> Self {
         if buffers.is_empty() {
@@ -196,25 +202,14 @@ impl SparseMatrixBuffersReducer {
             .into_iter()
             .map(|b| (b.hash_2_row, b.hashes_2_edge))
             .unzip();
-        let entities = SparseMatrixBuffersReducer::reduce_row_maps(&node_indexer, hash_2_row_maps);
-
-        let mut edges: Vec<_> = {
-            let hashes_2_edge = SparseMatrixBuffersReducer::reduce_edge_maps(hashes_2_edge_map);
-            hashes_2_edge
-                .into_par_iter()
-                .map(|((row_hash, col_hash), edge)| {
-                    let row = *node_indexer.key_2_index.get(&row_hash).unwrap() as u32;
-                    let col = *node_indexer.key_2_index.get(&col_hash).unwrap() as u32;
-                    ((row, col), edge)
-                })
-                .collect()
-        };
-        edges.par_sort_by_key(|((row, col), _)| (*row, *col));
+        let entities = SparseMatrixBuffersReducer::reduce_to_entities(&node_indexer, hash_2_row_maps);
+        let mut edges: Vec<_> = SparseMatrixBuffersReducer::reduce_to_edges(&node_indexer, hashes_2_edge_map);
+        edges.par_sort_by_key(|entry| (entry.row, entry.col));
 
         let slices: Vec<_> = edges
             .iter()
             .enumerate()
-            .group_by(|(_, ((row, _), _))| row)
+            .group_by(|(ix, entry)| entry.row)
             .into_iter()
             .map(|(_, mut group)| {
                 let first = group.next().unwrap();
@@ -225,16 +220,16 @@ impl SparseMatrixBuffersReducer {
 
         let edges = edges
             .into_par_iter()
-            .map(|((_, col), e)| Edge {
-                other_entity_ix: col,
-                value: e,
+            .map(|entry| Edge {
+                other_entity_ix: entry.col,
+                value: entry.value,
             })
             .collect();
 
         SparseMatrix::new(self.descriptor, entities, edges, slices)
     }
 
-    fn reduce_row_maps(
+    fn reduce_to_entities(
         node_indexer: &NodeIndexer,
         entity_maps: Vec<HashMap<u64, Row, BuildHasherDefault<FxHasher>>>,
     ) -> Vec<Entity> {
@@ -256,9 +251,9 @@ impl SparseMatrixBuffersReducer {
             .collect()
     }
 
-    fn reduce_edge_maps(
-        edge_maps: Vec<HashMap<(u64, u64), f32, BuildHasherDefault<FxHasher>>>,
-    ) -> DashMap<(u64, u64), f32, BuildHasherDefault<FxHasher>> {
+    fn reduce_to_edges(
+        node_indexer: &NodeIndexer, edge_maps: Vec<HashMap<(u64, u64), f32, BuildHasherDefault<FxHasher>>>,
+    ) -> Vec<EdgeEntry> {
         let reduced_edge_map: DashMap<(u64, u64), f32, BuildHasherDefault<FxHasher>> =
             Default::default();
         for mut edge_map in edge_maps.into_iter() {
@@ -270,5 +265,15 @@ impl SparseMatrixBuffersReducer {
             })
         }
         reduced_edge_map
+            .into_par_iter()
+            .map(|((row_hash, col_hash), value)| {
+                let row = *node_indexer.key_2_index.get(&row_hash).unwrap() as u32;
+                let col = *node_indexer.key_2_index.get(&col_hash).unwrap() as u32;
+                EdgeEntry {
+                    row, col, value
+                }
+            })
+            .collect()
+
     }
 }
