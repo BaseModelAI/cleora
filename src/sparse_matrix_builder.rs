@@ -7,6 +7,7 @@ use itertools::Itertools;
 use rayon::iter::IndexedParallelIterator;
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::ParallelDrainFull;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::ParallelSliceMut;
 use rustc_hash::FxHasher;
@@ -189,15 +190,23 @@ impl SparseMatrixBuffersReducer {
     }
 
     pub fn reduce(self) -> SparseMatrix {
-        let rows = self.reduce_row_maps();
-        let hashes_2_edge = self.reduce_edge_maps();
+        let node_indexer = self.node_indexer;
+
+        // Extract buffers so their fields can be moved to reducing functions
+        let (hash_2_row_maps, hashes_2_edge_map): (Vec<_>, Vec<_>) = self
+            .buffers
+            .into_iter()
+            .map(|b| (b.hash_2_row, b.hashes_2_edge))
+            .unzip();
+        let rows = SparseMatrixBuffersReducer::reduce_row_maps(&node_indexer, hash_2_row_maps);
+        let hashes_2_edge = SparseMatrixBuffersReducer::reduce_edge_maps(hashes_2_edge_map);
 
         let mut entities: Vec<_> = {
             hashes_2_edge
                 .into_par_iter()
                 .map(|((row_hash, col_hash), edge)| {
-                    let row = *self.node_indexer.key_2_index.get(&row_hash).unwrap() as u32;
-                    let col = *self.node_indexer.key_2_index.get(&col_hash).unwrap() as u32;
+                    let row = *node_indexer.key_2_index.get(&row_hash).unwrap() as u32;
+                    let col = *node_indexer.key_2_index.get(&col_hash).unwrap() as u32;
                     ((row, col), edge)
                 })
                 .collect()
@@ -216,8 +225,7 @@ impl SparseMatrixBuffersReducer {
             })
             .collect();
 
-        let hashes: Vec<_> = self
-            .node_indexer
+        let hashes: Vec<_> = node_indexer
             .index_2_key
             .par_iter()
             .zip(rows.par_iter())
@@ -238,14 +246,17 @@ impl SparseMatrixBuffersReducer {
         SparseMatrix::new(self.descriptor, hashes, edges, slices)
     }
 
-    fn reduce_row_maps(&self) -> Vec<Row> {
-        self.node_indexer
+    fn reduce_row_maps(
+        node_indexer: &NodeIndexer,
+        entity_maps: Vec<HashMap<u64, Row, BuildHasherDefault<FxHasher>>>,
+    ) -> Vec<Row> {
+        node_indexer
             .index_2_key
             .par_iter()
             .map(|hash| {
                 let mut entity_agg = Row::default();
-                for b in self.buffers.iter() {
-                    if let Some(entity) = b.hash_2_row.get(hash) {
+                for entity_map in entity_maps.iter() {
+                    if let Some(entity) = entity_map.get(hash) {
                         entity_agg.occurrence += entity.occurrence;
                         entity_agg.row_sum += entity.row_sum;
                     }
@@ -255,24 +266,19 @@ impl SparseMatrixBuffersReducer {
             .collect()
     }
 
-    fn reduce_edge_maps(&self) -> HashMap<(u64, u64), f32, BuildHasherDefault<FxHasher>> {
-        let edges_keys: Vec<_> = self
-            .buffers
-            .iter()
-            .flat_map(|b| b.hashes_2_edge.keys())
-            .collect();
-
-        edges_keys
-            .into_par_iter()
-            .map(|hash| {
-                let mut edge_agg = 0f32;
-                for b in self.buffers.iter() {
-                    if let Some(edge) = b.hashes_2_edge.get(hash) {
-                        edge_agg += *edge;
-                    }
-                }
-                (*hash, edge_agg)
+    fn reduce_edge_maps(
+        edge_maps: Vec<HashMap<(u64, u64), f32, BuildHasherDefault<FxHasher>>>,
+    ) -> DashMap<(u64, u64), f32, BuildHasherDefault<FxHasher>> {
+        let reduced_edge_map: DashMap<(u64, u64), f32, BuildHasherDefault<FxHasher>> =
+            Default::default();
+        for mut edge_map in edge_maps.into_iter() {
+            edge_map.par_drain().for_each(|(k, v)| {
+                reduced_edge_map
+                    .entry(k)
+                    .and_modify(|rv| *rv += v)
+                    .or_insert(v);
             })
-            .collect()
+        }
+        reduced_edge_map
     }
 }

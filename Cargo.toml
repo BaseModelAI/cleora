@@ -28,7 +28,7 @@ ndarray-npy = "0.8.1"
 serde_json = "1.0.81"
 uuid = { version = "1.1.2", features = ["v4"] }
 crossbeam = "0.8.1"
-dashmap = "5.3.4"
+dashmap = {version="5.3.4", features = ["rayon"]}
 num_cpus = "1.13.1"
 itertools = "0.10.3"
 
