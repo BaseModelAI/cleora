@@ -197,9 +197,9 @@ impl SparseMatrixBuffersReducer {
             .map(|b| (b.hash_2_row, b.hashes_2_edge))
             .unzip();
         let entities = SparseMatrixBuffersReducer::reduce_row_maps(&node_indexer, hash_2_row_maps);
-        let hashes_2_edge = SparseMatrixBuffersReducer::reduce_edge_maps(hashes_2_edge_map);
 
         let mut edges: Vec<_> = {
+            let hashes_2_edge = SparseMatrixBuffersReducer::reduce_edge_maps(hashes_2_edge_map);
             hashes_2_edge
                 .into_par_iter()
                 .map(|((row_hash, col_hash), edge)| {
