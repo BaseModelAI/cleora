@@ -228,7 +228,7 @@ impl SparseMatrixBuffersReducer {
         let hashes: Vec<_> = node_indexer
             .index_2_key
             .par_iter()
-            .zip(rows.par_iter())
+            .zip(rows.into_par_iter())
             .map(|(hash, row)| Entity {
                 hash_value: *hash,
                 occurrence: row.occurrence,
@@ -236,10 +236,10 @@ impl SparseMatrixBuffersReducer {
             .collect();
 
         let edges = entities
-            .par_iter()
+            .into_par_iter()
             .map(|((_, col), e)| Edge {
-                other_entity_ix: *col,
-                value: *e,
+                other_entity_ix: col,
+                value: e,
             })
             .collect();
 
