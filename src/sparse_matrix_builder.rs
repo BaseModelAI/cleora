@@ -79,6 +79,7 @@ impl NodeIndexerBuilder {
         }
         self.unprocessed_keys.insert(*key);
         if let Ok(mut index_2_key) = self.index_2_key.try_lock() {
+            println!("DEBUG PROCESS QUEUE {}", self.unprocessed_keys.len());
             // One worker that succeeds to lock it -> will process the queue.
             self.process_queued(&mut index_2_key);
         }
