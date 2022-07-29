@@ -61,6 +61,7 @@ impl NodeIndexerBuilder {
     }
 
     pub fn finish(self) -> NodeIndexer {
+        println!("DEBUG finish node indexer");
         let mut index_to_key = self
             .index_2_key
             .try_lock()
