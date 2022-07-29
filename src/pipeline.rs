@@ -36,7 +36,7 @@ pub fn build_graphs(
 
     let processing_worker_num = num_cpus::get();
     let buffers: Vec<_> = cb_thread::scope(|s| {
-        let (hyperedges_s, hyperedges_r) = channel::bounded(processing_worker_num * 64);
+        let (hyperedges_s, hyperedges_r) = channel::bounded(processing_worker_num * 8);
 
         {
             let (files_s, files_r) = channel::unbounded();
