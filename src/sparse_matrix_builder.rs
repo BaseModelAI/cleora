@@ -196,6 +196,8 @@ impl SparseMatrixBuffersReducer {
     pub fn reduce(self) -> SparseMatrix {
         let node_indexer = self.node_indexer;
 
+        println!("DEBUG START REDUCE");
+
         // Extract buffers so their fields can be moved to reducing functions
         let (hash_2_row_maps, hashes_2_edge_map): (Vec<_>, Vec<_>) = self
             .buffers
@@ -203,7 +205,9 @@ impl SparseMatrixBuffersReducer {
             .map(|b| (b.hash_2_row, b.hashes_2_edge))
             .unzip();
         let entities = SparseMatrixBuffersReducer::reduce_to_entities(&node_indexer, hash_2_row_maps);
+        println!("DEBUG entities REDUCE");
         let mut edges: Vec<_> = SparseMatrixBuffersReducer::reduce_to_edges(&node_indexer, hashes_2_edge_map);
+        println!("DEBUG edges 1 REDUCE");
         edges.par_sort_by_key(|entry| (entry.row, entry.col));
 
         let slices: Vec<_> = edges
@@ -217,6 +221,7 @@ impl SparseMatrixBuffersReducer {
                 (first.0, last.0 + 1)
             })
             .collect();
+        println!("DEBUG SLICES DONE");
 
         let edges = edges
             .into_par_iter()
@@ -225,6 +230,7 @@ impl SparseMatrixBuffersReducer {
                 value: entry.value,
             })
             .collect();
+        println!("DEBUG edges 2 REDUCE");
 
         SparseMatrix::new(self.descriptor, entities, edges, slices)
     }
