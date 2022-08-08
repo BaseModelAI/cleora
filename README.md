@@ -9,20 +9,7 @@
 :two:nd place at [Twitter Recsys Challenge 2021](https://recsys-twitter.com/competition_leaderboard/latest)
 
 :three:rd place at [KDD Cup 2021](https://ogb.stanford.edu/paper/kddcup2021/mag240m_SyneriseAI.pdf)
- 
- 
 
-## Performance Ranking
-
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cleora-a-simple-strong-and-scalable-graph/node-classification-on-youtube)](https://paperswithcode.com/sota/node-classification-on-youtube?p=cleora-a-simple-strong-and-scalable-graph)  
-
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cleora-a-simple-strong-and-scalable-graph/node-classification-on-cora)](https://paperswithcode.com/sota/node-classification-on-cora?p=cleora-a-simple-strong-and-scalable-graph) 
-
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cleora-a-simple-strong-and-scalable-graph/node-classification-on-citeseer)](https://paperswithcode.com/sota/node-classification-on-citeseer?p=cleora-a-simple-strong-and-scalable-graph)  
-
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cleora-a-simple-strong-and-scalable-graph/node-classification-on-pubmed)](https://paperswithcode.com/sota/node-classification-on-pubmed?p=cleora-a-simple-strong-and-scalable-graph)  
-
-Please feel free to leave comments if you have trouble reproducing the results!
 
 # Cleora
 
