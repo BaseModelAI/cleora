@@ -1,7 +1,10 @@
-use crate::configuration::Configuration;
+use crate::configuration::{Configuration, InitMethod};
 use crate::persistence::embedding::EmbeddingPersistor;
 use crate::persistence::entity::EntityMappingPersistor;
-use crate::sparse_matrix::SparseMatrixReader;
+use crate::sparse_matrix::{SparseMatrixReader, Entry};
+use ndarray::{Array2, ArrayView2,  ArrayViewMut2};
+use ndarray_linalg::lobpcg::{lobpcg, LobpcgResult};
+use ndarray_linalg::TruncatedOrder;
 use log::{info, warn};
 use memmap::MmapMut;
 use rayon::prelude::*;
@@ -13,6 +16,7 @@ use std::hash::Hasher;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use uuid::Uuid;
+use configuration::InitMethod;
 
 /// Number of broken entities (those with errors during writing to the file) which are logged.
 /// There can be much more but log the first few.
@@ -29,6 +33,13 @@ trait MatrixWrapper {
         rows: usize,
         cols: usize,
         fixed_random_value: i64,
+        sparse_matrix_reader: Arc<T>,
+    ) -> Self;
+
+    /// Initializing a matrix with the eigenvectors of a given matrix.
+    fn init_with_evec<T: SparseMatrixReader + Sync + Send>(
+        rows: usize,
+        cols: usize,
         sparse_matrix_reader: Arc<T>,
     ) -> Self;
 
@@ -70,6 +81,69 @@ impl MatrixWrapper for TwoDimVectorMatrix {
                 col
             })
             .collect();
+        Self {
+            rows,
+            cols,
+            matrix: result,
+        }
+    }
+
+    fn init_with_evec<T: SparseMatrixReader + Sync + Send>(
+        rows: usize,
+        cols: usize,
+        sparse_matrix_reader: Arc<T>,
+    ) -> Self {
+
+        /// Investigate iter_hashes() it might also work
+        /// We want to constuct a closure that performs the matrix multiplication.
+        
+
+
+        /// The name 'entries' has to be linked to a sparse matrix iterator.
+        let matrix_transform = |x: ArrayView2<f32>| -> Array2<f32> {
+            let shape = x.shape();
+            let mut arr = Array2::zeros((shape[0], shape[1]));
+    
+            for entry in sparse_matrix_reader.iter_entries().map(|entry| -> {
+                if entry.col == entry.row {
+                    Entry {
+                        row: entry.row,
+                        col: entry.col,
+                        value: /// Get the row sum
+                    }
+                } else {
+                    Entry {
+                        row: entry.row,
+                        col: entry.col,
+                        value: - entry.value
+                    }
+                }
+            }) {
+                for i in 0..shape[0] {
+                    arr[[entry.row, i as usize]] += entry.val * x[[entry.col, i as usize]];
+                } 
+            }
+    
+            arr
+        };
+
+        match lobpcg(
+            matrix_transform,
+            Array2<f32> = Array2::eye(rows + cols),
+            |_x: ArrayViewMut2<f32>| {},
+            Option::None,
+            0.1f32,
+            1000,
+            TruncatedOrder::Largest,
+        ) {
+            LobpcgResult::Ok(_a, _b, _c) => { 
+                println!("Ok");
+                /// implement return
+            },
+            LobpcgResult::Err(_a, _b, _c, _err) => { panic!("Computing the eigenvectors of the Laplacian failed. {}", _err) }, /// Could return with a warning too.
+            LobpcgResult::NoResult(_err) => { panic!("Computing the eigenvectors of the Laplacian failed. {}", _err) },
+        }
+
         Self {
             rows,
             cols,
@@ -189,6 +263,14 @@ impl MatrixWrapper for MMapMatrix {
             file_name,
             matrix: mmap,
         }
+    }
+
+    fn init_with_evec<T: SparseMatrixReader + Sync + Send>(
+        rows: usize,
+        cols: usize,
+        sparse_matrix_reader: Arc<T>,
+    ) -> Self {
+        /// When implementation is finished in TwoDimVectorMatrix, this will be updated accordingly.
     }
 
     #[inline]
@@ -344,6 +426,7 @@ struct MatrixMultiplicator<T: SparseMatrixReader + Sync + Send, M: MatrixWrapper
     fixed_random_value: i64,
     sparse_matrix_reader: Arc<T>,
     _marker: PhantomData<M>,
+    init_method: InitMethod
 }
 
 impl<T, M> MatrixMultiplicator<T, M>
@@ -359,6 +442,7 @@ where
             fixed_random_value: rand_value,
             sparse_matrix_reader,
             _marker: PhantomData,
+            init_method: config.init_method
         }
     }
 
@@ -369,13 +453,21 @@ where
             self.dimension, self.number_of_entities
         );
 
-        let result = M::init_with_hashes(
-            self.number_of_entities,
-            self.dimension,
-            self.fixed_random_value,
-            self.sparse_matrix_reader.clone(),
-        );
-
+        let result = match init_method {
+            InitMethod::Random => M::init_with_hashes(
+                self.number_of_entities,
+                self.dimension,
+                self.fixed_random_value,
+                self.sparse_matrix_reader.clone(),
+            ),
+            InitMethod::Evec => M::init_with_evec(
+                self.number_of_entities,
+                self.dimension,
+                self.sparse_matrix_reader.clone(),
+            ),
+            _ => panic!("initialisation error."),
+        }; 
+        
         info!(
             "Done initializing. Dims: {}, entities: {}.",
             self.dimension, self.number_of_entities
@@ -485,7 +577,7 @@ pub fn calculate_embeddings_mmap<T1, T2>(
     T2: EntityMappingPersistor,
 {
     let mult = MatrixMultiplicator::new(config.clone(), sparse_matrix_reader);
-    let init: MMapMatrix = mult.initialize();
+    let init: MMapMatrix = mult.initialize(); ///No change here
     let res = mult.propagate(config.max_number_of_iteration, init);
     mult.persist(res, entity_mapping_persistor, embedding_persistor);
 

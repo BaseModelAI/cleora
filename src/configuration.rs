@@ -10,6 +10,12 @@ pub enum OutputFormat {
     Numpy,
 }
 
+#[derive(Debug)]
+pub enum InitMethod {
+    Random,
+    Evec,
+}
+
 /// Pipeline configuration
 #[derive(Debug)]
 pub struct Configuration {

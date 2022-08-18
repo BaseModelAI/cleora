@@ -160,12 +160,12 @@ impl SparseMatrix {
 
     /// Handles hashes for one combination of incoming data. Let's say that input row looks like:
     /// userId1   | productId1, productId2  | brandId1, brandId2
-    /// Note! To simplify explanation there is no any reflexive column so the result is:
+    /// Note! To simplify explanation there aren't any reflexive columns so the result is:
     /// (userId1, productId1, brandId1),
     /// (userId1, productId1, brandId2),
     /// (userId1, productId2, brandId1),
     /// (userId1, productId2, brandId2)
-    /// These cartesian products are provided as array of hashes. Sparse matrix has indices
+    /// These cartesian products are provided as array of hashes. Sparse matrix that has indices
     /// `col_a_id` and `col_b_id` (to corresponding columns) in order to read interesting hashes
     /// from provided slice. For one input row we actually call this function 4 times.
     pub fn handle_pair(&mut self, hashes: &[u64]) {

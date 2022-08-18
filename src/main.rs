@@ -4,6 +4,7 @@ use clap::{crate_authors, crate_description, crate_name, crate_version, Arg, Com
 use cleora::configuration;
 use cleora::configuration::Configuration;
 use cleora::configuration::OutputFormat;
+use cleora::configuration::InitMethod;
 use cleora::persistence::entity::InMemoryEntityMappingPersistor;
 use cleora::pipeline::{build_graphs, train};
 use env_logger::Env;
@@ -128,6 +129,14 @@ fn main() {
                 .default_value("textfile")
                 .takes_value(true),
         )
+        .arg(
+            Arg::new("init-method")
+                .short('im') // Is this legit?
+                .help("Embedding init method. One of: random|evec")
+                .possible_values(&["random", "evec"])
+                .default_value("evec")
+                .takes_value(true),
+        )
         .get_matches();
 
     info!("Reading args...");
@@ -204,6 +213,12 @@ fn main() {
         _ => panic!("unsupported output format"),
     };
 
+    let init_method = match mathces.value_of("init-method").unwrap() {
+        "random" => InitMethod::Random, 
+        "evec" => InitMethod::Evec,
+        _ => panic!("Unsupported init method."),
+    };
+
     let config = Configuration {
         produce_entity_occurrence_count: true,
         embeddings_dimension: dimension,
@@ -218,6 +233,7 @@ fn main() {
         output_format,
         relation_name: relation_name.to_string(),
         columns,
+        init_method,
     };
     dbg!(&config);
 
