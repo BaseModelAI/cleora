@@ -88,34 +88,27 @@ impl MatrixWrapper for TwoDimVectorMatrix {
         }
     }
 
-    fn init_with_evec<T: SparseMatrixReader + Sync + Send>(
+    fn init_with_evec(
         rows: usize,
         cols: usize,
-        sparse_matrix_reader: Arc<T>,
+        sparse_matrix_reader: Arc<SparseMatrix>,
     ) -> Self {
-
-        /// Investigate iter_hashes() it might also work
-        /// We want to constuct a closure that performs the matrix multiplication.
-        
-
-
-        /// The name 'entries' has to be linked to a sparse matrix iterator.
         let matrix_transform = |x: ArrayView2<f32>| -> Array2<f32> {
             let shape = x.shape();
-            let mut arr = Array2::zeros((shape[0], shape[1]));
+            let mut arr = Array2::zeros((shape[0], shape[1])); 
     
-            for entry in sparse_matrix_reader.iter_entries().map(|entry| -> {
-                if entry.col == entry.row {
+            for entry in sparse_matrix_reader.entries.into_par_iter.map(|entry| -> {
+                if entry.col == entry.row { /// What happens for reflexive columns?
                     Entry {
                         row: entry.row,
                         col: entry.col,
-                        value: /// Get the row sum
+                        value: sparse_matrix_reader.get_row_sum(entry.row),
                     }
                 } else {
                     Entry {
                         row: entry.row,
                         col: entry.col,
-                        value: - entry.value
+                        value: - entry.value,
                     }
                 }
             }) {
@@ -127,27 +120,40 @@ impl MatrixWrapper for TwoDimVectorMatrix {
             arr
         };
 
+        offset_identity_matrix: Array2<f32> = Array2::zeros(rows, cols);
+        for i in 0..std::cmp::min(rows, cols) {
+            offset_identity_matrix[[i, i]] = 1;
+        }
+
         match lobpcg(
             matrix_transform,
-            Array2<f32> = Array2::eye(rows + cols),
+            Array2<f32> = offset_identity_matrix, 
             |_x: ArrayViewMut2<f32>| {},
             Option::None,
             0.1f32,
             1000,
             TruncatedOrder::Largest,
         ) {
-            LobpcgResult::Ok(_a, _b, _c) => { 
-                println!("Ok");
-                /// implement return
-            },
-            LobpcgResult::Err(_a, _b, _c, _err) => { panic!("Computing the eigenvectors of the Laplacian failed. {}", _err) }, /// Could return with a warning too.
-            LobpcgResult::NoResult(_err) => { panic!("Computing the eigenvectors of the Laplacian failed. {}", _err) },
-        }
+            LobpcgResult::Ok(_evals, evecs, _norms) => { 
+                matrix: Vec<Vec<f32>> = Vec::new();
 
-        Self {
-            rows,
-            cols,
-            matrix: result,
+                for i in 0..rows {
+                    row: Vec<f32> = Vec::new();
+
+                    for j in 0..cols {
+                        row.push(evecs[[i, j]]);
+                    }
+                    matrix.push(row);
+                }
+                
+                Self {
+                    rows,
+                    cols,
+                    matrix: matrix, 
+                }
+            },
+            LobpcgResult::Err(_a, _b, _c, _err) => { panic!("Computing the eigenvectors of the Laplacian failed. {}", _err) }, 
+            LobpcgResult::NoResult(_err) => { panic!("Computing the eigenvectors of the Laplacian failed. {}", _err) },
         }
     }
 
@@ -265,12 +271,80 @@ impl MatrixWrapper for MMapMatrix {
         }
     }
 
-    fn init_with_evec<T: SparseMatrixReader + Sync + Send>(
+    fn init_with_evec(
         rows: usize,
         cols: usize,
-        sparse_matrix_reader: Arc<T>,
+        sparse_matrix_reader: Arc<SparseMatrix>,
     ) -> Self {
-        /// When implementation is finished in TwoDimVectorMatrix, this will be updated accordingly.
+        let uuid = Uuid::new_v4();
+        let file_name = format!("{}_matrix_{}", sparse_matrix_reader.get_id(), uuid);
+        let mut mmap = create_mmap(rows, cols, file_name.as_str());
+
+        let matrix_transform = |x: ArrayView2<f32>| -> Array2<f32> {
+            let shape = x.shape();
+            let mut arr = Array2::zeros((shape[0], shape[1])); 
+    
+            for entry in sparse_matrix_reader.entries.into_par_iter.map(|entry| -> {
+                if entry.col == entry.row { /// What happens for reflexive columns?
+                    Entry {
+                        row: entry.row,
+                        col: entry.col,
+                        value: sparse_matrix_reader.get_row_sum(entry.row),
+                    }
+                } else {
+                    Entry {
+                        row: entry.row,
+                        col: entry.col,
+                        value: - entry.value,
+                    }
+                }
+            }) {
+                for i in 0..shape[0] {
+                    arr[[entry.row, i as usize]] += entry.val * x[[entry.col, i as usize]];
+                } 
+            }
+    
+            arr
+        };
+
+        offset_identity_matrix: Array2<f32> = Array2::zeros(rows, cols);
+        for i in 0..std::cmp::min(rows, cols) {
+            offset_identity_matrix[[i, i]] = 1;
+        }
+
+        match lobpcg(
+            matrix_transform,
+            Array2<f32> = offset_identity_matrix,
+            |_x: ArrayViewMut2<f32>| {},
+            Option::None,
+            0.1f32,
+            1000,
+            TruncatedOrder::Largest,
+        ) {
+            LobpcgResult::Ok(_evals, evecs, _norms) => { 
+                
+                mmap.par_chunks_mut(rows * 4)
+                .enumerate()
+                .for_each(|(i, chunk)| {
+                    for j in 0..cols {
+                        let col_value = evecs[[i, j]]
+                        MMapMatrix::update_column(j, chunk, |value| unsafe { *value = col_value });
+                    }
+                });
+
+                mmap.flush()
+                .expect("Can't flush memory map modifications to disk");
+
+                Self {
+                    rows,
+                    cols,
+                    file_name,
+                    matrix: mmap,
+                }
+            },
+            LobpcgResult::Err(_a, _b, _c, _err) => { panic!("Computing the eigenvectors of the Laplacian failed. {}", _err) },
+            LobpcgResult::NoResult(_err) => { panic!("Computing the eigenvectors of the Laplacian failed. {}", _err) },
+        }
     }
 
     #[inline]

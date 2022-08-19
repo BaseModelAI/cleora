@@ -129,6 +129,9 @@ pub trait SparseMatrixReader {
 
     /// Returns iterator for entries
     fn iter_entries(&self) -> CopyIter<'_, Entry>;
+
+    /// Returns the sum of a selected row
+    fn get_row_sum(&self, row: u32) -> f32;
 }
 
 pub struct CopyIter<'a, T: Copy>(std::slice::Iter<'a, T>);
@@ -321,6 +324,10 @@ impl SparseMatrixReader for SparseMatrix {
     #[inline]
     fn iter_entries(&self) -> CopyIter<'_, Entry> {
         CopyIter(self.entries.iter())
+    }
+
+    fn get_row_sum(&self, row: u32) -> f32 {
+        self.row_sum[entry.row as usize]
     }
 }
 
