@@ -39,6 +39,15 @@ pub mod embedding {
     use std::io;
     use std::io::{BufWriter, Error, ErrorKind, Write};
 
+    use arrow::array::Array as ArrowArray;
+    use arrow::array::{ArrayRef, Float32Array, StringArray, UInt32Array};
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+    use parquet::arrow::arrow_writer::ArrowWriter;
+    use parquet::file::properties::WriterProperties;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
     pub trait EmbeddingPersistor {
         fn put_metadata(&mut self, entity_count: u32, dimension: u16) -> Result<(), io::Error>;
         fn put_data(
@@ -48,6 +57,7 @@ pub mod embedding {
             vector: Vec<f32>,
         ) -> Result<(), io::Error>;
         fn finish(&mut self) -> Result<(), io::Error>;
+        fn close(self) -> Result<(), String>; 
     }
 
     pub struct TextFileVectorPersistor {
@@ -98,6 +108,99 @@ pub mod embedding {
             self.buf_writer.write_all(b"\n")?;
             Ok(())
         }
+
+        fn close(self) -> Result<(), String> {
+            Ok(())
+        }
+
+    }
+
+    pub struct ParquetVectorPersistor {
+        filename: String,
+        buf_writer: ArrowWriter<File>,
+        produce_entity_occurrence_count: bool,
+    }
+
+    impl ParquetVectorPersistor {
+        pub fn new(
+            filename: String,
+            dimension: u16,
+            produce_entity_occurrence_count: bool,
+        ) -> Self {
+            let file = File::create("data.parquet").unwrap();
+
+            // Default writer properties
+            let props = WriterProperties::builder().build();
+
+            //let mut metadata = HashMap::new();
+            //metadata.insert("entity_count".to_string(), entity_count.to_string());
+            //metadata.insert("dimension".to_string(), dimension.to_string());
+
+            let mut fields: Vec<Field> = (0..dimension)
+                .into_iter()
+                .map(|x| Field::new(format!("f{}", x).as_str(), DataType::Float32, false))
+                .collect();
+            fields.push(Field::new("entity", DataType::Utf8, false));
+            fields.push(Field::new("occur_count", DataType::UInt32, false));
+
+            let schema = Schema::new(fields); //.with_metadata(metadata);
+
+            let writer = ArrowWriter::try_new(file, Arc::new(schema), Some(props)).unwrap();
+
+            ParquetVectorPersistor {
+                filename,
+                buf_writer: writer,
+                produce_entity_occurrence_count,
+            }
+        }
+    }
+
+    impl EmbeddingPersistor for ParquetVectorPersistor {
+        fn put_metadata(&mut self, entity_count: u32, dimension: u16) -> Result<(), io::Error> {
+            Ok(())
+        }
+
+        fn put_data(
+            &mut self,
+            entity: &str,
+            occur_count: u32,
+            vector: Vec<f32>,
+        ) -> Result<(), io::Error> {
+            let mut fields: Vec<(String, Arc<dyn ArrowArray>)> = (0..vector.len())
+                .into_iter()
+                .map(|x| {
+                    (
+                        format!("f{}", x),
+                        Arc::new(Float32Array::from(vec![vector[x]])) as ArrayRef,
+                    )
+                })
+                .collect();
+
+            let e: ArrayRef = Arc::new(StringArray::from(vec![entity]));
+            fields.push(("entity".to_string(), e));
+
+            let e: ArrayRef = Arc::new(UInt32Array::from(vec![occur_count]));
+            fields.push(("occur_count".to_string(), e));
+
+            let batch = RecordBatch::try_from_iter(fields).unwrap();
+
+            //println!("{:?}", batch.schema());
+
+            self.buf_writer.write(&batch).expect("Writing batch");
+            self.buf_writer.flush().expect("Flush");
+
+            Ok(())
+        }
+
+        fn finish(&mut self) -> Result<(), io::Error> {
+            Ok(())
+        }
+
+        fn close(self) -> Result<(), String> {
+            self.buf_writer.close().unwrap();
+            Ok(())
+        }
+
     }
 
     mod memmap {
@@ -253,5 +356,10 @@ pub mod embedding {
 
             Ok(())
         }
+
+        fn close(self) -> Result<(), String> {
+            Ok(())
+        }
+
     }
 }

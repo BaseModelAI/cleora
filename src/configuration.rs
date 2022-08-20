@@ -7,6 +7,7 @@ pub enum FileType {
 #[derive(Debug)]
 pub enum OutputFormat {
     TextFile,
+    Parquet,
     Numpy,
 }
 

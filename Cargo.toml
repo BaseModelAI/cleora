@@ -9,12 +9,15 @@ description = """
 Cleora is a general-purpose model for efficient, scalable learning of stable and inductive entity embeddings for heterogeneous relational data.
 """
 
+[lib]
+name = "cleora"
+crate-type = ["cdylib"]
+
 [build]
 rustflags = ["-C", "target-cpu=native"]
 
 [dependencies]
 bus = "2.2.4"
-clap = { version = "3.1.8", features = ["cargo"] }
 env_logger = "0.9.0"
 log = "0.4.17"
 memmap = "0.7.0"
@@ -28,6 +31,10 @@ ndarray = "0.15.4"
 ndarray-npy = "0.8.1"
 serde_json = "1.0.81"
 uuid = { version = "1.1.2", features = ["v4"] }
+pyo3 = { version = "0.16.5", features = ["extension-module"] }
+parquet = "15.0.0"
+arrow = "15.0.0"
+rusoto_s3 = "0.48.0"
 
 [dev-dependencies]
 criterion = "0.3.3"

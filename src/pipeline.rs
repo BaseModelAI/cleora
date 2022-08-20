@@ -4,7 +4,9 @@ use std::io::{BufRead, BufReader};
 use crate::configuration::{Column, Configuration, FileType, OutputFormat};
 use crate::embedding::{calculate_embeddings, calculate_embeddings_mmap};
 use crate::entity::{EntityProcessor, SMALL_VECTOR_SIZE};
-use crate::persistence::embedding::{EmbeddingPersistor, NpyPersistor, TextFileVectorPersistor};
+use crate::persistence::embedding::{
+    EmbeddingPersistor, NpyPersistor, ParquetVectorPersistor, TextFileVectorPersistor,
+};
 use crate::persistence::entity::InMemoryEntityMappingPersistor;
 use crate::sparse_matrix::{create_sparse_matrices, SparseMatrix};
 use bus::Bus;
@@ -187,6 +189,11 @@ pub fn train(
             let mut persistor: Box<dyn EmbeddingPersistor> = match &config.output_format {
                 OutputFormat::TextFile => Box::new(TextFileVectorPersistor::new(
                     ofp,
+                    config.produce_entity_occurrence_count,
+                )),
+                OutputFormat::Parquet => Box::new(ParquetVectorPersistor::new(
+                    ofp,
+                    config.embeddings_dimension,
                     config.produce_entity_occurrence_count,
                 )),
                 OutputFormat::Numpy => Box::new(NpyPersistor::new(
