@@ -13,6 +13,7 @@ use bus::Bus;
 use log::{error, info, warn};
 use simdjson_rust::dom;
 use smallvec::{smallvec, SmallVec};
+use std::any::Any;
 use std::sync::Arc;
 use std::thread;
 

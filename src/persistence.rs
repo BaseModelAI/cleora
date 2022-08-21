@@ -39,14 +39,16 @@ pub mod embedding {
     use std::io;
     use std::io::{BufWriter, Error, ErrorKind, Write};
 
-    use arrow::array::Array as ArrowArray;
-    use arrow::array::{ArrayRef, Float32Array, StringArray, UInt32Array};
-    use arrow::datatypes::{DataType, Field, Schema};
-    use arrow::record_batch::RecordBatch;
-    use parquet::arrow::arrow_writer::ArrowWriter;
-    use parquet::file::properties::WriterProperties;
-    use std::collections::HashMap;
-    use std::sync::Arc;
+    use arrow2::{
+        array::{Array as ArrowArray, Float32Array, UInt32Array, Utf8Array},
+        chunk::Chunk,
+        datatypes::{DataType, Field, Schema},
+        error::Result as ArrowResult,
+        io::parquet::write::{
+            transverse, CompressionOptions, Encoding, FileWriter, RowGroupIterator, Version,
+            WriteOptions,
+        },
+    };
 
     pub trait EmbeddingPersistor {
         fn put_metadata(&mut self, entity_count: u32, dimension: u16) -> Result<(), io::Error>;
@@ -57,7 +59,6 @@ pub mod embedding {
             vector: Vec<f32>,
         ) -> Result<(), io::Error>;
         fn finish(&mut self) -> Result<(), io::Error>;
-        fn close(self) -> Result<(), String>; 
     }
 
     pub struct TextFileVectorPersistor {
@@ -108,16 +109,19 @@ pub mod embedding {
             self.buf_writer.write_all(b"\n")?;
             Ok(())
         }
-
-        fn close(self) -> Result<(), String> {
-            Ok(())
-        }
-
     }
 
     pub struct ParquetVectorPersistor {
         filename: String,
-        buf_writer: ArrowWriter<File>,
+        counter: u32,
+        chunks: Vec<Chunk<Box<dyn ArrowArray>>>,
+        chunk_entities: Vec<Option<String>>,
+        chunk_vectors: Vec<Vec<Option<f32>>>,
+        chunk_occur_counts: Vec<Option<u32>>,
+        schema: Schema,
+        options: WriteOptions,
+        encodings: Vec<Vec<Encoding>>,
+        writer: FileWriter<File>,
         produce_entity_occurrence_count: bool,
     }
 
@@ -127,31 +131,75 @@ pub mod embedding {
             dimension: u16,
             produce_entity_occurrence_count: bool,
         ) -> Self {
-            let file = File::create("data.parquet").unwrap();
+            let mut fields: Vec<Field> = vec![
+                Field::new("entity", DataType::Utf8, false),
+                Field::new("occur_count", DataType::UInt32, false),
+            ];
+            (0..dimension).into_iter().for_each(|x| {
+                fields.push(Field::new(
+                    format!("f{}", x).as_str(),
+                    DataType::Float32,
+                    false,
+                ))
+            });
 
-            // Default writer properties
-            let props = WriterProperties::builder().build();
+            let schema = Schema::from(fields);
 
-            //let mut metadata = HashMap::new();
-            //metadata.insert("entity_count".to_string(), entity_count.to_string());
-            //metadata.insert("dimension".to_string(), dimension.to_string());
+            let options = WriteOptions {
+                write_statistics: false,
+                compression: CompressionOptions::Snappy,
+                version: Version::V2,
+            };
 
-            let mut fields: Vec<Field> = (0..dimension)
-                .into_iter()
-                .map(|x| Field::new(format!("f{}", x).as_str(), DataType::Float32, false))
+            let encodings = schema
+                .fields
+                .iter()
+                .map(|f| transverse(&f.data_type, |_| Encoding::Plain))
                 .collect();
-            fields.push(Field::new("entity", DataType::Utf8, false));
-            fields.push(Field::new("occur_count", DataType::UInt32, false));
 
-            let schema = Schema::new(fields); //.with_metadata(metadata);
+            // Create a new empty file
+            let file = File::create("test.parquet").unwrap();
 
-            let writer = ArrowWriter::try_new(file, Arc::new(schema), Some(props)).unwrap();
+            let mut writer = FileWriter::try_new(file, schema.clone(), options.clone()).unwrap();
+
+            let mut chunks: Vec<Chunk<Box<dyn ArrowArray>>> = Vec::new();
+
+            let chunk_entities: Vec<Option<String>> = Vec::new();
+            let chunk_vectors: Vec<Vec<Option<f32>>> =
+                (0..dimension).into_iter().map(|_x| Vec::new()).collect();
+            let chunk_occur_counts: Vec<Option<u32>> = Vec::new();
 
             ParquetVectorPersistor {
                 filename,
-                buf_writer: writer,
+                counter: 0,
+                chunk_entities,
+                chunk_vectors,
+                chunk_occur_counts,
+                schema,
+                options,
+                encodings,
+                writer,
+                chunks,
                 produce_entity_occurrence_count,
             }
+        }
+
+        fn write_chunks(&mut self, chunk: Chunk<Box<dyn ArrowArray>>) -> ArrowResult<()> {
+
+            let iter = vec![Ok(chunk)];
+
+            let row_groups = RowGroupIterator::try_new(
+                iter.into_iter(),
+                &self.schema,
+                self.options,
+                self.encodings.clone(),
+            )?;
+
+            for group in row_groups {
+                self.writer.write(group?)?;
+            }
+            self.chunks.clear();
+            Ok(())
         }
     }
 
@@ -166,41 +214,34 @@ pub mod embedding {
             occur_count: u32,
             vector: Vec<f32>,
         ) -> Result<(), io::Error> {
-            let mut fields: Vec<(String, Arc<dyn ArrowArray>)> = (0..vector.len())
-                .into_iter()
-                .map(|x| {
-                    (
-                        format!("f{}", x),
-                        Arc::new(Float32Array::from(vec![vector[x]])) as ArrayRef,
-                    )
-                })
-                .collect();
+            let mut chunk_array = vec![
+                Utf8Array::<i32>::from(vec![Some(entity.to_string())]).to_boxed(),
+                UInt32Array::from(vec![Some(occur_count)]).to_boxed(),
+            ];
 
-            let e: ArrayRef = Arc::new(StringArray::from(vec![entity]));
-            fields.push(("entity".to_string(), e));
+            (0..vector.len()).into_iter().for_each(|x| {
+                chunk_array.push(Float32Array::from(vec![Some(vector[x])]).to_boxed())
+            });
 
-            let e: ArrayRef = Arc::new(UInt32Array::from(vec![occur_count]));
-            fields.push(("occur_count".to_string(), e));
+            let chunk = Chunk::new(chunk_array);
+            self.write_chunks(chunk);
 
-            let batch = RecordBatch::try_from_iter(fields).unwrap();
-
-            //println!("{:?}", batch.schema());
-
-            self.buf_writer.write(&batch).expect("Writing batch");
-            self.buf_writer.flush().expect("Flush");
+            if self.counter == 5000 {
+                //self.write_chunks(chunk);
+                self.counter = 0;
+            } else {
+                self.counter += 1;
+            }
 
             Ok(())
         }
 
         fn finish(&mut self) -> Result<(), io::Error> {
+            //            self.buf_writer.flush().expect("Flush");
+            //
+            let _size = self.writer.end(None).unwrap();
             Ok(())
         }
-
-        fn close(self) -> Result<(), String> {
-            self.buf_writer.close().unwrap();
-            Ok(())
-        }
-
     }
 
     mod memmap {
@@ -356,10 +397,5 @@ pub mod embedding {
 
             Ok(())
         }
-
-        fn close(self) -> Result<(), String> {
-            Ok(())
-        }
-
     }
 }

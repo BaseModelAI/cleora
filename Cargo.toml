@@ -32,9 +32,7 @@ ndarray-npy = "0.8.1"
 serde_json = "1.0.81"
 uuid = { version = "1.1.2", features = ["v4"] }
 pyo3 = { version = "0.16.5", features = ["extension-module"] }
-parquet = "15.0.0"
-arrow = "15.0.0"
-rusoto_s3 = "0.48.0"
+arrow2 = { version="0.12.0", default-features = false, features = ["io_parquet", "io_parquet_compression"] }
 
 [dev-dependencies]
 criterion = "0.3.3"
