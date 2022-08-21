@@ -331,7 +331,12 @@ pub fn calculate_embeddings<T1, T2>(
     let mult = MatrixMultiplicator::new(config.clone(), sparse_matrix_reader);
     let init: TwoDimVectorMatrix = mult.initialize();
     let res = mult.propagate(config.max_number_of_iteration, init);
-    mult.persist(res, entity_mapping_persistor, embedding_persistor);
+    mult.persist(
+        res,
+        entity_mapping_persistor,
+        embedding_persistor,
+        config.chunk_size,
+    );
 
     info!("Finalizing embeddings calculations!")
 }
@@ -417,6 +422,7 @@ where
         res: M,
         entity_mapping_persistor: Arc<T1>,
         embedding_persistor: &mut dyn EmbeddingPersistor,
+        chunk_size: usize,
     ) where
         T1: EntityMappingPersistor,
     {
@@ -434,21 +440,61 @@ where
 
         // entities which can't be written to the file (error occurs)
         let mut broken_entities = HashSet::new();
+        let mut chunk: (Vec<String>, Vec<u32>, Vec<Vec<f32>>) = (
+            Vec::new(),
+            Vec::new(),
+            (0..self.dimension)
+                .into_iter()
+                .map(|_x| Vec::new())
+                .collect(),
+        );
+
+        let mut entity_names: Vec<String> = Vec::new();
+        //let chunk_size: usize = 1000;
+
         for (i, hash) in self.sparse_matrix_reader.iter_hashes().enumerate() {
             let entity_name_opt = entity_mapping_persistor.get_entity(hash.value);
             if let Some(entity_name) = entity_name_opt {
-                let mut embedding: Vec<f32> = Vec::with_capacity(self.dimension);
+                chunk.0.push(entity_name.clone());
+                chunk.1.push(hash.occurrence);
+                entity_names.push(entity_name);
+
+                //let mut embedding: Vec<f32> = Vec::with_capacity(self.dimension);
                 for j in 0..self.dimension {
                     let value = res.get_value(i, j);
-                    embedding.push(value);
+                    //embedding.push(value);
+                    chunk.2[j].push(value);
                 }
-                embedding_persistor
-                    .put_data(&entity_name, hash.occurrence, embedding)
-                    .unwrap_or_else(|_| {
-                        broken_entities.insert(entity_name);
-                    });
+
+                if i % chunk_size == 0 {
+                    embedding_persistor
+                        .put_data_chunk(chunk)
+                        .unwrap_or_else(|_| {
+                            entity_names.into_iter().for_each(|e| {
+                                broken_entities.insert(e);
+                            });
+                        });
+
+                    entity_names = Vec::new();
+                    chunk = (
+                        Vec::new(),
+                        Vec::new(),
+                        (0..self.dimension)
+                            .into_iter()
+                            .map(|_x| Vec::new())
+                            .collect(),
+                    );
+                }
             };
         }
+
+        embedding_persistor
+            .put_data_chunk(chunk)
+            .unwrap_or_else(|_| {
+                entity_names.into_iter().for_each(|e| {
+                    broken_entities.insert(e);
+                });
+            });
 
         if !broken_entities.is_empty() {
             log_broken_entities(broken_entities);
@@ -487,7 +533,12 @@ pub fn calculate_embeddings_mmap<T1, T2>(
     let mult = MatrixMultiplicator::new(config.clone(), sparse_matrix_reader);
     let init: MMapMatrix = mult.initialize();
     let res = mult.propagate(config.max_number_of_iteration, init);
-    mult.persist(res, entity_mapping_persistor, embedding_persistor);
+    mult.persist(
+        res,
+        entity_mapping_persistor,
+        embedding_persistor,
+        config.chunk_size,
+    );
 
     info!("Finalizing embeddings calculations!")
 }

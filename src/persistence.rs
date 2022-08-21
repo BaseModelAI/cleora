@@ -52,12 +52,19 @@ pub mod embedding {
 
     pub trait EmbeddingPersistor {
         fn put_metadata(&mut self, entity_count: u32, dimension: u16) -> Result<(), io::Error>;
+
         fn put_data(
             &mut self,
             entity: &str,
             occur_count: u32,
             vector: Vec<f32>,
         ) -> Result<(), io::Error>;
+
+        fn put_data_chunk(
+            &mut self,
+            chunk: (Vec<String>, Vec<u32>, Vec<Vec<f32>>),
+        ) -> Result<(), io::Error>;
+
         fn finish(&mut self) -> Result<(), io::Error>;
     }
 
@@ -105,6 +112,26 @@ pub mod embedding {
             Ok(())
         }
 
+        fn put_data_chunk(
+            &mut self,
+            chunk: (Vec<String>, Vec<u32>, Vec<Vec<f32>>),
+        ) -> Result<(), io::Error> {
+            let entities = chunk.0;
+            let occur_counts = chunk.1;
+            let vectors = &chunk.2;
+
+            for i in 0..entities.len() {
+                let entity = &entities[i];
+                let occur_count = &occur_counts[i];
+                let mut vector: Vec<f32> = Vec::new();
+
+                vectors.into_iter().for_each(|x| vector.push(x[i]));
+                self.put_data(entity.as_str(), *occur_count, vector).unwrap();
+            }
+
+            Ok(())
+        }
+
         fn finish(&mut self) -> Result<(), io::Error> {
             self.buf_writer.write_all(b"\n")?;
             Ok(())
@@ -112,12 +139,6 @@ pub mod embedding {
     }
 
     pub struct ParquetVectorPersistor {
-        filename: String,
-        counter: u32,
-        chunks: Vec<Chunk<Box<dyn ArrowArray>>>,
-        chunk_entities: Vec<Option<String>>,
-        chunk_vectors: Vec<Vec<Option<f32>>>,
-        chunk_occur_counts: Vec<Option<u32>>,
         schema: Schema,
         options: WriteOptions,
         encodings: Vec<Vec<Encoding>>,
@@ -158,34 +179,20 @@ pub mod embedding {
                 .collect();
 
             // Create a new empty file
-            let file = File::create("test.parquet").unwrap();
+            let file = File::create(filename).unwrap();
 
-            let mut writer = FileWriter::try_new(file, schema.clone(), options.clone()).unwrap();
-
-            let mut chunks: Vec<Chunk<Box<dyn ArrowArray>>> = Vec::new();
-
-            let chunk_entities: Vec<Option<String>> = Vec::new();
-            let chunk_vectors: Vec<Vec<Option<f32>>> =
-                (0..dimension).into_iter().map(|_x| Vec::new()).collect();
-            let chunk_occur_counts: Vec<Option<u32>> = Vec::new();
+            let writer = FileWriter::try_new(file, schema.clone(), options.clone()).unwrap();
 
             ParquetVectorPersistor {
-                filename,
-                counter: 0,
-                chunk_entities,
-                chunk_vectors,
-                chunk_occur_counts,
                 schema,
                 options,
                 encodings,
                 writer,
-                chunks,
                 produce_entity_occurrence_count,
             }
         }
 
         fn write_chunks(&mut self, chunk: Chunk<Box<dyn ArrowArray>>) -> ArrowResult<()> {
-
             let iter = vec![Ok(chunk)];
 
             let row_groups = RowGroupIterator::try_new(
@@ -198,47 +205,52 @@ pub mod embedding {
             for group in row_groups {
                 self.writer.write(group?)?;
             }
-            self.chunks.clear();
+
             Ok(())
         }
     }
 
     impl EmbeddingPersistor for ParquetVectorPersistor {
-        fn put_metadata(&mut self, entity_count: u32, dimension: u16) -> Result<(), io::Error> {
+        fn put_metadata(&mut self, _entity_count: u32, _dimension: u16) -> Result<(), io::Error> {
             Ok(())
         }
 
         fn put_data(
             &mut self,
-            entity: &str,
-            occur_count: u32,
-            vector: Vec<f32>,
+            _entity: &str,
+            _occur_count: u32,
+            _vector: Vec<f32>,
         ) -> Result<(), io::Error> {
+
+
+            Ok(())
+        }
+
+        fn put_data_chunk(
+            &mut self,
+            chunk: (Vec<String>, Vec<u32>, Vec<Vec<f32>>),
+        ) -> Result<(), io::Error> {
+
+            let entities: Vec<Option<String>> = chunk.0.into_iter().map(|x| Some(x)).collect();
+            let occur_counts: Vec<Option<u32>> = chunk.1.into_iter().map(|x| Some(x)).collect();
+
+
             let mut chunk_array = vec![
-                Utf8Array::<i32>::from(vec![Some(entity.to_string())]).to_boxed(),
-                UInt32Array::from(vec![Some(occur_count)]).to_boxed(),
+                Utf8Array::<i32>::from(entities).to_boxed(),
+                UInt32Array::from(occur_counts).to_boxed(),
             ];
 
-            (0..vector.len()).into_iter().for_each(|x| {
-                chunk_array.push(Float32Array::from(vec![Some(vector[x])]).to_boxed())
+            chunk.2.into_iter().for_each(|x| {
+                chunk_array.push(Float32Array::from(x.into_iter().map(|e| Some(e)).collect::<Vec<Option<f32>>>()).to_boxed())
             });
 
             let chunk = Chunk::new(chunk_array);
-            self.write_chunks(chunk);
-
-            if self.counter == 5000 {
-                //self.write_chunks(chunk);
-                self.counter = 0;
-            } else {
-                self.counter += 1;
-            }
+            self.write_chunks(chunk).unwrap();
 
             Ok(())
         }
 
         fn finish(&mut self) -> Result<(), io::Error> {
-            //            self.buf_writer.flush().expect("Flush");
-            //
             let _size = self.writer.end(None).unwrap();
             Ok(())
         }
@@ -377,6 +389,26 @@ pub mod embedding {
                 .assign(&Array::from(vector));
             self.entities.push(entity.to_owned());
             self.occurences.push(occur_count);
+            Ok(())
+        }
+
+        fn put_data_chunk(
+            &mut self,
+            chunk: (Vec<String>, Vec<u32>, Vec<Vec<f32>>),
+        ) -> Result<(), io::Error> {
+            let entities = chunk.0;
+            let occur_counts = chunk.1;
+            let vectors = &chunk.2;
+
+            for i in 0..entities.len() {
+                let entity = &entities[i];
+                let occur_count = &occur_counts[i];
+                let mut vector: Vec<f32> = Vec::new();
+
+                vectors.into_iter().for_each(|x| vector.push(x[i]));
+                self.put_data(entity.as_str(), *occur_count, vector).unwrap();
+            }
+
             Ok(())
         }
 

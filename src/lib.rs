@@ -27,6 +27,7 @@ fn run(
     cols_str: String,
     output_format: &str,
     relation_name: String,
+    chunk_size: usize,
 ) -> PyResult<String> {
     let file_type = match type_name {
         Some(type_name) => match type_name {
@@ -67,6 +68,7 @@ fn run(
         output_format: output_format_type,
         relation_name,
         columns,
+        chunk_size: chunk_size,
     };
 
     let in_memory_entity_mapping_persistor = InMemoryEntityMappingPersistor::default();
