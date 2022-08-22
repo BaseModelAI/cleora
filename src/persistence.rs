@@ -32,7 +32,9 @@ pub mod entity {
 }
 
 pub mod embedding {
+    use crate::io::S3File;
     use crate::persistence::embedding::memmap::OwnedMmapArrayViewMut;
+
     use ndarray::{s, Array};
     use ndarray_npy::write_zeroed_npy;
     use std::fs::File;
@@ -42,7 +44,7 @@ pub mod embedding {
     use arrow2::{
         array::{Array as ArrowArray, Float32Array, UInt32Array, Utf8Array},
         chunk::Chunk,
-        datatypes::{DataType, Field, Schema},
+        datatypes::{DataType, Field, Schema, TimeUnit},
         error::Result as ArrowResult,
         io::parquet::write::{
             transverse, CompressionOptions, Encoding, FileWriter, RowGroupIterator, Version,
@@ -126,7 +128,8 @@ pub mod embedding {
                 let mut vector: Vec<f32> = Vec::new();
 
                 vectors.into_iter().for_each(|x| vector.push(x[i]));
-                self.put_data(entity.as_str(), *occur_count, vector).unwrap();
+                self.put_data(entity.as_str(), *occur_count, vector)
+                    .unwrap();
             }
 
             Ok(())
@@ -142,7 +145,7 @@ pub mod embedding {
         schema: Schema,
         options: WriteOptions,
         encodings: Vec<Vec<Encoding>>,
-        writer: FileWriter<File>,
+        writer: FileWriter<Box<dyn Write>>,
         produce_entity_occurrence_count: bool,
     }
 
@@ -155,6 +158,7 @@ pub mod embedding {
             let mut fields: Vec<Field> = vec![
                 Field::new("entity", DataType::Utf8, false),
                 Field::new("occur_count", DataType::UInt32, false),
+                Field::new("datetime", DataType::Timestamp(TimeUnit::Second, None), false),
             ];
             (0..dimension).into_iter().for_each(|x| {
                 fields.push(Field::new(
@@ -179,7 +183,12 @@ pub mod embedding {
                 .collect();
 
             // Create a new empty file
-            let file = File::create(filename).unwrap();
+            let file_name = filename.replace(".out", ".parquet");
+            let file: Box<dyn Write> = if file_name.starts_with("s3://") {
+                Box::new(S3File::create(file_name))
+            } else {
+                Box::new(File::create(file_name).unwrap())
+            };
 
             let writer = FileWriter::try_new(file, schema.clone(), options.clone()).unwrap();
 
@@ -221,8 +230,6 @@ pub mod embedding {
             _occur_count: u32,
             _vector: Vec<f32>,
         ) -> Result<(), io::Error> {
-
-
             Ok(())
         }
 
@@ -230,18 +237,27 @@ pub mod embedding {
             &mut self,
             chunk: (Vec<String>, Vec<u32>, Vec<Vec<f32>>),
         ) -> Result<(), io::Error> {
-
             let entities: Vec<Option<String>> = chunk.0.into_iter().map(|x| Some(x)).collect();
             let occur_counts: Vec<Option<u32>> = chunk.1.into_iter().map(|x| Some(x)).collect();
 
+            let timestamps: Vec<Option<String>> = (0..entities.len())
+                .into_iter()
+                .map(|x| Some("2022-01-01 11:11:11".to_string()))
+                .collect();
 
             let mut chunk_array = vec![
                 Utf8Array::<i32>::from(entities).to_boxed(),
                 UInt32Array::from(occur_counts).to_boxed(),
+                Utf8Array::<i32>::from(timestamps).to_boxed(),
             ];
 
             chunk.2.into_iter().for_each(|x| {
-                chunk_array.push(Float32Array::from(x.into_iter().map(|e| Some(e)).collect::<Vec<Option<f32>>>()).to_boxed())
+                chunk_array.push(
+                    Float32Array::from(
+                        x.into_iter().map(|e| Some(e)).collect::<Vec<Option<f32>>>(),
+                    )
+                    .to_boxed(),
+                )
             });
 
             let chunk = Chunk::new(chunk_array);
@@ -406,7 +422,8 @@ pub mod embedding {
                 let mut vector: Vec<f32> = Vec::new();
 
                 vectors.into_iter().for_each(|x| vector.push(x[i]));
-                self.put_data(entity.as_str(), *occur_count, vector).unwrap();
+                self.put_data(entity.as_str(), *occur_count, vector)
+                    .unwrap();
             }
 
             Ok(())

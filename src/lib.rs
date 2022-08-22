@@ -4,6 +4,7 @@ pub mod entity;
 pub mod persistence;
 pub mod pipeline;
 pub mod sparse_matrix;
+pub mod io;
 use pyo3::prelude::*;
 
 //use configuration;
@@ -68,7 +69,7 @@ fn run(
         output_format: output_format_type,
         relation_name,
         columns,
-        chunk_size: chunk_size,
+        chunk_size,
     };
 
     let in_memory_entity_mapping_persistor = InMemoryEntityMappingPersistor::default();
