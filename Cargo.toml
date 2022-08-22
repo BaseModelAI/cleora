@@ -35,6 +35,7 @@ pyo3 = { version = "0.16.5", features = ["extension-module"] }
 arrow2 = { version="0.12.0", default-features = false, features = ["io_parquet", "io_parquet_compression"] }
 rusoto_s3 = "0.42.0"
 rusoto_core = "0.42.0"
+chrono = "0.4.22"
 
 [dev-dependencies]
 criterion = "0.3.3"

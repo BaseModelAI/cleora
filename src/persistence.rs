@@ -51,6 +51,7 @@ pub mod embedding {
             WriteOptions,
         },
     };
+    use chrono::prelude::*;
 
     pub trait EmbeddingPersistor {
         fn put_metadata(&mut self, entity_count: u32, dimension: u16) -> Result<(), io::Error>;
@@ -147,6 +148,7 @@ pub mod embedding {
         encodings: Vec<Vec<Encoding>>,
         writer: FileWriter<Box<dyn Write>>,
         produce_entity_occurrence_count: bool,
+        timestamp: String,
     }
 
     impl ParquetVectorPersistor {
@@ -158,7 +160,8 @@ pub mod embedding {
             let mut fields: Vec<Field> = vec![
                 Field::new("entity", DataType::Utf8, false),
                 Field::new("occur_count", DataType::UInt32, false),
-                Field::new("datetime", DataType::Timestamp(TimeUnit::Second, None), false),
+                Field::new("datetime", DataType::Utf8, false),
+                //Field::new("datetime", DataType::Timestamp(TimeUnit::Second, None), false),
             ];
             (0..dimension).into_iter().for_each(|x| {
                 fields.push(Field::new(
@@ -183,7 +186,9 @@ pub mod embedding {
                 .collect();
 
             // Create a new empty file
-            let file_name = filename.replace(".out", ".parquet");
+            let now = Utc::now();
+            let f = now.format("%Y%m%dT%H%M%S").to_string();
+            let file_name = filename.replace(".out", &format!("_{}.parquet", f));
             let file: Box<dyn Write> = if file_name.starts_with("s3://") {
                 Box::new(S3File::create(file_name))
             } else {
@@ -192,12 +197,15 @@ pub mod embedding {
 
             let writer = FileWriter::try_new(file, schema.clone(), options.clone()).unwrap();
 
+            let utc: String = now.format("%F %X").to_string();
+
             ParquetVectorPersistor {
                 schema,
                 options,
                 encodings,
                 writer,
                 produce_entity_occurrence_count,
+                timestamp: utc,
             }
         }
 
@@ -242,7 +250,7 @@ pub mod embedding {
 
             let timestamps: Vec<Option<String>> = (0..entities.len())
                 .into_iter()
-                .map(|x| Some("2022-01-01 11:11:11".to_string()))
+                .map(|x| Some(self.timestamp.clone()))
                 .collect();
 
             let mut chunk_array = vec![
