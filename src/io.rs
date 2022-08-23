@@ -1,12 +1,13 @@
 use rusoto_core::region::Region;
-use rusoto_core::ByteStream;
+use rusoto_core::{ByteStream, RusotoError};
 use rusoto_s3::{
     AbortMultipartUploadRequest, CompleteMultipartUploadRequest, CompletedMultipartUpload,
-    CompletedPart, CreateMultipartUploadRequest, UploadPartRequest,
+    CompletedPart, CreateMultipartUploadRequest, GetObjectError, GetObjectRequest,
+    UploadPartRequest,
 };
 use rusoto_s3::{S3Client, S3};
 use std::env;
-use std::io::{Error, Write};
+use std::io::{Error, Read, Write};
 use std::time::Duration;
 
 use std::io::prelude::*;
@@ -33,23 +34,10 @@ impl Drop for S3File {
 
 impl S3File {
     pub fn create(filename: String) -> S3File {
-        let region = match env::var("S3_ENDPOINT_URL") {
-            Ok(endpoint) => Region::Custom {
-                name: "custom".to_string(),
-                endpoint,
-            },
-            Err(e) => Region::default(),
-        };
+        let (s3_client, bucket_name, object_key, data_timeout) = S3File::create_client(filename);
 
-        let path: Vec<&str> = filename.strip_prefix("s3://").unwrap().split("/").collect();
-        let bucket_name: String = path[0].to_string();
-        let object_key: String = path[1..].join("/");
-
-        let s3_client = S3Client::new(region);
-
-        let part_size = 10 * 1024 * 1024; // note that max part count is 10k so we can upload up to 100_000 MiB
+        let part_size = 10 * 1024 * 1024;
         let timeout = Duration::from_secs(10);
-        let data_timeout = Duration::from_secs(300);
 
         let mut completed_parts: Vec<CompletedPart> = Vec::new();
         let upload_id = &s3_client
@@ -80,6 +68,42 @@ impl S3File {
             completed: false,
             part_size,
         }
+    }
+
+    pub fn open(
+        filename: String,
+    ) -> Result<impl std::io::Read + Send, RusotoError<GetObjectError>> {
+        let (s3_client, bucket_name, object_key, data_timeout) = S3File::create_client(filename);
+
+        s3_client
+            .get_object(GetObjectRequest {
+                bucket: bucket_name.clone(),
+                key: object_key.clone(),
+                ..Default::default()
+            })
+            .with_timeout(data_timeout)
+            .sync()
+            .map(|output| output.body.unwrap().into_blocking_read())
+    }
+
+    fn create_client(filename: String) -> (S3Client, String, String, Duration) {
+        let region = match env::var("S3_ENDPOINT_URL") {
+            Ok(endpoint) => Region::Custom {
+                name: "custom".to_string(),
+                endpoint,
+            },
+            Err(e) => Region::default(),
+        };
+
+        let path: Vec<&str> = filename.strip_prefix("s3://").unwrap().split("/").collect();
+        let bucket_name: String = path[0].to_string();
+        let object_key: String = path[1..].join("/");
+
+        let s3_client = S3Client::new(region);
+
+        let data_timeout = Duration::from_secs(300);
+
+        (s3_client, bucket_name, object_key, data_timeout)
     }
 
     fn write_buff(&mut self) {
@@ -150,4 +174,35 @@ impl Write for S3File {
         //self.write_buff();
         Ok(())
     }
+}
+
+#[test]
+fn open_write_read_test() {
+    use std::io::{BufRead, BufReader};
+
+    // the test requires local minio setup
+    env::set_var("S3_ENDPOINT_URL", "http://minio:9000");
+    env::set_var("AWS_ACCESS_KEY_ID", "minioadmin");
+    env::set_var("AWS_SECRET_ACCESS_KEY", "minioadmin");
+
+    let mut f = S3File::create("s3://input/hello.txt".to_string());
+
+    f.write(b"hello world\n");
+    f.write(b"hello world");
+    f.complete();
+
+    let mut file1 = S3File::open("s3://input/hello.txt".to_string()).unwrap();
+    let mut data: Vec<u8> = Vec::new();
+    file1.read_to_end(&mut data);
+
+    assert_eq!(data, b"hello world\nhello world");
+
+
+    let mut file2 = S3File::open("s3://input/hello.txt".to_string()).unwrap();
+    let mut buff = BufReader::new(file2);
+    let mut line = String::new();
+    buff.read_line(&mut line);
+
+    assert_eq!(line, "hello world\n");
+
 }

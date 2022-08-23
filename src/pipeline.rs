@@ -1,9 +1,10 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-
+use std::io::Read;
 use crate::configuration::{Column, Configuration, FileType, OutputFormat};
 use crate::embedding::{calculate_embeddings, calculate_embeddings_mmap};
 use crate::entity::{EntityProcessor, SMALL_VECTOR_SIZE};
+use crate::io::S3File;
 use crate::persistence::embedding::{
     EmbeddingPersistor, NpyPersistor, ParquetVectorPersistor, TextFileVectorPersistor,
 };
@@ -90,7 +91,11 @@ fn read_file<F>(filepath: &str, log_every: u64, mut line_handler: F)
 where
     F: FnMut(&str),
 {
-    let input_file = File::open(filepath).expect("Can't open file");
+    let input_file: Box<dyn Read> = if filepath.starts_with("s3://") {
+        Box::new(S3File::open(filepath.to_string()).unwrap())
+    } else {
+        Box::new(File::open(filepath).expect("Can't open file"))
+    };
     let mut buffered = BufReader::new(input_file);
 
     let mut line_number = 1u64;
