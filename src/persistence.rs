@@ -44,7 +44,7 @@ pub mod embedding {
     use arrow2::{
         array::{Array as ArrowArray, Float32Array, UInt32Array, Utf8Array},
         chunk::Chunk,
-        datatypes::{DataType, Field, Schema, TimeUnit},
+        datatypes::{DataType, Field, Schema},
         error::Result as ArrowResult,
         io::parquet::write::{
             transverse, CompressionOptions, Encoding, FileWriter, RowGroupIterator, Version,
@@ -147,7 +147,6 @@ pub mod embedding {
         options: WriteOptions,
         encodings: Vec<Vec<Encoding>>,
         writer: FileWriter<Box<dyn Write>>,
-        produce_entity_occurrence_count: bool,
         timestamp: String,
     }
 
@@ -155,7 +154,6 @@ pub mod embedding {
         pub fn new(
             filename: String,
             dimension: u16,
-            produce_entity_occurrence_count: bool,
         ) -> Self {
             let mut fields: Vec<Field> = vec![
                 Field::new("entity", DataType::Utf8, false),
@@ -204,7 +202,6 @@ pub mod embedding {
                 options,
                 encodings,
                 writer,
-                produce_entity_occurrence_count,
                 timestamp: utc,
             }
         }
@@ -250,7 +247,7 @@ pub mod embedding {
 
             let timestamps: Vec<Option<String>> = (0..entities.len())
                 .into_iter()
-                .map(|x| Some(self.timestamp.clone()))
+                .map(|_x| Some(self.timestamp.clone()))
                 .collect();
 
             let mut chunk_array = vec![

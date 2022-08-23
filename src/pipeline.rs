@@ -199,7 +199,6 @@ pub fn train(
                 OutputFormat::Parquet => Box::new(ParquetVectorPersistor::new(
                     ofp,
                     config.embeddings_dimension,
-                    config.produce_entity_occurrence_count,
                 )),
                 OutputFormat::Numpy => Box::new(NpyPersistor::new(
                     ofp,

@@ -7,9 +7,9 @@ pub mod sparse_matrix;
 pub mod io;
 use pyo3::prelude::*;
 
-//use configuration;
-use configuration::Configuration;
-use configuration::OutputFormat;
+//pub use configuration;
+pub use configuration::Configuration;
+pub use configuration::OutputFormat;
 use persistence::entity::InMemoryEntityMappingPersistor;
 use pipeline::{build_graphs, train};
 use std::sync::Arc;

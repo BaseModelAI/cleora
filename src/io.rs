@@ -10,8 +10,6 @@ use std::env;
 use std::io::{Error, Read, Write};
 use std::time::Duration;
 
-use std::io::prelude::*;
-
 pub struct S3File {
     bucket_name: String,
     object_key: String,
@@ -26,20 +24,18 @@ pub struct S3File {
 
 impl Drop for S3File {
     fn drop(&mut self) {
-        unsafe {
-            self.complete();
-        }
+        self.complete();
     }
 }
 
 impl S3File {
     pub fn create(filename: String) -> S3File {
-        let (s3_client, bucket_name, object_key, data_timeout) = S3File::create_client(filename);
+        let (s3_client, bucket_name, object_key) = S3File::create_client(filename);
 
         let part_size = 10 * 1024 * 1024;
         let timeout = Duration::from_secs(10);
 
-        let mut completed_parts: Vec<CompletedPart> = Vec::new();
+        let completed_parts: Vec<CompletedPart> = Vec::new();
         let upload_id = &s3_client
             .create_multipart_upload(CreateMultipartUploadRequest {
                 bucket: bucket_name.clone(),
@@ -73,7 +69,9 @@ impl S3File {
     pub fn open(
         filename: String,
     ) -> Result<impl std::io::Read + Send, RusotoError<GetObjectError>> {
-        let (s3_client, bucket_name, object_key, data_timeout) = S3File::create_client(filename);
+        let (s3_client, bucket_name, object_key) = S3File::create_client(filename);
+
+        let data_timeout = Duration::from_secs(300);
 
         s3_client
             .get_object(GetObjectRequest {
@@ -86,13 +84,13 @@ impl S3File {
             .map(|output| output.body.unwrap().into_blocking_read())
     }
 
-    fn create_client(filename: String) -> (S3Client, String, String, Duration) {
+    fn create_client(filename: String) -> (S3Client, String, String) {
         let region = match env::var("S3_ENDPOINT_URL") {
             Ok(endpoint) => Region::Custom {
                 name: "custom".to_string(),
                 endpoint,
             },
-            Err(e) => Region::default(),
+            Err(_) => Region::default(),
         };
 
         let path: Vec<&str> = filename.strip_prefix("s3://").unwrap().split("/").collect();
@@ -101,9 +99,8 @@ impl S3File {
 
         let s3_client = S3Client::new(region);
 
-        let data_timeout = Duration::from_secs(300);
 
-        (s3_client, bucket_name, object_key, data_timeout)
+        (s3_client, bucket_name, object_key)
     }
 
     fn write_buff(&mut self) {
@@ -111,7 +108,7 @@ impl S3File {
             return;
         }
 
-        let mut buff = self.buff.to_owned();
+        let buff = self.buff.to_owned();
         let data_timeout = Duration::from_secs(300);
 
         let result = self
@@ -157,6 +154,21 @@ impl S3File {
             self.completed = true;
         }
     }
+
+    pub fn abort_upload(&mut self) {
+        let timeout = Duration::from_secs(10);
+        self.s3_client
+            .abort_multipart_upload(AbortMultipartUploadRequest {
+                bucket: self.bucket_name.clone(),
+                key: self.object_key.clone(),
+                upload_id: self.upload_id.clone(),
+                ..Default::default()
+            })
+            .with_timeout(timeout)
+            .sync()
+            .unwrap();
+        self.completed = true;
+    }
 }
 
 impl Write for S3File {
@@ -178,7 +190,7 @@ impl Write for S3File {
 
 #[test]
 fn open_write_read_test() {
-    use std::io::{BufRead, BufReader};
+    use std::io::{BufRead, BufReader, Read};
 
     // the test requires local minio setup
     env::set_var("S3_ENDPOINT_URL", "http://minio:9000");
@@ -194,9 +206,7 @@ fn open_write_read_test() {
     let mut file1 = S3File::open("s3://input/hello.txt".to_string()).unwrap();
     let mut data: Vec<u8> = Vec::new();
     file1.read_to_end(&mut data);
-
     assert_eq!(data, b"hello world\nhello world");
-
 
     let mut file2 = S3File::open("s3://input/hello.txt".to_string()).unwrap();
     let mut buff = BufReader::new(file2);
@@ -204,5 +214,4 @@ fn open_write_read_test() {
     buff.read_line(&mut line);
 
     assert_eq!(line, "hello world\n");
-
 }
