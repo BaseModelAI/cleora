@@ -4,9 +4,16 @@ build-backend = "maturin"
 
 [project]
 name = "cleora"
+version = "1.2.3"
 requires-python = ">=3.7"
+description = "Cleora is a general-purpose model for efficient, scalable learning of stable and inductive entity embeddings for heterogeneous relational data."
+readme = "README.md"
+license = {file = "LICENSE"}
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
+
+[project.urls]
+repository = "https://github.com/Synerise/cleora"
