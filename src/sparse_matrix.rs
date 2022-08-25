@@ -78,7 +78,7 @@ pub struct SparseMatrix {
     pair_index: FxHashMap<u64, u32>,
 
     /// Coordinates and values of nonzero entities
-    entries: Vec<Entry>,
+    pub entries: Vec<Entry>,
 }
 
 /// Hash data
@@ -327,7 +327,7 @@ impl SparseMatrixReader for SparseMatrix {
     }
 
     fn get_row_sum(&self, row: u32) -> f32 {
-        self.row_sum[entry.row as usize]
+        self.row_sum[row as usize]
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::configuration::{Configuration, InitMethod};
 use crate::persistence::embedding::EmbeddingPersistor;
 use crate::persistence::entity::EntityMappingPersistor;
-use crate::sparse_matrix::{SparseMatrixReader, Entry};
+use crate::sparse_matrix::{SparseMatrix, SparseMatrixReader, Entry};
 use ndarray::{Array2, ArrayView2,  ArrayViewMut2};
 use ndarray_linalg::lobpcg::{lobpcg, LobpcgResult};
 use ndarray_linalg::TruncatedOrder;
@@ -16,7 +16,6 @@ use std::hash::Hasher;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use uuid::Uuid;
-use configuration::InitMethod;
 
 /// Number of broken entities (those with errors during writing to the file) which are logged.
 /// There can be much more but log the first few.
@@ -37,10 +36,10 @@ trait MatrixWrapper {
     ) -> Self;
 
     /// Initializing a matrix with the eigenvectors of a given matrix.
-    fn init_with_evec<T: SparseMatrixReader + Sync + Send>(
+    fn init_with_evec(
         rows: usize,
         cols: usize,
-        sparse_matrix_reader: Arc<T>,
+        sparse_matrix_reader: Arc<SparseMatrix>,
     ) -> Self;
 
     /// Returns value for specific coordinates
@@ -97,7 +96,7 @@ impl MatrixWrapper for TwoDimVectorMatrix {
             let shape = x.shape();
             let mut arr = Array2::zeros((shape[0], shape[1])); 
     
-            for entry in sparse_matrix_reader.entries.into_par_iter.map(|entry| -> {
+            for entry in sparse_matrix_reader.entries.into_par_iter().map(|entry| {
                 if entry.col == entry.row { /// What happens for reflexive columns?
                     Entry {
                         row: entry.row,
@@ -120,14 +119,14 @@ impl MatrixWrapper for TwoDimVectorMatrix {
             arr
         };
 
-        offset_identity_matrix: Array2<f32> = Array2::zeros(rows, cols);
+        let offset_identity_matrix: Array2<f32> = Array2::zeros((rows, cols));
         for i in 0..std::cmp::min(rows, cols) {
-            offset_identity_matrix[[i, i]] = 1;
+            offset_identity_matrix[[i, i]] = 1f32;
         }
 
         match lobpcg(
             matrix_transform,
-            Array2<f32> = offset_identity_matrix, 
+            offset_identity_matrix, 
             |_x: ArrayViewMut2<f32>| {},
             Option::None,
             0.1f32,
@@ -135,10 +134,10 @@ impl MatrixWrapper for TwoDimVectorMatrix {
             TruncatedOrder::Largest,
         ) {
             LobpcgResult::Ok(_evals, evecs, _norms) => { 
-                matrix: Vec<Vec<f32>> = Vec::new();
+                let mut matrix: Vec<Vec<f32>> = Vec::new();
 
                 for i in 0..rows {
-                    row: Vec<f32> = Vec::new();
+                    let mut row: Vec<f32> = Vec::new();
 
                     for j in 0..cols {
                         row.push(evecs[[i, j]]);
@@ -284,7 +283,7 @@ impl MatrixWrapper for MMapMatrix {
             let shape = x.shape();
             let mut arr = Array2::zeros((shape[0], shape[1])); 
     
-            for entry in sparse_matrix_reader.entries.into_par_iter.map(|entry| -> {
+            for entry in sparse_matrix_reader.entries.into_par_iter().map(|entry| {
                 if entry.col == entry.row { /// What happens for reflexive columns?
                     Entry {
                         row: entry.row,
@@ -307,14 +306,14 @@ impl MatrixWrapper for MMapMatrix {
             arr
         };
 
-        offset_identity_matrix: Array2<f32> = Array2::zeros(rows, cols);
+        let offset_identity_matrix: Array2<f32> = Array2::zeros((rows, cols));
         for i in 0..std::cmp::min(rows, cols) {
-            offset_identity_matrix[[i, i]] = 1;
+            offset_identity_matrix[[i, i]] = 1f32;
         }
 
         match lobpcg(
             matrix_transform,
-            Array2<f32> = offset_identity_matrix,
+            offset_identity_matrix,
             |_x: ArrayViewMut2<f32>| {},
             Option::None,
             0.1f32,
@@ -327,7 +326,7 @@ impl MatrixWrapper for MMapMatrix {
                 .enumerate()
                 .for_each(|(i, chunk)| {
                     for j in 0..cols {
-                        let col_value = evecs[[i, j]]
+                        let col_value = evecs[[i, j]];
                         MMapMatrix::update_column(j, chunk, |value| unsafe { *value = col_value });
                     }
                 });
@@ -503,12 +502,11 @@ struct MatrixMultiplicator<T: SparseMatrixReader + Sync + Send, M: MatrixWrapper
     init_method: InitMethod
 }
 
-impl<T, M> MatrixMultiplicator<T, M>
+impl<M> MatrixMultiplicator<M>
 where
-    T: SparseMatrixReader + Sync + Send,
     M: MatrixWrapper,
 {
-    fn new(config: Arc<Configuration>, sparse_matrix_reader: Arc<T>) -> Self {
+    fn new(config: Arc<Configuration>, sparse_matrix_reader: Arc<SparseMatrix>) -> Self {
         let rand_value = config.seed.map(hash).unwrap_or(0);
         Self {
             dimension: config.embeddings_dimension as usize,
@@ -516,7 +514,7 @@ where
             fixed_random_value: rand_value,
             sparse_matrix_reader,
             _marker: PhantomData,
-            init_method: config.init_method
+            init_method: *config.init_method
         }
     }
 
@@ -527,7 +525,7 @@ where
             self.dimension, self.number_of_entities
         );
 
-        let result = match init_method {
+        let result = match self.init_method {
             InitMethod::Random => M::init_with_hashes(
                 self.number_of_entities,
                 self.dimension,
@@ -651,7 +649,7 @@ pub fn calculate_embeddings_mmap<T1, T2>(
     T2: EntityMappingPersistor,
 {
     let mult = MatrixMultiplicator::new(config.clone(), sparse_matrix_reader);
-    let init: MMapMatrix = mult.initialize(); ///No change here
+    let init: MMapMatrix = mult.initialize();
     let res = mult.propagate(config.max_number_of_iteration, init);
     mult.persist(res, entity_mapping_persistor, embedding_persistor);
 
