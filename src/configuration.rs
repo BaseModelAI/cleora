@@ -10,7 +10,7 @@ pub enum OutputFormat {
     Numpy,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum InitMethod {
     Random,
     Evec,
@@ -59,6 +59,8 @@ pub struct Configuration {
 
     /// Columns configuration
     pub columns: Vec<Column>,
+
+    pub init_method: InitMethod,
 }
 
 /// Column configuration
@@ -97,6 +99,7 @@ impl Configuration {
             output_format: OutputFormat::TextFile,
             relation_name: String::from("emb"),
             columns,
+            init_method : InitMethod::Evec,
         }
     }
 

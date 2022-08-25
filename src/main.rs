@@ -131,7 +131,7 @@ fn main() {
         )
         .arg(
             Arg::new("init-method")
-                .short('im') // Is this legit?
+                .short('m')
                 .help("Embedding init method. One of: random|evec")
                 .possible_values(&["random", "evec"])
                 .default_value("evec")
@@ -213,7 +213,7 @@ fn main() {
         _ => panic!("unsupported output format"),
     };
 
-    let init_method = match mathces.value_of("init-method").unwrap() {
+    let init_method = match matches.value_of("init-method").unwrap() {
         "random" => InitMethod::Random, 
         "evec" => InitMethod::Evec,
         _ => panic!("Unsupported init method."),

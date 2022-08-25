@@ -96,8 +96,10 @@ impl MatrixWrapper for TwoDimVectorMatrix {
             let shape = x.shape();
             let mut arr = Array2::zeros((shape[0], shape[1])); 
     
-            for entry in sparse_matrix_reader.entries.into_par_iter().map(|entry| {
-                if entry.col == entry.row { /// What happens for reflexive columns?
+            let sparse_laplacian_entries: Vec<Entry> = sparse_matrix_reader.entries.clone() // Might be a problem?
+            .into_par_iter()
+            .map(|entry| {
+                if entry.col == entry.row { // What happens for reflexive columns?
                     Entry {
                         row: entry.row,
                         col: entry.col,
@@ -110,16 +112,19 @@ impl MatrixWrapper for TwoDimVectorMatrix {
                         value: - entry.value,
                     }
                 }
-            }) {
+            })
+            .collect();
+
+            for entry in sparse_laplacian_entries {
                 for i in 0..shape[0] {
-                    arr[[entry.row, i as usize]] += entry.val * x[[entry.col, i as usize]];
-                } 
+                    arr[[entry.row as usize, i as usize]] += entry.value * x[[entry.col as usize, i as usize]];
+                }
             }
-    
+        
             arr
         };
 
-        let offset_identity_matrix: Array2<f32> = Array2::zeros((rows, cols));
+        let mut offset_identity_matrix: Array2<f32> = Array2::zeros((rows, cols));
         for i in 0..std::cmp::min(rows, cols) {
             offset_identity_matrix[[i, i]] = 1f32;
         }
@@ -283,8 +288,10 @@ impl MatrixWrapper for MMapMatrix {
             let shape = x.shape();
             let mut arr = Array2::zeros((shape[0], shape[1])); 
     
-            for entry in sparse_matrix_reader.entries.into_par_iter().map(|entry| {
-                if entry.col == entry.row { /// What happens for reflexive columns?
+            let sparse_laplacian_entries: Vec<Entry> = sparse_matrix_reader.entries.clone() // Might be a problem?
+            .into_par_iter()
+            .map(|entry| {
+                if entry.col == entry.row { // What happens for reflexive columns?
                     Entry {
                         row: entry.row,
                         col: entry.col,
@@ -297,16 +304,19 @@ impl MatrixWrapper for MMapMatrix {
                         value: - entry.value,
                     }
                 }
-            }) {
+            })
+            .collect();
+
+            for entry in sparse_laplacian_entries {
                 for i in 0..shape[0] {
-                    arr[[entry.row, i as usize]] += entry.val * x[[entry.col, i as usize]];
-                } 
+                    arr[[entry.row as usize, i as usize]] += entry.value * x[[entry.col as usize, i as usize]];
+                }
             }
-    
+        
             arr
         };
 
-        let offset_identity_matrix: Array2<f32> = Array2::zeros((rows, cols));
+        let mut offset_identity_matrix: Array2<f32> = Array2::zeros((rows, cols));
         for i in 0..std::cmp::min(rows, cols) {
             offset_identity_matrix[[i, i]] = 1f32;
         }
@@ -474,13 +484,12 @@ impl MMapMatrix {
 }
 
 /// Calculate embeddings in memory.
-pub fn calculate_embeddings<T1, T2>(
+pub fn calculate_embeddings<T2>(
     config: Arc<Configuration>,
-    sparse_matrix_reader: Arc<T1>,
+    sparse_matrix_reader: Arc<SparseMatrix>,
     entity_mapping_persistor: Arc<T2>,
     embedding_persistor: &mut dyn EmbeddingPersistor,
 ) where
-    T1: SparseMatrixReader + Sync + Send,
     T2: EntityMappingPersistor,
 {
     let mult = MatrixMultiplicator::new(config.clone(), sparse_matrix_reader);
@@ -493,11 +502,11 @@ pub fn calculate_embeddings<T1, T2>(
 
 /// Provides matrix multiplication based on sparse matrix data.
 #[derive(Debug)]
-struct MatrixMultiplicator<T: SparseMatrixReader + Sync + Send, M: MatrixWrapper> {
+struct MatrixMultiplicator<M: MatrixWrapper> {
     dimension: usize,
     number_of_entities: usize,
     fixed_random_value: i64,
-    sparse_matrix_reader: Arc<T>,
+    sparse_matrix_reader: Arc<SparseMatrix>,
     _marker: PhantomData<M>,
     init_method: InitMethod
 }
@@ -514,7 +523,7 @@ where
             fixed_random_value: rand_value,
             sparse_matrix_reader,
             _marker: PhantomData,
-            init_method: *config.init_method
+            init_method: config.init_method
         }
     }
 
@@ -537,7 +546,6 @@ where
                 self.dimension,
                 self.sparse_matrix_reader.clone(),
             ),
-            _ => panic!("initialisation error."),
         }; 
         
         info!(
@@ -639,13 +647,12 @@ fn log_broken_entities(broken_entities: HashSet<String>) {
 }
 
 /// Calculate embeddings with memory-mapped files.
-pub fn calculate_embeddings_mmap<T1, T2>(
+pub fn calculate_embeddings_mmap<T2>(
     config: Arc<Configuration>,
-    sparse_matrix_reader: Arc<T1>,
+    sparse_matrix_reader: Arc<SparseMatrix>,
     entity_mapping_persistor: Arc<T2>,
     embedding_persistor: &mut dyn EmbeddingPersistor,
 ) where
-    T1: SparseMatrixReader + Sync + Send,
     T2: EntityMappingPersistor,
 {
     let mult = MatrixMultiplicator::new(config.clone(), sparse_matrix_reader);
