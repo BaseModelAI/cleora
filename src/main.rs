@@ -215,7 +215,8 @@ fn main() {
 
     let init_method = match matches.value_of("init-method").unwrap() {
         "random" => InitMethod::Random, 
-        "evec" => InitMethod::Evec,
+        "evec-smallest" => InitMethod::EvecSmallest,
+        "evec-largest" => InitMethod::EvecLargest,
         _ => panic!("Unsupported init method."),
     };
 

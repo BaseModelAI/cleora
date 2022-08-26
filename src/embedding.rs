@@ -40,6 +40,7 @@ trait MatrixWrapper {
         rows: usize,
         cols: usize,
         sparse_matrix_reader: Arc<SparseMatrix>,
+        order: TruncatedOrder,
     ) -> Self;
 
     /// Returns value for specific coordinates
@@ -91,6 +92,7 @@ impl MatrixWrapper for TwoDimVectorMatrix {
         rows: usize,
         cols: usize,
         sparse_matrix_reader: Arc<SparseMatrix>,
+        order: TruncatedOrder,
     ) -> Self {
         let matrix_transform = |x: ArrayView2<f32>| -> Array2<f32> {
             let shape = x.shape();
@@ -136,7 +138,7 @@ impl MatrixWrapper for TwoDimVectorMatrix {
             Option::None,
             0.1f32,
             1000,
-            TruncatedOrder::Largest,
+            order,
         ) {
             LobpcgResult::Ok(_evals, evecs, _norms) => { 
                 let mut matrix: Vec<Vec<f32>> = Vec::new();
@@ -279,6 +281,7 @@ impl MatrixWrapper for MMapMatrix {
         rows: usize,
         cols: usize,
         sparse_matrix_reader: Arc<SparseMatrix>,
+        order: TruncatedOrder
     ) -> Self {
         let uuid = Uuid::new_v4();
         let file_name = format!("{}_matrix_{}", sparse_matrix_reader.get_id(), uuid);
@@ -328,7 +331,7 @@ impl MatrixWrapper for MMapMatrix {
             Option::None,
             0.1f32,
             1000,
-            TruncatedOrder::Largest,
+            order,
         ) {
             LobpcgResult::Ok(_evals, evecs, _norms) => { 
                 
@@ -541,10 +544,17 @@ where
                 self.fixed_random_value,
                 self.sparse_matrix_reader.clone(),
             ),
-            InitMethod::Evec => M::init_with_evec(
+            InitMethod::EvecSmallest => M::init_with_evec( // Is there a more compact solution?
                 self.number_of_entities,
                 self.dimension,
                 self.sparse_matrix_reader.clone(),
+                TruncatedOrder::Smallest,
+            ),
+            InitMethod::EvecLargest => M::init_with_evec(
+                self.number_of_entities,
+                self.dimension,
+                self.sparse_matrix_reader.clone(),
+                TruncatedOrder::Largest,
             ),
         }; 
         
