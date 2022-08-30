@@ -13,8 +13,8 @@ pub enum OutputFormat {
 #[derive(Debug, Clone, Copy)]
 pub enum InitMethod {
     Random,
-    EvecLargest,
-    EvecSmallest,
+    EigenvectorsLargest,
+    EigenvectorsSmallest,
 }
 
 /// Pipeline configuration
@@ -100,7 +100,7 @@ impl Configuration {
             output_format: OutputFormat::TextFile,
             relation_name: String::from("emb"),
             columns,
-            init_method : InitMethod::EvecLargest,
+            init_method: InitMethod::EigenvectorsLargest,
         }
     }
 

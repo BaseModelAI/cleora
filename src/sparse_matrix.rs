@@ -127,9 +127,6 @@ pub trait SparseMatrixReader {
     /// Returns iterator for hash data such as id and occurrence
     fn iter_hashes(&self) -> CopyIter<'_, Hash>;
 
-    /// Returns iterator for entries
-    fn iter_entries(&self) -> CopyIter<'_, Entry>;
-
     /// Returns the sum of a selected row
     fn get_row_sum(&self, row: u32) -> f32;
 }
@@ -321,11 +318,6 @@ impl SparseMatrixReader for SparseMatrix {
         CopyIter(self.id_2_hash.iter())
     }
 
-    #[inline]
-    fn iter_entries(&self) -> CopyIter<'_, Entry> {
-        CopyIter(self.entries.iter())
-    }
-
     fn get_row_sum(&self, row: u32) -> f32 {
         self.row_sum[row as usize]
     }
@@ -499,7 +491,7 @@ mod tests {
             ("u2", "p4", 1.0 / 3.0),
         ];
         let expected_entries = prepare_entries(hash_2_id, edges);
-        let entries: Vec<_> = sm.iter_entries().collect();
+        let entries: Vec<_> = sm.entries;
         assert_eq!(expected_entries, entries);
     }
 }

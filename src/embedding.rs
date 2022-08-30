@@ -1,12 +1,12 @@
 use crate::configuration::{Configuration, InitMethod};
 use crate::persistence::embedding::EmbeddingPersistor;
 use crate::persistence::entity::EntityMappingPersistor;
-use crate::sparse_matrix::{SparseMatrix, SparseMatrixReader, Entry};
-use ndarray::{Array2, ArrayView2,  ArrayViewMut2};
-use ndarray_linalg::lobpcg::{lobpcg, LobpcgResult};
-use ndarray_linalg::TruncatedOrder;
+use crate::sparse_matrix::{Entry, SparseMatrix, SparseMatrixReader};
 use log::{info, warn};
 use memmap::MmapMut;
+use ndarray::{Array2, ArrayView2, ArrayViewMut2};
+use ndarray_linalg::lobpcg::{lobpcg, LobpcgResult};
+use ndarray_linalg::TruncatedOrder;
 use rayon::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
@@ -35,8 +35,7 @@ trait MatrixWrapper {
         sparse_matrix_reader: Arc<T>,
     ) -> Self;
 
-    /// Initializing a matrix with the eigenvectors of a given matrix.
-    fn init_with_evec(
+    fn init_with_eigenvectors(
         rows: usize,
         cols: usize,
         sparse_matrix_reader: Arc<SparseMatrix>,
@@ -50,10 +49,7 @@ trait MatrixWrapper {
     fn normalize(&mut self);
 
     /// Multiplies sparse matrix by the matrix
-    fn multiply<T: SparseMatrixReader + Sync + Send>(
-        sparse_matrix_reader: Arc<T>,
-        other: Self,
-    ) -> Self;
+    fn multiply(sparse_matrix_reader: Arc<SparseMatrix>, other: Self) -> Self;
 }
 
 /// Two dimensional vectors as matrix representation
@@ -88,7 +84,7 @@ impl MatrixWrapper for TwoDimVectorMatrix {
         }
     }
 
-    fn init_with_evec(
+    fn init_with_eigenvectors(
         rows: usize,
         cols: usize,
         sparse_matrix_reader: Arc<SparseMatrix>,
@@ -96,70 +92,79 @@ impl MatrixWrapper for TwoDimVectorMatrix {
     ) -> Self {
         let matrix_transform = |x: ArrayView2<f32>| -> Array2<f32> {
             let shape = x.shape();
-            let mut arr = Array2::zeros((shape[0], shape[1])); 
-    
-            let sparse_laplacian_entries: Vec<Entry> = sparse_matrix_reader.entries.clone() // Might be a problem?
-            .into_par_iter()
-            .map(|entry| {
-                if entry.col == entry.row { // What happens for reflexive columns?
-                    Entry {
-                        row: entry.row,
-                        col: entry.col,
-                        value: sparse_matrix_reader.get_row_sum(entry.row),
-                    }
-                } else {
-                    Entry {
-                        row: entry.row,
-                        col: entry.col,
-                        value: - entry.value,
-                    }
-                }
-            })
-            .collect();
+            let mut arr = Array2::zeros((shape[0], shape[1]));
+
+            let mut sparse_laplacian_entries: Vec<Entry> = (&sparse_matrix_reader.entries)
+                .into_par_iter()
+                .map(|entry| Entry {
+                    row: entry.row,
+                    col: entry.col,
+                    value: -entry.value,
+                })
+                .collect();
+
+            for i in 0..rows {
+                sparse_laplacian_entries.push(Entry {
+                    row: i as u32,
+                    col: i as u32,
+                    value: sparse_matrix_reader.get_row_sum(i as u32),
+                })
+            }
 
             for entry in sparse_laplacian_entries {
                 for i in 0..shape[0] {
-                    arr[[entry.row as usize, i as usize]] += entry.value * x[[entry.col as usize, i as usize]];
+                    arr[[entry.row as usize, i as usize]] +=
+                        entry.value * x[[entry.col as usize, i as usize]];
                 }
             }
-        
+
             arr
         };
 
-        let mut offset_identity_matrix: Array2<f32> = Array2::zeros((rows, cols));
+        let mut initial_guess: Array2<f32> = Array2::zeros((rows, cols));
         for i in 0..std::cmp::min(rows, cols) {
-            offset_identity_matrix[[i, i]] = 1f32;
+            initial_guess[[i, i]] = 1f32;
         }
+        let empty_preconditioner = |_x: ArrayViewMut2<f32>| {};
+        let constraints = Option::None;
+        let tolerance = 0.1f32;
+        let maxiter = 1000;
 
         match lobpcg(
             matrix_transform,
-            offset_identity_matrix, 
-            |_x: ArrayViewMut2<f32>| {},
-            Option::None,
-            0.1f32,
-            1000,
+            initial_guess,
+            empty_preconditioner,
+            constraints,
+            tolerance,
+            maxiter,
             order,
         ) {
-            LobpcgResult::Ok(_evals, evecs, _norms) => { 
+            LobpcgResult::Ok(_eigenvalues, eigenvectors, _norms) => {
                 let mut matrix: Vec<Vec<f32>> = Vec::new();
 
                 for i in 0..rows {
                     let mut row: Vec<f32> = Vec::new();
 
                     for j in 0..cols {
-                        row.push(evecs[[i, j]]);
+                        row.push(eigenvectors[[i, j]]);
                     }
                     matrix.push(row);
                 }
-                
-                Self {
-                    rows,
-                    cols,
-                    matrix: matrix, 
-                }
-            },
-            LobpcgResult::Err(_a, _b, _c, _err) => { panic!("Computing the eigenvectors of the Laplacian failed. {}", _err) }, 
-            LobpcgResult::NoResult(_err) => { panic!("Computing the eigenvectors of the Laplacian failed. {}", _err) },
+
+                Self { rows, cols, matrix }
+            }
+            LobpcgResult::Err(_a, _b, _c, _err) => {
+                panic!(
+                    "Computing the eigenvectors of the Laplacian failed. {}",
+                    _err
+                )
+            }
+            LobpcgResult::NoResult(_err) => {
+                panic!(
+                    "Computing the eigenvectors of the Laplacian failed. {}",
+                    _err
+                )
+            }
         }
     }
 
@@ -188,10 +193,7 @@ impl MatrixWrapper for TwoDimVectorMatrix {
         });
     }
 
-    fn multiply<T: SparseMatrixReader + Sync + Send>(
-        sparse_matrix_reader: Arc<T>,
-        other: Self,
-    ) -> Self {
+    fn multiply(sparse_matrix_reader: Arc<SparseMatrix>, other: Self) -> Self {
         let rnew = zero_2d(other.rows, other.cols);
 
         let result: Vec<Vec<f32>> = other
@@ -200,7 +202,7 @@ impl MatrixWrapper for TwoDimVectorMatrix {
             .zip(rnew)
             .update(|data| {
                 let (res_col, rnew_col) = data;
-                for entry in sparse_matrix_reader.iter_entries() {
+                for entry in &sparse_matrix_reader.entries {
                     let elem = rnew_col.get_mut(entry.row as usize).unwrap();
                     let value = res_col[entry.col as usize];
                     *elem += value * entry.value;
@@ -277,11 +279,11 @@ impl MatrixWrapper for MMapMatrix {
         }
     }
 
-    fn init_with_evec(
+    fn init_with_eigenvectors(
         rows: usize,
         cols: usize,
         sparse_matrix_reader: Arc<SparseMatrix>,
-        order: TruncatedOrder
+        order: TruncatedOrder,
     ) -> Self {
         let uuid = Uuid::new_v4();
         let file_name = format!("{}_matrix_{}", sparse_matrix_reader.get_id(), uuid);
@@ -289,63 +291,67 @@ impl MatrixWrapper for MMapMatrix {
 
         let matrix_transform = |x: ArrayView2<f32>| -> Array2<f32> {
             let shape = x.shape();
-            let mut arr = Array2::zeros((shape[0], shape[1])); 
-    
-            let sparse_laplacian_entries: Vec<Entry> = sparse_matrix_reader.entries.clone() // Might be a problem?
-            .into_par_iter()
-            .map(|entry| {
-                if entry.col == entry.row { // What happens for reflexive columns?
-                    Entry {
-                        row: entry.row,
-                        col: entry.col,
-                        value: sparse_matrix_reader.get_row_sum(entry.row),
-                    }
-                } else {
-                    Entry {
-                        row: entry.row,
-                        col: entry.col,
-                        value: - entry.value,
-                    }
-                }
-            })
-            .collect();
+            let mut arr = Array2::zeros((shape[0], shape[1]));
+
+            let mut sparse_laplacian_entries: Vec<Entry> = (&sparse_matrix_reader.entries)
+                .into_par_iter()
+                .map(|entry| Entry {
+                    row: entry.row,
+                    col: entry.col,
+                    value: -entry.value,
+                })
+                .collect();
+
+            for i in 0..rows {
+                sparse_laplacian_entries.push(Entry {
+                    row: i as u32,
+                    col: i as u32,
+                    value: sparse_matrix_reader.get_row_sum(i as u32),
+                })
+            }
 
             for entry in sparse_laplacian_entries {
                 for i in 0..shape[0] {
-                    arr[[entry.row as usize, i as usize]] += entry.value * x[[entry.col as usize, i as usize]];
+                    arr[[entry.row as usize, i as usize]] +=
+                        entry.value * x[[entry.col as usize, i as usize]];
                 }
             }
-        
+
             arr
         };
 
-        let mut offset_identity_matrix: Array2<f32> = Array2::zeros((rows, cols));
+        let mut initial_guess: Array2<f32> = Array2::zeros((rows, cols));
         for i in 0..std::cmp::min(rows, cols) {
-            offset_identity_matrix[[i, i]] = 1f32;
+            initial_guess[[i, i]] = 1f32;
         }
+        let empty_preconditioner = |_x: ArrayViewMut2<f32>| {};
+        let constraints = Option::None;
+        let tolerance = 0.1f32;
+        let maxiter = 1000;
 
         match lobpcg(
             matrix_transform,
-            offset_identity_matrix,
-            |_x: ArrayViewMut2<f32>| {},
-            Option::None,
-            0.1f32,
-            1000,
+            initial_guess,
+            empty_preconditioner,
+            constraints,
+            tolerance,
+            maxiter,
             order,
         ) {
-            LobpcgResult::Ok(_evals, evecs, _norms) => { 
-                
+            LobpcgResult::Ok(_eigenvalues, eigenvector, _norms) => {
                 mmap.par_chunks_mut(rows * 4)
-                .enumerate()
-                .for_each(|(i, chunk)| {
-                    for j in 0..cols {
-                        let col_value = evecs[[i, j]];
-                        MMapMatrix::update_column(j, chunk, |value| unsafe { *value = col_value });
-                    }
-                });
+                    .enumerate()
+                    .for_each(|(i, chunk)| {
+                        for j in 0..cols {
+                            let col_value = eigenvector[[i, j]];
+                            MMapMatrix::update_column(j, chunk, |value| unsafe {
+                                *value = col_value
+                            });
+                        }
+                    });
 
                 mmap.flush()
-                .expect("Can't flush memory map modifications to disk");
+                    .expect("Can't flush memory map modifications to disk");
 
                 Self {
                     rows,
@@ -353,9 +359,19 @@ impl MatrixWrapper for MMapMatrix {
                     file_name,
                     matrix: mmap,
                 }
-            },
-            LobpcgResult::Err(_a, _b, _c, _err) => { panic!("Computing the eigenvectors of the Laplacian failed. {}", _err) },
-            LobpcgResult::NoResult(_err) => { panic!("Computing the eigenvectors of the Laplacian failed. {}", _err) },
+            }
+            LobpcgResult::Err(_a, _b, _c, _err) => {
+                panic!(
+                    "Computing the eigenvectors of the Laplacian failed. {}",
+                    _err
+                )
+            }
+            LobpcgResult::NoResult(_err) => {
+                panic!(
+                    "Computing the eigenvectors of the Laplacian failed. {}",
+                    _err
+                )
+            }
         }
     }
 
@@ -398,10 +414,7 @@ impl MatrixWrapper for MMapMatrix {
             .expect("Can't flush memory map modifications to disk");
     }
 
-    fn multiply<T: SparseMatrixReader + Sync + Send>(
-        sparse_matrix_reader: Arc<T>,
-        other: Self,
-    ) -> Self {
+    fn multiply(sparse_matrix_reader: Arc<SparseMatrix>, other: Self) -> Self {
         let rows = other.rows;
         let cols = other.cols;
 
@@ -414,7 +427,7 @@ impl MatrixWrapper for MMapMatrix {
             .par_chunks_mut(rows * 4)
             .enumerate()
             .for_each_with(input, |input, (i, chunk)| {
-                for entry in sparse_matrix_reader.iter_entries() {
+                for entry in &sparse_matrix_reader.entries {
                     let input_value = input.get_value(entry.col as usize, i);
                     MMapMatrix::update_column(entry.row as usize, chunk, |value| unsafe {
                         *value += input_value * entry.value
@@ -511,7 +524,7 @@ struct MatrixMultiplicator<M: MatrixWrapper> {
     fixed_random_value: i64,
     sparse_matrix_reader: Arc<SparseMatrix>,
     _marker: PhantomData<M>,
-    init_method: InitMethod
+    init_method: InitMethod,
 }
 
 impl<M> MatrixMultiplicator<M>
@@ -526,7 +539,7 @@ where
             fixed_random_value: rand_value,
             sparse_matrix_reader,
             _marker: PhantomData,
-            init_method: config.init_method
+            init_method: config.init_method,
         }
     }
 
@@ -544,20 +557,20 @@ where
                 self.fixed_random_value,
                 self.sparse_matrix_reader.clone(),
             ),
-            InitMethod::EvecSmallest => M::init_with_evec( // Is there a more compact solution?
-                self.number_of_entities,
-                self.dimension,
-                self.sparse_matrix_reader.clone(),
-                TruncatedOrder::Smallest,
-            ),
-            InitMethod::EvecLargest => M::init_with_evec(
-                self.number_of_entities,
-                self.dimension,
-                self.sparse_matrix_reader.clone(),
-                TruncatedOrder::Largest,
-            ),
-        }; 
-        
+            InitMethod::EigenvectorsSmallest | InitMethod::EigenvectorsLargest => {
+                M::init_with_eigenvectors(
+                    self.number_of_entities,
+                    self.dimension,
+                    self.sparse_matrix_reader.clone(),
+                    match self.init_method {
+                        InitMethod::EigenvectorsSmallest => TruncatedOrder::Smallest,
+                        InitMethod::EigenvectorsLargest => TruncatedOrder::Largest,
+                        InitMethod::Random => panic!("Issue in determining initialisation type."),
+                    },
+                )
+            }
+        };
+
         info!(
             "Done initializing. Dims: {}, entities: {}.",
             self.dimension, self.number_of_entities

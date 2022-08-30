@@ -3,8 +3,8 @@ use std::time::Instant;
 use clap::{crate_authors, crate_description, crate_name, crate_version, Arg, Command};
 use cleora::configuration;
 use cleora::configuration::Configuration;
-use cleora::configuration::OutputFormat;
 use cleora::configuration::InitMethod;
+use cleora::configuration::OutputFormat;
 use cleora::persistence::entity::InMemoryEntityMappingPersistor;
 use cleora::pipeline::{build_graphs, train};
 use env_logger::Env;
@@ -131,10 +131,9 @@ fn main() {
         )
         .arg(
             Arg::new("init-method")
-                .short('m')
-                .help("Embedding init method. One of: random|evec")
-                .possible_values(&["random", "evec"])
-                .default_value("evec")
+                .help("Embedding init method. One of: random|eigenvectors-smallest|eigenvectors-largest")
+                .possible_values(&["random", "eigenvectors-smallest", "eigenvectors-largest"])
+                .default_value("eigenvectors-largest")
                 .takes_value(true),
         )
         .get_matches();
@@ -215,9 +214,9 @@ fn main() {
 
     let init_method = match matches.value_of("init-method").unwrap() {
         "random" => InitMethod::Random, 
-        "evec-smallest" => InitMethod::EvecSmallest,
-        "evec-largest" => InitMethod::EvecLargest,
-        _ => panic!("Unsupported init method."),
+        "eigenvectors-smallest" => InitMethod::EigenvectorsSmallest,
+        "eigenvectors-largest" => InitMethod::EigenvectorsLargest,
+        val => panic!("Unsupported init method. Got: {}. Help: Supported values for this argument are: 'random', 'eigenvector-smallest', 'eigenvector-largest'", val),
     };
 
     let config = Configuration {
