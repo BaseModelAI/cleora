@@ -1,12 +1,11 @@
 use crate::configuration::{Configuration, InitMethod};
 use crate::persistence::embedding::EmbeddingPersistor;
 use crate::persistence::entity::EntityMappingPersistor;
-use crate::sparse_matrix::{Entry, SparseMatrix, SparseMatrixReader};
+use crate::sparse_matrix::{SparseMatrix, SparseMatrixReader};
 use log::{info, warn};
 use memmap::MmapMut;
-use ndarray::{Array2, ArrayView2, ArrayViewMut2};
-use ndarray_linalg::lobpcg::{lobpcg, LobpcgResult};
-use ndarray_linalg::TruncatedOrder;
+use ndarray::Array2;
+use ndarray_linalg::lobpcg::{TruncatedEig, TruncatedOrder, LobpcgResult};
 use rayon::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
@@ -90,55 +89,21 @@ impl MatrixWrapper for TwoDimVectorMatrix {
         sparse_matrix_reader: Arc<SparseMatrix>,
         order: TruncatedOrder,
     ) -> Self {
-        let matrix_transform = |x: ArrayView2<f32>| -> Array2<f32> {
-            let shape = x.shape();
-            let mut arr = Array2::zeros((shape[0], shape[1]));
+        let mut discrete_laplacian = Array2::zeros((rows, rows));
 
-            let mut sparse_laplacian_entries: Vec<Entry> = (&sparse_matrix_reader.entries)
-                .into_par_iter()
-                .map(|entry| Entry {
-                    row: entry.row,
-                    col: entry.col,
-                    value: -entry.value,
-                })
-                .collect();
-
-            for i in 0..rows {
-                sparse_laplacian_entries.push(Entry {
-                    row: i as u32,
-                    col: i as u32,
-                    value: sparse_matrix_reader.get_row_sum(i as u32),
-                })
-            }
-
-            for entry in sparse_laplacian_entries {
-                for i in 0..shape[0] {
-                    arr[[entry.row as usize, i as usize]] +=
-                        entry.value * x[[entry.col as usize, i as usize]];
-                }
-            }
-
-            arr
-        };
-
-        let mut initial_guess: Array2<f32> = Array2::zeros((rows, cols));
-        for i in 0..std::cmp::min(rows, cols) {
-            initial_guess[[i, i]] = 1f32;
+        for entry in &sparse_matrix_reader.entries {
+            discrete_laplacian[[entry.row as usize, entry.col as usize]] = - entry.value;
         }
-        let empty_preconditioner = |_x: ArrayViewMut2<f32>| {};
-        let constraints = Option::None;
-        let tolerance = 0.1f32;
-        let maxiter = 1000;
 
-        match lobpcg(
-            matrix_transform,
-            initial_guess,
-            empty_preconditioner,
-            constraints,
-            tolerance,
-            maxiter,
-            order,
-        ) {
+        for i in 0..rows {
+            discrete_laplacian[[i, i]] = sparse_matrix_reader.get_row_sum(i as u32);
+        }
+        
+        let truncated_eig = TruncatedEig::new(discrete_laplacian, order);
+        let truncated_eig = truncated_eig.precision(0.01);
+        let result = truncated_eig.decompose(cols);
+
+        match result {
             LobpcgResult::Ok(_eigenvalues, eigenvectors, _norms) => {
                 let mut matrix: Vec<Vec<f32>> = Vec::new();
 
@@ -152,19 +117,9 @@ impl MatrixWrapper for TwoDimVectorMatrix {
                 }
 
                 Self { rows, cols, matrix }
-            }
-            LobpcgResult::Err(_a, _b, _c, _err) => {
-                panic!(
-                    "Computing the eigenvectors of the Laplacian failed. {}",
-                    _err
-                )
-            }
-            LobpcgResult::NoResult(_err) => {
-                panic!(
-                    "Computing the eigenvectors of the Laplacian failed. {}",
-                    _err
-                )
-            }
+            },
+            LobpcgResult::Err(_a, _b, _c, _err) => panic!("soft fail."), // Finish these error messages
+            LobpcgResult::NoResult(_a) => panic!("hard fail."),
         }
     }
 
@@ -289,55 +244,21 @@ impl MatrixWrapper for MMapMatrix {
         let file_name = format!("{}_matrix_{}", sparse_matrix_reader.get_id(), uuid);
         let mut mmap = create_mmap(rows, cols, file_name.as_str());
 
-        let matrix_transform = |x: ArrayView2<f32>| -> Array2<f32> {
-            let shape = x.shape();
-            let mut arr = Array2::zeros((shape[0], shape[1]));
+        let mut discrete_laplacian = Array2::zeros((rows, rows));
 
-            let mut sparse_laplacian_entries: Vec<Entry> = (&sparse_matrix_reader.entries)
-                .into_par_iter()
-                .map(|entry| Entry {
-                    row: entry.row,
-                    col: entry.col,
-                    value: -entry.value,
-                })
-                .collect();
-
-            for i in 0..rows {
-                sparse_laplacian_entries.push(Entry {
-                    row: i as u32,
-                    col: i as u32,
-                    value: sparse_matrix_reader.get_row_sum(i as u32),
-                })
-            }
-
-            for entry in sparse_laplacian_entries {
-                for i in 0..shape[0] {
-                    arr[[entry.row as usize, i as usize]] +=
-                        entry.value * x[[entry.col as usize, i as usize]];
-                }
-            }
-
-            arr
-        };
-
-        let mut initial_guess: Array2<f32> = Array2::zeros((rows, cols));
-        for i in 0..std::cmp::min(rows, cols) {
-            initial_guess[[i, i]] = 1f32;
+        for entry in &sparse_matrix_reader.entries {
+            discrete_laplacian[[entry.row as usize, entry.col as usize]] = - entry.value;
         }
-        let empty_preconditioner = |_x: ArrayViewMut2<f32>| {};
-        let constraints = Option::None;
-        let tolerance = 0.1f32;
-        let maxiter = 1000;
 
-        match lobpcg(
-            matrix_transform,
-            initial_guess,
-            empty_preconditioner,
-            constraints,
-            tolerance,
-            maxiter,
-            order,
-        ) {
+        for i in 0..rows {
+            discrete_laplacian[[i, i]] = sparse_matrix_reader.get_row_sum(i as u32);
+        }
+        
+        let truncated_eig = TruncatedEig::new(discrete_laplacian, order);
+        let truncated_eig = truncated_eig.precision(0.01);
+        let result = truncated_eig.decompose(cols);
+
+        match result {
             LobpcgResult::Ok(_eigenvalues, eigenvector, _norms) => {
                 mmap.par_chunks_mut(rows * 4)
                     .enumerate()
@@ -359,19 +280,9 @@ impl MatrixWrapper for MMapMatrix {
                     file_name,
                     matrix: mmap,
                 }
-            }
-            LobpcgResult::Err(_a, _b, _c, _err) => {
-                panic!(
-                    "Computing the eigenvectors of the Laplacian failed. {}",
-                    _err
-                )
-            }
-            LobpcgResult::NoResult(_err) => {
-                panic!(
-                    "Computing the eigenvectors of the Laplacian failed. {}",
-                    _err
-                )
-            }
+            },
+            LobpcgResult::Err(_a, _b, _c, _err) => panic!("soft fail."), // Finish these error messages
+            LobpcgResult::NoResult(_a) => panic!("hard fail."),
         }
     }
 
@@ -684,4 +595,123 @@ pub fn calculate_embeddings_mmap<T2>(
     mult.persist(res, entity_mapping_persistor, embedding_persistor);
 
     info!("Finalizing embeddings calculations!")
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::embedding::{TwoDimVectorMatrix, MatrixWrapper, MMapMatrix};
+    use crate::sparse_matrix::{SparseMatrix};
+    use ndarray_linalg::TruncatedOrder;
+    use std::sync::Arc;
+    use rustc_hash::FxHasher;
+    use std::hash::Hasher;
+
+    fn hash(entity: &str) -> u64 {
+        let mut hasher = FxHasher::default();
+        hasher.write(entity.as_bytes());
+        hasher.finish()
+    }
+
+    fn generate_test_sparse_matrix() -> SparseMatrix {
+
+        let mut sm = SparseMatrix::new(0u8, String::from("col_0"), 1u8, String::from("col_1"));
+
+        // testing on the graph defined by the lines:
+        // u1	    p1 p2
+        // u2       p2 p3 p4
+        // u3 u4    p3 p4 p5
+
+        sm.handle_pair(&[2, hash("u1"), hash("p1")]);
+        sm.handle_pair(&[2, hash("u1"), hash("p2")]);
+
+        sm.handle_pair(&[3, hash("u2"), hash("p2")]);
+        sm.handle_pair(&[3, hash("u2"), hash("p3")]);
+        sm.handle_pair(&[3, hash("u2"), hash("p4")]);
+
+        sm.handle_pair(&[6, hash("u3"), hash("p3")]);
+        sm.handle_pair(&[6, hash("u3"), hash("p4")]);
+        sm.handle_pair(&[6, hash("u3"), hash("p5")]);
+        sm.handle_pair(&[6, hash("u4"), hash("p3")]);
+        sm.handle_pair(&[6, hash("u4"), hash("p4")]);
+        sm.handle_pair(&[6, hash("u4"), hash("p5")]);
+
+        return sm;
+    }
+
+    #[test]
+    fn eigenvector_calculation_tdvm() {
+
+        let largest_evecs: [[f32; 3]; 9] = [
+            [ 0.6159,  0.4797, -0.2146],
+            [-0.2652, -0.2805,  0.3903],
+            [-0.5490, -0.0603, -0.4869],
+            [ 0.4396, -0.6251,  0.2364],
+            [-0.1614,  0.3632,  0.3233],
+            [-0.1614,  0.3632,  0.3233],
+            [ 0.0418, -0.1251, -0.3414],
+            [-0.0105,  0.0408,  0.2577],
+            [ 0.0418, -0.1251, -0.3414],
+        ];
+
+        let sm = generate_test_sparse_matrix();
+
+        let rows = 9;
+        let cols = 3;
+        let tdvm = TwoDimVectorMatrix::init_with_eigenvectors(
+            rows,
+            cols,
+            Arc::new(sm),
+            TruncatedOrder::Largest
+        );
+
+        let mut sum_square_entry_wise_diff = 0f32;
+        for i in 0..rows {
+            for j in 0..cols {
+                let base: f32 = tdvm.get_value(j, i) - largest_evecs[i][j];
+                sum_square_entry_wise_diff += base.powf(2f32);
+            }
+        }
+
+        println!("{}", sum_square_entry_wise_diff);
+        assert!(sum_square_entry_wise_diff < 10f32);
+    }
+
+    #[test]
+    fn eigenvector_calculation_mmap() {
+     
+        let largest_evecs: [[f32; 3]; 9] = [
+            [ 0.6159,  0.4797, -0.2146],
+            [-0.2652, -0.2805,  0.3903],
+            [-0.5490, -0.0603, -0.4869],
+            [ 0.4396, -0.6251,  0.2364],
+            [-0.1614,  0.3632,  0.3233],
+            [-0.1614,  0.3632,  0.3233],
+            [ 0.0418, -0.1251, -0.3414],
+            [-0.0105,  0.0408,  0.2577],
+            [ 0.0418, -0.1251, -0.3414],
+        ];
+
+        let sm = generate_test_sparse_matrix();
+
+        let rows = 9;
+        let cols = 3;
+        let mmap = MMapMatrix::init_with_eigenvectors(
+            rows,
+            cols,
+            Arc::new(sm),
+            TruncatedOrder::Largest
+        );
+
+        let mut sum_square_entry_wise_diff = 0f32;
+        for i in 0..rows {
+            for j in 0..cols {
+                let base: f32 = mmap.get_value(j, i) - largest_evecs[i][j];
+                sum_square_entry_wise_diff += base.powf(2f32);
+            }
+        }
+
+        println!("{}", sum_square_entry_wise_diff);
+        assert!(sum_square_entry_wise_diff < 10f32);
+    }
 }
