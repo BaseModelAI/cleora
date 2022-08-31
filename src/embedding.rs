@@ -118,8 +118,8 @@ impl MatrixWrapper for TwoDimVectorMatrix {
 
                 Self { rows, cols, matrix }
             }
-            LobpcgResult::Err(_a, _b, _c, _err) => panic!("soft fail."), // Finish these error messages
-            LobpcgResult::NoResult(_a) => panic!("hard fail."),
+            LobpcgResult::Err(_a, _b, _c, err) => panic!("Lobpcg soft failed while computing the eigenvectors of the Laplacian. {}", err),
+            LobpcgResult::NoResult(err) => panic!("Lobpcg hard failed while computing the eigenvectors of the Laplacian. {}", err),
         }
     }
 
@@ -281,8 +281,8 @@ impl MatrixWrapper for MMapMatrix {
                     matrix: mmap,
                 }
             }
-            LobpcgResult::Err(_a, _b, _c, _err) => panic!("soft fail."), // Finish these error messages
-            LobpcgResult::NoResult(_a) => panic!("hard fail."),
+            LobpcgResult::Err(_a, _b, _c, err) => panic!("Lobpcg soft failed while computing the eigenvectors of the Laplacian. {}", err),
+            LobpcgResult::NoResult(err) => panic!("Lobpcg hard failed while computing the eigenvectors of the Laplacian. {}", err),
         }
     }
 
