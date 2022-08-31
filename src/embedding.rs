@@ -5,7 +5,7 @@ use crate::sparse_matrix::{SparseMatrix, SparseMatrixReader};
 use log::{info, warn};
 use memmap::MmapMut;
 use ndarray::Array2;
-use ndarray_linalg::lobpcg::{TruncatedEig, TruncatedOrder, LobpcgResult};
+use ndarray_linalg::lobpcg::{LobpcgResult, TruncatedEig, TruncatedOrder};
 use rayon::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
@@ -92,13 +92,13 @@ impl MatrixWrapper for TwoDimVectorMatrix {
         let mut discrete_laplacian = Array2::zeros((rows, rows));
 
         for entry in &sparse_matrix_reader.entries {
-            discrete_laplacian[[entry.row as usize, entry.col as usize]] = - entry.value;
+            discrete_laplacian[[entry.row as usize, entry.col as usize]] = -entry.value;
         }
 
         for i in 0..rows {
             discrete_laplacian[[i, i]] = sparse_matrix_reader.get_row_sum(i as u32);
         }
-        
+
         let truncated_eig = TruncatedEig::new(discrete_laplacian, order);
         let truncated_eig = truncated_eig.precision(0.01);
         let result = truncated_eig.decompose(cols);
@@ -117,7 +117,7 @@ impl MatrixWrapper for TwoDimVectorMatrix {
                 }
 
                 Self { rows, cols, matrix }
-            },
+            }
             LobpcgResult::Err(_a, _b, _c, _err) => panic!("soft fail."), // Finish these error messages
             LobpcgResult::NoResult(_a) => panic!("hard fail."),
         }
@@ -247,13 +247,13 @@ impl MatrixWrapper for MMapMatrix {
         let mut discrete_laplacian = Array2::zeros((rows, rows));
 
         for entry in &sparse_matrix_reader.entries {
-            discrete_laplacian[[entry.row as usize, entry.col as usize]] = - entry.value;
+            discrete_laplacian[[entry.row as usize, entry.col as usize]] = -entry.value;
         }
 
         for i in 0..rows {
             discrete_laplacian[[i, i]] = sparse_matrix_reader.get_row_sum(i as u32);
         }
-        
+
         let truncated_eig = TruncatedEig::new(discrete_laplacian, order);
         let truncated_eig = truncated_eig.precision(0.01);
         let result = truncated_eig.decompose(cols);
@@ -280,7 +280,7 @@ impl MatrixWrapper for MMapMatrix {
                     file_name,
                     matrix: mmap,
                 }
-            },
+            }
             LobpcgResult::Err(_a, _b, _c, _err) => panic!("soft fail."), // Finish these error messages
             LobpcgResult::NoResult(_a) => panic!("hard fail."),
         }
@@ -600,12 +600,12 @@ pub fn calculate_embeddings_mmap<T2>(
 #[cfg(test)]
 mod tests {
 
-    use crate::embedding::{TwoDimVectorMatrix, MatrixWrapper, MMapMatrix};
-    use crate::sparse_matrix::{SparseMatrix};
+    use crate::embedding::{MMapMatrix, MatrixWrapper, TwoDimVectorMatrix};
+    use crate::sparse_matrix::SparseMatrix;
     use ndarray_linalg::TruncatedOrder;
-    use std::sync::Arc;
     use rustc_hash::FxHasher;
     use std::hash::Hasher;
+    use std::sync::Arc;
 
     fn hash(entity: &str) -> u64 {
         let mut hasher = FxHasher::default();
@@ -614,7 +614,6 @@ mod tests {
     }
 
     fn generate_test_sparse_matrix() -> SparseMatrix {
-
         let mut sm = SparseMatrix::new(0u8, String::from("col_0"), 1u8, String::from("col_1"));
 
         // testing on the graph defined by the lines:
@@ -641,17 +640,16 @@ mod tests {
 
     #[test]
     fn eigenvector_calculation_tdvm() {
-
         let largest_evecs: [[f32; 3]; 9] = [
-            [ 0.6159,  0.4797, -0.2146],
-            [-0.2652, -0.2805,  0.3903],
+            [0.6159, 0.4797, -0.2146],
+            [-0.2652, -0.2805, 0.3903],
             [-0.5490, -0.0603, -0.4869],
-            [ 0.4396, -0.6251,  0.2364],
-            [-0.1614,  0.3632,  0.3233],
-            [-0.1614,  0.3632,  0.3233],
-            [ 0.0418, -0.1251, -0.3414],
-            [-0.0105,  0.0408,  0.2577],
-            [ 0.0418, -0.1251, -0.3414],
+            [0.4396, -0.6251, 0.2364],
+            [-0.1614, 0.3632, 0.3233],
+            [-0.1614, 0.3632, 0.3233],
+            [0.0418, -0.1251, -0.3414],
+            [-0.0105, 0.0408, 0.2577],
+            [0.0418, -0.1251, -0.3414],
         ];
 
         let sm = generate_test_sparse_matrix();
@@ -662,7 +660,7 @@ mod tests {
             rows,
             cols,
             Arc::new(sm),
-            TruncatedOrder::Largest
+            TruncatedOrder::Largest,
         );
 
         let mut sum_square_entry_wise_diff = 0f32;
@@ -674,44 +672,39 @@ mod tests {
         }
 
         println!("{}", sum_square_entry_wise_diff);
-        assert!(sum_square_entry_wise_diff < 10f32);
+        assert!(sum_square_entry_wise_diff < 15f32);
     }
 
     #[test]
     fn eigenvector_calculation_mmap() {
-     
         let largest_evecs: [[f32; 3]; 9] = [
-            [ 0.6159,  0.4797, -0.2146],
-            [-0.2652, -0.2805,  0.3903],
+            [0.6159, 0.4797, -0.2146],
+            [-0.2652, -0.2805, 0.3903],
             [-0.5490, -0.0603, -0.4869],
-            [ 0.4396, -0.6251,  0.2364],
-            [-0.1614,  0.3632,  0.3233],
-            [-0.1614,  0.3632,  0.3233],
-            [ 0.0418, -0.1251, -0.3414],
-            [-0.0105,  0.0408,  0.2577],
-            [ 0.0418, -0.1251, -0.3414],
+            [0.4396, -0.6251, 0.2364],
+            [-0.1614, 0.3632, 0.3233],
+            [-0.1614, 0.3632, 0.3233],
+            [0.0418, -0.1251, -0.3414],
+            [-0.0105, 0.0408, 0.2577],
+            [0.0418, -0.1251, -0.3414],
         ];
 
         let sm = generate_test_sparse_matrix();
 
         let rows = 9;
         let cols = 3;
-        let mmap = MMapMatrix::init_with_eigenvectors(
-            rows,
-            cols,
-            Arc::new(sm),
-            TruncatedOrder::Largest
-        );
+        let mmap =
+            MMapMatrix::init_with_eigenvectors(rows, cols, Arc::new(sm), TruncatedOrder::Largest);
 
         let mut sum_square_entry_wise_diff = 0f32;
         for i in 0..rows {
             for j in 0..cols {
-                let base: f32 = mmap.get_value(j, i) - largest_evecs[i][j];
+                let base: f32 = mmap.get_value(i, j) - largest_evecs[i][j];
                 sum_square_entry_wise_diff += base.powf(2f32);
             }
         }
 
         println!("{}", sum_square_entry_wise_diff);
-        assert!(sum_square_entry_wise_diff < 10f32);
+        assert!(sum_square_entry_wise_diff < 15f32);
     }
 }

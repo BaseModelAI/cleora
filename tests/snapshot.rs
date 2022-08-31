@@ -1,4 +1,4 @@
-use cleora::configuration::{Column, Configuration, FileType, OutputFormat, InitMethod};
+use cleora::configuration::{Column, Configuration, FileType, InitMethod, OutputFormat};
 use cleora::embedding::{calculate_embeddings, calculate_embeddings_mmap};
 use cleora::persistence::embedding::EmbeddingPersistor;
 use cleora::persistence::entity::InMemoryEntityMappingPersistor;
