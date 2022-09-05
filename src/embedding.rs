@@ -1,11 +1,12 @@
 use crate::configuration::{Configuration, InitMethod};
 use crate::persistence::embedding::EmbeddingPersistor;
 use crate::persistence::entity::EntityMappingPersistor;
-use crate::sparse_matrix::{SparseMatrix, SparseMatrixReader};
+use crate::sparse_matrix::{SparseMatrix, SparseMatrixReader, Entry};
 use log::{info, warn};
 use memmap::MmapMut;
-use ndarray::Array2;
-use ndarray_linalg::lobpcg::{LobpcgResult, TruncatedEig, TruncatedOrder};
+use ndarray::{Array2, ArrayView2, ArrayViewMut2};
+use ndarray_linalg::generate;
+use ndarray_linalg::lobpcg::{lobpcg, LobpcgResult, TruncatedOrder};
 use rayon::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
@@ -33,6 +34,62 @@ trait MatrixWrapper {
         fixed_random_value: i64,
         sparse_matrix_reader: Arc<T>,
     ) -> Self;
+
+    fn calculate_eigenvectors(
+        rows: usize,
+        cols: usize,
+        sparse_matrix_reader: Arc<SparseMatrix>,
+        order: TruncatedOrder,
+    ) -> LobpcgResult<f32> {
+
+        let mut sparse_laplacian_entries: Vec<Entry> = (&sparse_matrix_reader.entries)
+        .into_par_iter()
+        .map(|entry| Entry {
+            row: entry.row,
+            col: entry.col,
+            value: -entry.value,
+        })
+        .collect();
+
+        for i in 0..rows {
+            sparse_laplacian_entries.push(Entry {
+                row: i as u32,
+                col: i as u32,
+                value: sparse_matrix_reader.get_row_sum(i as u32),
+            })
+        }
+
+
+        let sparse_laplacian_multiply = |x: ArrayView2<f32>| -> Array2<f32> {
+            let shape = x.shape();
+            let mut arr: Array2<f32> = Array2::zeros((shape[0], shape[1]));
+
+            for entry in &sparse_laplacian_entries {
+                for i in 0..shape[1] {
+                    arr[[entry.row as usize, i as usize]] +=
+                        entry.value * x[[entry.col as usize, i as usize]];
+                }
+            }
+
+            arr
+        };
+
+        let x: Array2<f32> = generate::random((rows, cols));
+        let preconditioner = |_x: ArrayViewMut2<f32>| {};
+        let constraints = None;
+        let precision: f32 = 1e-5;
+        let maxiter = rows * 2;    
+
+        lobpcg(
+            sparse_laplacian_multiply,
+            x,
+            preconditioner,
+            constraints,
+            precision,
+            maxiter,
+            order.clone(),
+        )
+    }
 
     fn init_with_eigenvectors(
         rows: usize,
@@ -89,21 +146,12 @@ impl MatrixWrapper for TwoDimVectorMatrix {
         sparse_matrix_reader: Arc<SparseMatrix>,
         order: TruncatedOrder,
     ) -> Self {
-        let mut discrete_laplacian = Array2::zeros((rows, rows));
-
-        for entry in &sparse_matrix_reader.entries {
-            discrete_laplacian[[entry.row as usize, entry.col as usize]] = -entry.value;
-        }
-
-        for i in 0..rows {
-            discrete_laplacian[[i, i]] = sparse_matrix_reader.get_row_sum(i as u32);
-        }
-
-        let truncated_eig = TruncatedEig::new(discrete_laplacian, order);
-        let truncated_eig = truncated_eig.precision(0.01);
-        let result = truncated_eig.decompose(cols);
-
-        match result {
+        match Self::calculate_eigenvectors(
+            rows,
+            cols,
+            sparse_matrix_reader,
+            order
+        ) {
             LobpcgResult::Ok(_eigenvalues, eigenvectors, _norms) => {
                 let mut matrix: Vec<Vec<f32>> = Vec::new();
 
@@ -244,21 +292,12 @@ impl MatrixWrapper for MMapMatrix {
         let file_name = format!("{}_matrix_{}", sparse_matrix_reader.get_id(), uuid);
         let mut mmap = create_mmap(rows, cols, file_name.as_str());
 
-        let mut discrete_laplacian = Array2::zeros((rows, rows));
-
-        for entry in &sparse_matrix_reader.entries {
-            discrete_laplacian[[entry.row as usize, entry.col as usize]] = -entry.value;
-        }
-
-        for i in 0..rows {
-            discrete_laplacian[[i, i]] = sparse_matrix_reader.get_row_sum(i as u32);
-        }
-
-        let truncated_eig = TruncatedEig::new(discrete_laplacian, order);
-        let truncated_eig = truncated_eig.precision(0.01);
-        let result = truncated_eig.decompose(cols);
-
-        match result {
+        match Self::calculate_eigenvectors(
+            rows,
+            cols,
+            sparse_matrix_reader,
+            order
+        ) {
             LobpcgResult::Ok(_eigenvalues, eigenvector, _norms) => {
                 mmap.par_chunks_mut(rows * 4)
                     .enumerate()
@@ -434,8 +473,8 @@ struct MatrixMultiplicator<M: MatrixWrapper> {
     number_of_entities: usize,
     fixed_random_value: i64,
     sparse_matrix_reader: Arc<SparseMatrix>,
-    _marker: PhantomData<M>,
     init_method: InitMethod,
+    _marker: PhantomData<M>,
 }
 
 impl<M> MatrixMultiplicator<M>
@@ -449,8 +488,8 @@ where
             number_of_entities: sparse_matrix_reader.get_number_of_entities() as usize,
             fixed_random_value: rand_value,
             sparse_matrix_reader,
-            _marker: PhantomData,
             init_method: config.init_method,
+            _marker: PhantomData,
         }
     }
 
