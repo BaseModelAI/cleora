@@ -1,12 +1,14 @@
 use crate::configuration::{Configuration, InitMethod};
 use crate::persistence::embedding::EmbeddingPersistor;
 use crate::persistence::entity::EntityMappingPersistor;
-use crate::sparse_matrix::{SparseMatrix, SparseMatrixReader, Entry};
+use crate::sparse_matrix::{Entry, SparseMatrix, SparseMatrixReader};
 use log::{info, warn};
 use memmap::MmapMut;
 use ndarray::{Array2, ArrayView2, ArrayViewMut2};
+use ndarray_linalg::error::LinalgError;
 use ndarray_linalg::generate;
 use ndarray_linalg::lobpcg::{lobpcg, LobpcgResult, TruncatedOrder};
+use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
@@ -40,36 +42,44 @@ trait MatrixWrapper {
         cols: usize,
         sparse_matrix_reader: Arc<SparseMatrix>,
         order: TruncatedOrder,
-    ) -> LobpcgResult<f32> {
+    ) -> Result<Array2<f32>, LinalgError> {
+        // need types?
 
-        let mut sparse_laplacian_entries: Vec<Entry> = (&sparse_matrix_reader.entries)
-        .into_par_iter()
-        .map(|entry| Entry {
-            row: entry.row,
-            col: entry.col,
-            value: -entry.value,
-        })
-        .collect();
+        let mut sorted_sparse_lapcian_entries: Vec<Vec<Entry>> = Vec::new();
 
         for i in 0..rows {
-            sparse_laplacian_entries.push(Entry {
+            sorted_sparse_lapcian_entries.push(Vec::new());
+            sorted_sparse_lapcian_entries[i].push(Entry {
                 row: i as u32,
                 col: i as u32,
                 value: sparse_matrix_reader.get_row_sum(i as u32),
-            })
+            });
         }
 
+        for entry in &sparse_matrix_reader.entries {
+            sorted_sparse_lapcian_entries[entry.row as usize].push(Entry {
+                row: entry.row,
+                col: entry.col,
+                value: -entry.value,
+            });
+        }
 
         let sparse_laplacian_multiply = |x: ArrayView2<f32>| -> Array2<f32> {
             let shape = x.shape();
             let mut arr: Array2<f32> = Array2::zeros((shape[0], shape[1]));
 
-            for entry in &sparse_laplacian_entries {
-                for i in 0..shape[1] {
-                    arr[[entry.row as usize, i as usize]] +=
-                        entry.value * x[[entry.col as usize, i as usize]];
-                }
-            }
+            arr.rows_mut()
+                .into_iter()
+                .zip((&sorted_sparse_lapcian_entries).iter())
+                .par_bridge()
+                .map(|(mut row, entries)| {
+                    for entry in entries {
+                        for i in 0..shape[1] {
+                            row[[i as usize]] += entry.value * x[[entry.col as usize, i as usize]];
+                        }
+                    }
+                })
+                .count();
 
             arr
         };
@@ -77,18 +87,27 @@ trait MatrixWrapper {
         let x: Array2<f32> = generate::random((rows, cols));
         let preconditioner = |_x: ArrayViewMut2<f32>| {};
         let constraints = None;
-        let precision: f32 = 1e-5;
-        let maxiter = rows * 2;    
+        let precision: f32 = 1e-3;
+        let maxiter = 100;
 
-        lobpcg(
+        let res = lobpcg(
             sparse_laplacian_multiply,
             x,
             preconditioner,
             constraints,
             precision,
             maxiter,
-            order.clone(),
-        )
+            order,
+        );
+
+        match res {
+            LobpcgResult::Ok(_eigenvalues, eigenvectors, _norms) => Ok(eigenvectors),
+            LobpcgResult::Err(_eigenvalues, eigenvectors, _norms, err) => {
+                warn!("Lobpcg was halted before convergence. Results of last stable iteration used. (return message: {})", err);
+                Ok(eigenvectors)
+            }
+            LobpcgResult::NoResult(err) => Err(err),
+        }
     }
 
     fn init_with_eigenvectors(
@@ -146,28 +165,24 @@ impl MatrixWrapper for TwoDimVectorMatrix {
         sparse_matrix_reader: Arc<SparseMatrix>,
         order: TruncatedOrder,
     ) -> Self {
-        match Self::calculate_eigenvectors(
-            rows,
-            cols,
-            sparse_matrix_reader,
-            order
-        ) {
-            LobpcgResult::Ok(_eigenvalues, eigenvectors, _norms) => {
+        match Self::calculate_eigenvectors(rows, cols, sparse_matrix_reader, order) {
+            Ok(eigenvectors) => {
                 let mut matrix: Vec<Vec<f32>> = Vec::new();
 
-                for i in 0..rows {
-                    let mut row: Vec<f32> = Vec::new();
+                for i in 0..cols {
+                    let mut col: Vec<f32> = Vec::new();
 
-                    for j in 0..cols {
-                        row.push(eigenvectors[[i, j]]);
+                    for j in 0..rows {
+                        col.push(eigenvectors[[j, i]]);
                     }
-                    matrix.push(row);
+                    matrix.push(col);
                 }
 
                 Self { rows, cols, matrix }
             }
-            LobpcgResult::Err(_a, _b, _c, err) => panic!("Lobpcg soft failed while computing the eigenvectors of the Laplacian. {}", err),
-            LobpcgResult::NoResult(err) => panic!("Lobpcg hard failed while computing the eigenvectors of the Laplacian. {}", err),
+            Err(err) => {
+                panic!("Lobpcg error: {:?}", err);
+            }
         }
     }
 
@@ -292,18 +307,13 @@ impl MatrixWrapper for MMapMatrix {
         let file_name = format!("{}_matrix_{}", sparse_matrix_reader.get_id(), uuid);
         let mut mmap = create_mmap(rows, cols, file_name.as_str());
 
-        match Self::calculate_eigenvectors(
-            rows,
-            cols,
-            sparse_matrix_reader,
-            order
-        ) {
-            LobpcgResult::Ok(_eigenvalues, eigenvector, _norms) => {
+        match Self::calculate_eigenvectors(rows, cols, sparse_matrix_reader, order) {
+            Result::Ok(eigenvectors) => {
                 mmap.par_chunks_mut(rows * 4)
                     .enumerate()
                     .for_each(|(i, chunk)| {
                         for j in 0..cols {
-                            let col_value = eigenvector[[i, j]];
+                            let col_value = eigenvectors[[i, j]];
                             MMapMatrix::update_column(j, chunk, |value| unsafe {
                                 *value = col_value
                             });
@@ -320,8 +330,9 @@ impl MatrixWrapper for MMapMatrix {
                     matrix: mmap,
                 }
             }
-            LobpcgResult::Err(_a, _b, _c, err) => panic!("Lobpcg soft failed while computing the eigenvectors of the Laplacian. {}", err),
-            LobpcgResult::NoResult(err) => panic!("Lobpcg hard failed while computing the eigenvectors of the Laplacian. {}", err),
+            Result::Err(err) => {
+                panic!("Lobpcg error: {:?}", err);
+            }
         }
     }
 
