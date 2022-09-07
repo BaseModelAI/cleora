@@ -43,7 +43,6 @@ trait MatrixWrapper {
         sparse_matrix_reader: Arc<SparseMatrix>,
         order: TruncatedOrder,
     ) -> Result<Array2<f32>, LinalgError> {
-        // need types?
 
         let mut sorted_sparse_lapcian_entries: Vec<Vec<Entry>> = Vec::new();
 
@@ -69,7 +68,7 @@ trait MatrixWrapper {
             let mut arr: Array2<f32> = Array2::zeros((shape[0], shape[1]));
 
             arr.rows_mut()
-                .into_iter()
+                .into_iter() 
                 .zip((&sorted_sparse_lapcian_entries).iter())
                 .par_bridge()
                 .map(|(mut row, entries)| {
