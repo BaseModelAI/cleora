@@ -1,4 +1,4 @@
-<p align="center"><img width="50%" src="https://strapi.synerise.com/uploads/Cleora_and_Synerise_logotypes_5cab64ce25.png" /></p>
+<p align="center"><img width="100%" src="files/images/cleora_logo.png" /></p>
 
 ## Achievements
 
