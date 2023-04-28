@@ -32,21 +32,42 @@ pub mod entity {
 }
 
 pub mod embedding {
+    use crate::io::S3File;
     use crate::persistence::embedding::memmap::OwnedMmapArrayViewMut;
+
     use ndarray::{s, Array};
     use ndarray_npy::write_zeroed_npy;
     use std::fs::File;
     use std::io;
     use std::io::{BufWriter, Error, ErrorKind, Write};
 
+    use arrow2::{
+        array::{Array as ArrowArray, Float32Array, UInt32Array, Utf8Array},
+        chunk::Chunk,
+        datatypes::{DataType, Field, Schema},
+        error::Result as ArrowResult,
+        io::parquet::write::{
+            transverse, CompressionOptions, Encoding, FileWriter, RowGroupIterator, Version,
+            WriteOptions,
+        },
+    };
+    use chrono::prelude::*;
+
     pub trait EmbeddingPersistor {
         fn put_metadata(&mut self, entity_count: u32, dimension: u16) -> Result<(), io::Error>;
+
         fn put_data(
             &mut self,
             entity: &str,
             occur_count: u32,
             vector: Vec<f32>,
         ) -> Result<(), io::Error>;
+
+        fn put_data_chunk(
+            &mut self,
+            chunk: (Vec<String>, Vec<u32>, Vec<Vec<f32>>),
+        ) -> Result<(), io::Error>;
+
         fn finish(&mut self) -> Result<(), io::Error>;
     }
 
@@ -94,8 +115,164 @@ pub mod embedding {
             Ok(())
         }
 
+        fn put_data_chunk(
+            &mut self,
+            chunk: (Vec<String>, Vec<u32>, Vec<Vec<f32>>),
+        ) -> Result<(), io::Error> {
+            let entities = chunk.0;
+            let occur_counts = chunk.1;
+            let vectors = &chunk.2;
+
+            for i in 0..entities.len() {
+                let entity = &entities[i];
+                let occur_count = &occur_counts[i];
+                let mut vector: Vec<f32> = Vec::new();
+
+                vectors.into_iter().for_each(|x| vector.push(x[i]));
+                self.put_data(entity.as_str(), *occur_count, vector)
+                    .unwrap();
+            }
+
+            Ok(())
+        }
+
         fn finish(&mut self) -> Result<(), io::Error> {
             self.buf_writer.write_all(b"\n")?;
+            Ok(())
+        }
+    }
+
+    pub struct ParquetVectorPersistor {
+        schema: Schema,
+        options: WriteOptions,
+        encodings: Vec<Vec<Encoding>>,
+        writer: FileWriter<Box<dyn Write>>,
+        timestamp: String,
+    }
+
+    impl ParquetVectorPersistor {
+        pub fn new(
+            filename: String,
+            dimension: u16,
+        ) -> Self {
+            let mut fields: Vec<Field> = vec![
+                Field::new("entity", DataType::Utf8, false),
+                Field::new("occur_count", DataType::UInt32, false),
+                Field::new("datetime", DataType::Utf8, false),
+                //Field::new("datetime", DataType::Timestamp(TimeUnit::Second, None), false),
+            ];
+            (0..dimension).into_iter().for_each(|x| {
+                fields.push(Field::new(
+                    format!("f{}", x).as_str(),
+                    DataType::Float32,
+                    false,
+                ))
+            });
+
+            let schema = Schema::from(fields);
+
+            let options = WriteOptions {
+                write_statistics: false,
+                compression: CompressionOptions::Snappy,
+                version: Version::V2,
+            };
+
+            let encodings = schema
+                .fields
+                .iter()
+                .map(|f| transverse(&f.data_type, |_| Encoding::Plain))
+                .collect();
+
+            // Create a new empty file
+            let now = Utc::now();
+            let f = now.format("%Y%m%dT%H%M%S").to_string();
+            let file_name = filename.replace(".out", &format!("_{}.parquet", f));
+            let file: Box<dyn Write> = if file_name.starts_with("s3://") {
+                Box::new(S3File::create(file_name))
+            } else {
+                Box::new(File::create(file_name).unwrap())
+            };
+
+            let writer = FileWriter::try_new(file, schema.clone(), options.clone()).unwrap();
+
+            let utc: String = now.format("%F %X").to_string();
+
+            ParquetVectorPersistor {
+                schema,
+                options,
+                encodings,
+                writer,
+                timestamp: utc,
+            }
+        }
+
+        fn write_chunks(&mut self, chunk: Chunk<Box<dyn ArrowArray>>) -> ArrowResult<()> {
+            let iter = vec![Ok(chunk)];
+
+            let row_groups = RowGroupIterator::try_new(
+                iter.into_iter(),
+                &self.schema,
+                self.options,
+                self.encodings.clone(),
+            )?;
+
+            for group in row_groups {
+                self.writer.write(group?)?;
+            }
+
+            Ok(())
+        }
+    }
+
+    impl EmbeddingPersistor for ParquetVectorPersistor {
+        fn put_metadata(&mut self, _entity_count: u32, _dimension: u16) -> Result<(), io::Error> {
+            Ok(())
+        }
+
+        fn put_data(
+            &mut self,
+            _entity: &str,
+            _occur_count: u32,
+            _vector: Vec<f32>,
+        ) -> Result<(), io::Error> {
+            Ok(())
+        }
+
+        fn put_data_chunk(
+            &mut self,
+            chunk: (Vec<String>, Vec<u32>, Vec<Vec<f32>>),
+        ) -> Result<(), io::Error> {
+            let entities: Vec<Option<String>> = chunk.0.into_iter().map(|x| Some(x)).collect();
+            let occur_counts: Vec<Option<u32>> = chunk.1.into_iter().map(|x| Some(x)).collect();
+
+            let timestamps: Vec<Option<String>> = (0..entities.len())
+                .into_iter()
+                .map(|_x| Some(self.timestamp.clone()))
+                .collect();
+
+            let mut chunk_array = vec![
+                Utf8Array::<i32>::from(entities).to_boxed(),
+                UInt32Array::from(occur_counts).to_boxed(),
+                Utf8Array::<i32>::from(timestamps).to_boxed(),
+            ];
+
+            chunk.2.into_iter().for_each(|x| {
+                chunk_array.push(
+                    Float32Array::from(
+                        x.into_iter().map(|e| Some(e)).collect::<Vec<Option<f32>>>(),
+                    )
+                    .to_boxed(),
+                )
+            });
+
+            let chunk = Chunk::new(chunk_array);
+            self.write_chunks(chunk).unwrap();
+
+            Ok(())
+        }
+
+        fn finish(&mut self) -> Result<(), io::Error> {
+            let _size = self.writer.end(None).unwrap();
             Ok(())
         }
     }
@@ -233,6 +410,27 @@ pub mod embedding {
                 .assign(&Array::from(vector));
             self.entities.push(entity.to_owned());
             self.occurences.push(occur_count);
+            Ok(())
+        }
+
+        fn put_data_chunk(
+            &mut self,
+            chunk: (Vec<String>, Vec<u32>, Vec<Vec<f32>>),
+        ) -> Result<(), io::Error> {
+            let entities = chunk.0;
+            let occur_counts = chunk.1;
+            let vectors = &chunk.2;
+
+            for i in 0..entities.len() {
+                let entity = &entities[i];
+                let occur_count = &occur_counts[i];
+                let mut vector: Vec<f32> = Vec::new();
+
+                vectors.into_iter().for_each(|x| vector.push(x[i]));
+                self.put_data(entity.as_str(), *occur_count, vector)
+                    .unwrap();
+            }
+
             Ok(())
         }
 

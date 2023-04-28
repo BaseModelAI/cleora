@@ -1,11 +1,17 @@
+pub mod configuration;
+pub mod pipeline;
+pub mod persistence;
+pub mod embedding;
+pub mod entity;
+pub mod io;
+pub mod sparse_matrix;
 use std::time::Instant;
 
 use clap::{crate_authors, crate_description, crate_name, crate_version, Arg, Command};
-use cleora::configuration;
-use cleora::configuration::Configuration;
-use cleora::configuration::OutputFormat;
-use cleora::persistence::entity::InMemoryEntityMappingPersistor;
-use cleora::pipeline::{build_graphs, train};
+use configuration::Configuration;
+use configuration::OutputFormat;
+use persistence::entity::InMemoryEntityMappingPersistor;
+use pipeline::{build_graphs, train};
 use env_logger::Env;
 use std::fs;
 use std::sync::Arc;
@@ -128,6 +134,13 @@ fn main() {
                 .default_value("textfile")
                 .takes_value(true),
         )
+        .arg(
+            Arg::new("chunk-size")
+                .help("Chunk size of output write")
+                .default_value("3000")
+                .takes_value(true),
+        )
+
         .get_matches();
 
     info!("Reading args...");
@@ -204,6 +217,9 @@ fn main() {
         _ => panic!("unsupported output format"),
     };
 
+
+    let chunk_size: usize = matches.value_of("chunk-size").unwrap().parse().unwrap();
+
     let config = Configuration {
         produce_entity_occurrence_count: true,
         embeddings_dimension: dimension,
@@ -218,6 +234,7 @@ fn main() {
         output_format,
         relation_name: relation_name.to_string(),
         columns,
+        chunk_size,
     };
     dbg!(&config);
 

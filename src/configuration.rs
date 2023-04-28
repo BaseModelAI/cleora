@@ -7,6 +7,7 @@ pub enum FileType {
 #[derive(Debug)]
 pub enum OutputFormat {
     TextFile,
+    Parquet,
     Numpy,
 }
 
@@ -53,6 +54,9 @@ pub struct Configuration {
 
     /// Columns configuration
     pub columns: Vec<Column>,
+
+    /// Chunk size used in write
+    pub chunk_size: usize,
 }
 
 /// Column configuration
@@ -91,6 +95,7 @@ impl Configuration {
             output_format: OutputFormat::TextFile,
             relation_name: String::from("emb"),
             columns,
+            chunk_size: 1000,
         }
     }
 
