@@ -1,4 +1,4 @@
-use cleora::configuration::{Column, Configuration, FileType, OutputFormat};
+use cleora::configuration::{Column, Configuration, FileType, InitMethod, OutputFormat};
 use cleora::embedding::{calculate_embeddings, calculate_embeddings_mmap};
 use cleora::persistence::embedding::EmbeddingPersistor;
 use cleora::persistence::entity::InMemoryEntityMappingPersistor;
@@ -93,6 +93,7 @@ fn prepare_config() -> Configuration {
         output_dir: None,
         relation_name: "r1".to_string(),
         columns,
+        init_method: InitMethod::Random,
     };
     config
 }

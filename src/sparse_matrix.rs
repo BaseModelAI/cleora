@@ -78,7 +78,7 @@ pub struct SparseMatrix {
     pair_index: FxHashMap<u64, u32>,
 
     /// Coordinates and values of nonzero entities
-    entries: Vec<Entry>,
+    pub entries: Vec<Entry>,
 }
 
 /// Hash data
@@ -127,8 +127,8 @@ pub trait SparseMatrixReader {
     /// Returns iterator for hash data such as id and occurrence
     fn iter_hashes(&self) -> CopyIter<'_, Hash>;
 
-    /// Returns iterator for entries
-    fn iter_entries(&self) -> CopyIter<'_, Entry>;
+    /// Returns the sum of a selected row
+    fn get_row_sum(&self, row: u32) -> f32;
 }
 
 pub struct CopyIter<'a, T: Copy>(std::slice::Iter<'a, T>);
@@ -160,12 +160,12 @@ impl SparseMatrix {
 
     /// Handles hashes for one combination of incoming data. Let's say that input row looks like:
     /// userId1   | productId1, productId2  | brandId1, brandId2
-    /// Note! To simplify explanation there is no any reflexive column so the result is:
+    /// Note! To simplify explanation there aren't any reflexive columns so the result is:
     /// (userId1, productId1, brandId1),
     /// (userId1, productId1, brandId2),
     /// (userId1, productId2, brandId1),
     /// (userId1, productId2, brandId2)
-    /// These cartesian products are provided as array of hashes. Sparse matrix has indices
+    /// These cartesian products are provided as array of hashes. Sparse matrix that has indices
     /// `col_a_id` and `col_b_id` (to corresponding columns) in order to read interesting hashes
     /// from provided slice. For one input row we actually call this function 4 times.
     pub fn handle_pair(&mut self, hashes: &[u64]) {
@@ -318,9 +318,8 @@ impl SparseMatrixReader for SparseMatrix {
         CopyIter(self.id_2_hash.iter())
     }
 
-    #[inline]
-    fn iter_entries(&self) -> CopyIter<'_, Entry> {
-        CopyIter(self.entries.iter())
+    fn get_row_sum(&self, row: u32) -> f32 {
+        self.row_sum[row as usize]
     }
 }
 
@@ -492,7 +491,7 @@ mod tests {
             ("u2", "p4", 1.0 / 3.0),
         ];
         let expected_entries = prepare_entries(hash_2_id, edges);
-        let entries: Vec<_> = sm.iter_entries().collect();
+        let entries: Vec<_> = sm.entries;
         assert_eq!(expected_entries, entries);
     }
 }

@@ -10,6 +10,13 @@ pub enum OutputFormat {
     Numpy,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum InitMethod {
+    Random,
+    EigenvectorsLargest,
+    EigenvectorsSmallest,
+}
+
 /// Pipeline configuration
 #[derive(Debug)]
 pub struct Configuration {
@@ -53,6 +60,8 @@ pub struct Configuration {
 
     /// Columns configuration
     pub columns: Vec<Column>,
+
+    pub init_method: InitMethod,
 }
 
 /// Column configuration
@@ -91,6 +100,7 @@ impl Configuration {
             output_format: OutputFormat::TextFile,
             relation_name: String::from("emb"),
             columns,
+            init_method: InitMethod::EigenvectorsLargest,
         }
     }
 

@@ -24,10 +24,11 @@ smallvec = "1.8.1"
 twox-hash = "1.6.3"
 simdjson-rust = {git = "https://github.com/SunDoge/simdjson-rust"}
 ryu = "1.0.10"
-ndarray = "0.15.4"
 ndarray-npy = "0.8.1"
 serde_json = "1.0.81"
 uuid = { version = "1.1.2", features = ["v4"] }
+ndarray = "0.15.4"
+ndarray-linalg = { version = "0.15", features = ["intel-mkl-static"] }
 
 [dev-dependencies]
 criterion = "0.3.3"
