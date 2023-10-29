@@ -174,6 +174,8 @@ More information can be found in [the full documentation](https://cleora.readthe
 * _new feature_: multimodal fusion of multiple graphs, text and image embeddings
 * _new feature_: compressed embeddings in various formats (spherical, hyperbolic, sparse)
 
+More information: [cleora.ai](https://cleora.ai/).
+
 For details contact us at cleora@synerise.com
 
 ## Cite
