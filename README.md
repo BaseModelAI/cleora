@@ -166,8 +166,8 @@ The technical properties described above imply good production-readiness of Cleo
 
 More information can be found in [the full documentation](https://cleora.readthedocs.io/).
 
-## Cleora Enterprise
-**Cleora Enterprise** is now available for selected customers. Key improvements in addition to this open-source version:
+## Cleora 2.0
+**Cleora 2.0** is now available. Key improvements in addition to this open-source version:
 * _performance optimizations_: 10x faster embedding times
 * _latest research_: significantly improved embedding quality
 * _new feature_: item attributes support
