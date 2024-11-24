@@ -48,10 +48,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
           extra-args: --skip-existing
         env:
-          MATURIN_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          MATURIN_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_ACTION }}
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
           
   build-and-publish-macos:
     runs-on: macos-latest
@@ -74,10 +74,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
           extra-args: "--universal2 --skip-existing"
         env:
-          MATURIN_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          MATURIN_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_ACTION }}
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
 
   build-and-publish-windows:
     runs-on: windows-latest
@@ -106,7 +106,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           extra-args: --skip-existing
         env:
-          MATURIN_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          MATURIN_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_ACTION }}
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
