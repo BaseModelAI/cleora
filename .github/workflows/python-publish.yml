@@ -50,7 +50,9 @@ jobs:
         env:
           MATURIN_PASSWORD: ${{ secrets.PYPI_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_ACTION }}
-
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          
   build-and-publish-macos:
     runs-on: macos-latest
     strategy:
@@ -74,6 +76,8 @@ jobs:
         env:
           MATURIN_PASSWORD: ${{ secrets.PYPI_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_ACTION }}
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
 
   build-and-publish-windows:
     runs-on: windows-latest
@@ -104,3 +108,5 @@ jobs:
         env:
           MATURIN_PASSWORD: ${{ secrets.PYPI_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_ACTION }}
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
