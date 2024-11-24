@@ -146,7 +146,6 @@ jobs:
           - runner: macos-14
             target: aarch64
         python-version:
-          - "3.7"
           - "3.8"
           - "3.9"
           - "3.10"
