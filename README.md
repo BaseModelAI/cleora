@@ -21,23 +21,42 @@ _**Cleora** is a genus of moths in the family **Geometridae**. Their scientific 
 
 Cleora is a general-purpose model for efficient, scalable learning of stable and inductive entity embeddings for heterogeneous relational data.
 
-**Cleora** is now available as a python package _pycleora_. Key improvements compared to the previous version:
-* _performance optimizations_: 10x faster embedding times
-* _performance optimizations_: reduced memory usage
-* _latest research_: significantly improved embedding quality
+# Introducing Cleora 2.0.0 - Python native
+
+**Installation**
+```
+pip install pycleora
+```
+
+**Build instructions**
+```
+# prepare python env
+pip install maturin
+
+# Install pycleora in current env (meant for development)
+maturin develop
+
+# Usage example below. More examples in examples/ folder.
+```
+## Changelog
+
+**Cleora** is now available as a Python package _pycleora_. Key improvements compared to the previous version:
+* _performance optimizations_: ~10x faster embedding times
+* _performance optimizations_: significantly reduced memory usage
+* _latest research_: improved embedding quality
 * _new feature_: can create graphs from a Python iterator in addition to tsv files
 * _new feature_: seamless integration with _NumPy_
 * _new feature_: item attributes support via custom embeddings initialization
 * _new feature_: adjustable vector projection / normalization after each propagation step
 
 **Breaking changes:**
-* _transient_ modifier not supported any more - creating _complex::reflexive_ columns for hypergraph embeddings, grouped by the transient entity gives better results.
+* _transient_ modifier not supported any more - creating `complex::reflexive` columns for hypergraph embeddings, _grouped by_ the transient entity gives better results.
 
 
-**Example usage:**
+# Usage example:
 
 ```
-import pycleora
+from pycleora import SparseMatrix
 import numpy as np
 import pandas as pd
 import random
@@ -61,7 +80,7 @@ customer_products = df.groupby('customer')['product'].apply(list).values
 cleora_input = map(lambda x: ' '.join(x), customer_products)
 
 # Create Markov transition matrix for the hypergraph
-mat = pycleora.SparseMatrix.from_iterator(cleora_input, columns='complex::reflexive::product')
+mat = SparseMatrix.from_iterator(cleora_input, columns='complex::reflexive::product')
 
 # Look at entity ids in the matrix, corresponding to embedding vectors
 print(mat.entity_ids)
@@ -95,6 +114,49 @@ print(np.dot(embeddings[0], embeddings[1]))
 print(np.dot(embeddings[0], embeddings[2]))
 print(np.dot(embeddings[0], embeddings[3]))
 ```
+# FAQ
+
+**Q: What should I embed?**
+
+A: Typically products, stores, urls, locations, or any entity that people interact with.
+
+**Q: How should I construct the input?**
+
+A: What works best is grouping entities co-occurring in a similar context, and feeding them in whitespace-separated lines using `complex::reflexive` modifier is a good idea. E.g. if you have product data, you can group the products by shopping baskets or by users. If you have urls, you can group them by browser sessions, of by (user, time window) pairs. Check out the usage example above. Grouping products by customers is just one possibility.
+
+**Q: Can I embed users and products simultaneously, to compare them with cosine similarity?**
+
+A: No, this is a methodologically wrong approach, stemming from outdated matrix factorization approaches. What you should do is come up with good product embeddings first, then create user embeddings from them. Feeding two columns e.g. `user product` into cleora will result in a bipartite graph. Similar products will be close to each other, similar users will be close to each other, but users and products will not necessarily be similar to each other.
+
+**Q: What embedding dimensionality to use?**
+
+A: The more, the better, but we typically work from _1024_ to _4096_. Memory is cheap and machines are powerful, so don't skimp on embedding size.
+
+**Q: How many iterations of Markov propagation should I use?**
+
+A: Depends on what you want to achieve. Low iterations (3) tend to approximate the co-occurrence matrix, while high iterations (7+) tend to give contextual similarity (think skip-gram but much more accurate and faster).
+
+**Q: How do I incorporate external information, e.g. entity metadata, images, texts into the embeddings?**
+
+A: Just initialize the embedding matrix with your own vectors coming from a VIT, setence-transformers, of a random projection of your numeric features. In that scenario low numbers of Markov iterations (1 to 3) tend to work best.
+
+**Q: My embeddings don't fit in memory, what do I do?**
+
+A: Cleora operates on dimensions independently. Initialize your embeddings with a smaller number of dimensions, run Cleora, persist to disk, then repeat. You can concatenate your resulting embedding vectors afterwards, but remember to normalize them afterwards!
+
+**Q: Is there a minimum number of entity occurrences?**
+
+A: No, an entity `A` co-occuring just 1 time with some other entity `B` will get a proper embedding, i.e. `B` will be the most similar to `A`. The other way around, `A` will be highly ranked among nearest neighbors of `B`, which may or may not be desirable, depending on your use case. Feel free to prune your input to Cleora to eliminate low-frequency items.
+
+**Q: Are there any edge cases where Cleora can fail?**
+
+A: Cleora works best for relatively sparse hypergraphs. If all your hyperedges contain some very common entity `X`, e.g. a _shopping bag_, then it will degrade the quality of embeddings by degenerating shortest paths in the random walk. It is a good practice to remove such entities from the hypergraph. 
+
+**Q: How can Cleora be so fast and accurate at the same time?**
+
+A: Not using negative sampling is a great boon. By constructing the (sparse) Markov transition matrix, Cleora explicitly performs all possible random walks in a hypergraph in one big step (a single matrix multiplication). That's what we call a single _iteration_. We perform 3+ such iterations. Thanks to a highly efficient implementation in Rust, with special care for concurrency, memory layout and cache coherence, it is blazingly fast. Negative sampling or randomly selecting random walks tend to introduce a lot of noise - Cleora is free of those burdens.
+
+# Science
 
 **Read the whitepaper ["Cleora: A Simple, Strong and Scalable Graph Embedding Scheme"](https://arxiv.org/abs/2102.02302)**
 
@@ -106,6 +168,7 @@ Types of data which can be embedded include for example:
 - text and other categorical array data
 - any combination of the above
 
+**!!! Disclaimer: the numbers below are for Cleora 1.x, new version is significantly faster, but yet have to re-run the benchmarks**
 
 Key competitive advantages of Cleora:
 * more than **197x faster than DeepWalk**
@@ -239,6 +302,8 @@ The technical properties described above imply good production-readiness of Cleo
 
 ## Documentation
 
+**!!! Disclaimer the documentation below is for Cleora 1.x, to be updated for 2.x**
+
 More information can be found in [the full documentation](https://cleora.readthedocs.io/).
 
 For details contact us at cleora@synerise.com
@@ -263,4 +328,4 @@ Synerise Cleora is MIT licensed, as found in the [LICENSE](LICENSE) file.
 
 ## How to Contribute
 
-You are welcomed to contribute to this open-source toolbox. The detailed instructions will be released soon as issues.
+Pull requests are welcome.
