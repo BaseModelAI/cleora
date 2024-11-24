@@ -40,12 +40,12 @@ maturin develop
 ```
 ## Changelog
 
-**Cleora** is now available as a Python package _pycleora_. Key improvements compared to the previous version:
+**Cleora** is now available as a Python package `pycleora`. Key improvements compared to the previous version:
 * _performance optimizations_: ~10x faster embedding times
 * _performance optimizations_: significantly reduced memory usage
 * _latest research_: improved embedding quality
-* _new feature_: can create graphs from a Python iterator in addition to tsv files
-* _new feature_: seamless integration with _NumPy_
+* _new feature_: can create graphs from a Python `iterators` in addition to `tsv` files
+* _new feature_: seamless integration with `NumPy`
 * _new feature_: item attributes support via custom embeddings initialization
 * _new feature_: adjustable vector projection / normalization after each propagation step
 
