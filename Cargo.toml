@@ -1,5 +1,5 @@
 [package]
-name = "cleora"
+name = "cleora-python"
 version = "2.0.0"
 edition = "2018"
 license-file = "LICENSE"
