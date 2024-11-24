@@ -1,7 +1,7 @@
 import time
 
 import numpy as np
-from cleora import SparseMatrix
+from cleora_python import SparseMatrix
 
 start_time = time.time()
 
