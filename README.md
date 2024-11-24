@@ -118,7 +118,7 @@ print(np.dot(embeddings[0], embeddings[3]))
 
 **Q: What should I embed?**
 
-A: Typically products, stores, urls, locations, or any entity that people interact with.
+A: Any entities that interact with each other, co-occur or can be said to be present together in a given context. Examples can include: products in a shopping basket, locations frequented by the same people at similar times, employees collaborating together, chemical molecules being present in specific circumstances, proteins produced by the same bacteria, drug interactions, co-authors of the same academic papers, companies occurring together in the same LinkedIn profiles.
 
 **Q: How should I construct the input?**
 
