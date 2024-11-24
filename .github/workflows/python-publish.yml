@@ -12,6 +12,12 @@ on:
   push:
     tags:
       - 'v*.*.*'  # Triggers when a version tag is pushed, e.g., v1.2.3
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The version to release'
+        required: true
+        default: 'v2.0.0'
 
 jobs:
   build-and-publish-manylinux:
