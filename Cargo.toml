@@ -1,37 +1,42 @@
 [package]
 name = "cleora"
-version = "1.2.3"
-authors = ["Piotr Babel <piotr.babel@synerise.com>", "Jacek Dabrowski <jack.dabrowski@synerise.com>", "Konrad Goluchowski <konrad.goluchowski@synerise.com>"]
+version = "2.0.0"
 edition = "2018"
 license-file = "LICENSE"
 readme = "README.md"
 description = """
-Cleora is a general-purpose model for efficient, scalable learning of stable and inductive entity embeddings for heterogeneous relational data.
+Sparse graph structure and markov-propagation on embeddings exposed via python bindings
 """
+
+[lib]
+crate-type = ["cdylib", "rlib"]
 
 [build]
 rustflags = ["-C", "target-cpu=native"]
 
 [dependencies]
-bus = "2.2.4"
-clap = { version = "3.1.8", features = ["cargo"] }
-env_logger = "0.9.0"
 log = "0.4.17"
-memmap = "0.7.0"
 rayon = "1.5.3"
 rustc-hash = "1.1.0"
 smallvec = "1.8.1"
 twox-hash = "1.6.3"
-simdjson-rust = {git = "https://github.com/SunDoge/simdjson-rust"}
-ryu = "1.0.10"
-ndarray = "0.15.4"
+ndarray = { version = "0.15.4", features = ["rayon"] }
 ndarray-npy = "0.8.1"
-serde_json = "1.0.81"
 uuid = { version = "1.1.2", features = ["v4"] }
+crossbeam = "0.8.1"
+dashmap = { version = "5.3.4", features = ["rayon"] }
+num_cpus = "1.13.1"
+itertools = "0.10.3"
+serde = "1.0.163"
+bincode = "1.3.3"
+
+pyo3 = "0.18.1"
+numpy = "0.18"
 
 [dev-dependencies]
 criterion = "0.3.3"
 insta = "1.3.0"
+ndarray-rand = "0.14.0"
 
 [[bench]]
 name = "cleora_benchmark"
@@ -41,3 +46,11 @@ harness = false
 opt-level = 3
 lto = true
 codegen-units = 1
+
+[target.aarch64-apple-darwin]
+linker = "aarch64-apple-darwin21.4-clang"
+ar = "aarch64-apple-darwin21.4-ar"
+rustflags = [
+  "-C", "link-arg=-undefined",
+  "-C", "link-arg=dynamic_lookup",
+]

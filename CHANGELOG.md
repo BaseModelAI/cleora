@@ -1,3 +1,13 @@
+# 2.0.0 (Nov 24, 2024)
+
+### New version released
+- Python package with rust bindings
+- Improved performance, memory usage and concurrency
+- Allowing external embedding as seed
+- Interoperable with numpy
+- Not a standalone console application any more
+- old version available in legacy/ folder will not be maintained
+
 # 1.2.3 (June 29, 2022)
 
 ### Changed
