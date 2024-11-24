@@ -1,0 +1,94 @@
+# This workflow will upload a Python Package to PyPI when a release is created
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python#publishing-to-package-registries
+
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Build and Publish Wheels
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers when a version tag is pushed, e.g., v1.2.3
+
+jobs:
+  build-and-publish-manylinux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Set Up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build and Publish Wheel
+        uses: pyo3/maturin-action@v1
+        with:
+          command: publish
+          token: ${{ secrets.PYPI_TOKEN }}
+          manylinux: auto
+          python-version: ${{ matrix.python-version }}
+          extra-args: --skip-existing
+
+  build-and-publish-macos:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set Up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build and Publish Wheel
+        uses: pyo3/maturin-action@v1
+        with:
+          command: publish
+          token: ${{ secrets.PYPI_TOKEN }}
+          python-version: ${{ matrix.python-version }}
+          extra-args: "--universal2 --skip-existing"
+
+  build-and-publish-windows:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Set Up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build and Publish Wheel
+        uses: pyo3/maturin-action@v1
+        with:
+          command: publish
+          token: ${{ secrets.PYPI_TOKEN }}
+          python-version: ${{ matrix.python-version }}
+          extra-args: --skip-existing
