@@ -44,10 +44,12 @@ jobs:
         uses: pyo3/maturin-action@v1
         with:
           command: publish
-          token: ${{ secrets.PYPI_TOKEN }}
           manylinux: auto
           python-version: ${{ matrix.python-version }}
           extra-args: --skip-existing
+        env:
+          MATURIN_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_ACTION }}
 
   build-and-publish-macos:
     runs-on: macos-latest
@@ -67,9 +69,11 @@ jobs:
         uses: pyo3/maturin-action@v1
         with:
           command: publish
-          token: ${{ secrets.PYPI_TOKEN }}
           python-version: ${{ matrix.python-version }}
           extra-args: "--universal2 --skip-existing"
+        env:
+          MATURIN_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_ACTION }}
 
   build-and-publish-windows:
     runs-on: windows-latest
@@ -95,6 +99,8 @@ jobs:
         uses: pyo3/maturin-action@v1
         with:
           command: publish
-          token: ${{ secrets.PYPI_TOKEN }}
           python-version: ${{ matrix.python-version }}
           extra-args: --skip-existing
+        env:
+          MATURIN_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_ACTION }}
