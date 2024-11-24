@@ -234,7 +234,7 @@ fn init_value(col: usize, hsh: u64, fixed_random_value: i64) -> f32 {
 }
 
 #[pymodule]
-#[pyo3(name = "cleora")]
+#[pyo3(name = "pycleora")]
 fn pycleora(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<SparseMatrix>()?;
     Ok(())

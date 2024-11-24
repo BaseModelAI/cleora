@@ -3,13 +3,20 @@ requires = ["maturin>=1.2.3"]
 build-backend = "maturin"
 
 [project]
-name = "cleora_python"
+name = "pycleora"
 requires-python = ">=3.7"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
+version = "2.0.0"
+description = "Sparse hypergraph structure and markov-propagation for node embeddings embeddings exposed via Python bindings."
+readme = { file = "README.md", content-type = "text/markdown" }
+authors = [
+    { name = "Jacek Dabrowski", email = "jack.dabrowski@synerise.com" }
+]
+license = { file = "LICENSE" }
 
 
 [tool.maturin]

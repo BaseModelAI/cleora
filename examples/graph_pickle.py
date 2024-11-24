@@ -1,7 +1,7 @@
 import time
 
 import numpy as np
-from cleora_python import SparseMatrix
+from pycleora import SparseMatrix
 
 import pickle
 

@@ -1,5 +1,5 @@
 import numpy as np
-from cleora_python import SparseMatrix
+from pycleora import SparseMatrix
 
 hyperedges = [
     'a\t1',

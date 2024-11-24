@@ -21,6 +21,81 @@ _**Cleora** is a genus of moths in the family **Geometridae**. Their scientific 
 
 Cleora is a general-purpose model for efficient, scalable learning of stable and inductive entity embeddings for heterogeneous relational data.
 
+**Cleora** is now available as a python package _pycleora_. Key improvements compared to the previous version:
+* _performance optimizations_: 10x faster embedding times
+* _performance optimizations_: reduced memory usage
+* _latest research_: significantly improved embedding quality
+* _new feature_: can create graphs from a Python iterator in addition to tsv files
+* _new feature_: seamless integration with _NumPy_
+* _new feature_: item attributes support via custom embeddings initialization
+* _new feature_: adjustable vector projection / normalization after each propagation step
+
+**Breaking changes:**
+* _transient_ modifier not supported any more - creating _complex::reflexive_ columns for hypergraph embeddings, grouped by the transient entity gives better results.
+
+
+**Example usage:**
+
+```
+import pycleora
+import numpy as np
+import pandas as pd
+import random
+
+# Generate example data
+customers = [f"Customer_{i}" for i in range(1, 20)]
+products = [f"Product_{j}" for j in range(1, 20)]
+
+data = {
+    "customer": random.choices(customers, k=100),
+    "product": random.choices(products, k=100),
+}
+
+# Create DataFrame
+df = pd.DataFrame(data)
+
+# Create hyperedges
+customer_products = df.groupby('customer')['product'].apply(list).values
+
+# Convert to Cleora input format
+cleora_input = map(lambda x: ' '.join(x), customer_products)
+
+# Create Markov transition matrix for the hypergraph
+mat = pycleora.SparseMatrix.from_iterator(cleora_input, columns='complex::reflexive::product')
+
+# Look at entity ids in the matrix, corresponding to embedding vectors
+print(mat.entity_ids)
+# ['Product_5', 'Product_3', 'Product_2', 'Product_4', 'Product_1']
+
+# Initialize embedding vectors externally, using text, image, random vectors
+# embeddings = ...
+
+# Or use built-in random deterministic initialization
+embeddings = mat.initialize_deterministically(1024)
+
+# Perform Markov random walk, then normalize however many times we want
+
+NUM_WALKS = 3   # The optimal number depends on the graph, typically between 3 and 7 yields good results
+                # lower values tend to capture co-occurrence, higher iterations capture substitutability in a context
+
+for i in range(NUM_WALKS):
+    # Can propagate with a symmetric matrix as well, but left Markov is a great default
+    embeddings = mat.left_markov_propagate(embeddings)
+    # Normalize with L2 norm by default, for the embeddings to reside on a hypersphere. Can use standardization instead.
+    embeddings /= np.linalg.norm(embeddings, ord=2, axis=-1, keepdims=True)
+
+# We're done, here are our embeddings
+
+for entity, embedding in zip(mat.entity_ids, embeddings):
+    print(entity, embedding)
+
+# We can now compare our embeddings with dot product (since they are L2 normalized)
+
+print(np.dot(embeddings[0], embeddings[1]))
+print(np.dot(embeddings[0], embeddings[2]))
+print(np.dot(embeddings[0], embeddings[3]))
+```
+
 **Read the whitepaper ["Cleora: A Simple, Strong and Scalable Graph Embedding Scheme"](https://arxiv.org/abs/2102.02302)**
 
 Cleora embeds entities in *n-dimensional spherical spaces* utilizing extremely fast stable, iterative random projections, which allows for unparalleled performance and scalability. 
@@ -165,14 +240,6 @@ The technical properties described above imply good production-readiness of Cleo
 ## Documentation
 
 More information can be found in [the full documentation](https://cleora.readthedocs.io/).
-
-## Cleora Enterprise
-**Cleora Enterprise** is now available for selected customers. Key improvements in addition to this open-source version:
-* _performance optimizations_: 10x faster embedding times
-* _latest research_: significantly improved embedding quality
-* _new feature_: item attributes support
-* _new feature_: multimodal fusion of multiple graphs, text and image embeddings
-* _new feature_: compressed embeddings in various formats (spherical, hyperbolic, sparse)
 
 For details contact us at cleora@synerise.com
 

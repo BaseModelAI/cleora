@@ -263,7 +263,7 @@ impl SparseMatrixBuffer {
 
     fn update_row(&mut self, hash: u64, count: u32) {
         let val = 1f32 / (count as f32);
-        let mut e = self.hash_2_row.entry(hash).or_default();
+        let e = self.hash_2_row.entry(hash).or_default();
         e.occurrence += count;
         e.row_sum += val
     }
