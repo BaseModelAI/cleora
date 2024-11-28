@@ -10,7 +10,7 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
-version = "2.0.0"
+version = "2.1.0"
 description = "Sparse hypergraph structure and markov-propagation for node embeddings embeddings exposed via Python bindings."
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
