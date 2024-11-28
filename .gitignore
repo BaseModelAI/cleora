@@ -4,3 +4,4 @@
 .idea
 cleora-light-rust.iml
 *.out
+*.so
