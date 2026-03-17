@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "rr4ymvhTNX5pRxar1VJmA"
+uri = "file://COMPARISON.md"
+type = "text"
+title = "pycleora vs Competitors — Full Feature Comparison"
