@@ -1,4 +1,3 @@
-use std::cmp::min;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::Hasher;
@@ -6,7 +5,7 @@ use std::hash::Hasher;
 use bincode::{deserialize, serialize};
 use ndarray::{Array1, Array2, ArrayViewMut2, Axis, Ix1, Ix2};
 use numpy::{PyArray, PyArray2, ToPyArray};
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyIterator, PyString, PyTuple};
 use rayon::iter::IndexedParallelIterator;
@@ -26,18 +25,25 @@ pub mod pipeline;
 pub mod sparse_matrix;
 pub mod sparse_matrix_builder;
 
-// Methods not exposed to python
 impl SparseMatrix {
     fn markov_propagate<'py>(
         &self,
         x: &'py PyArray2<f32>,
         markov_type: MarkovType,
         num_workers: Option<usize>,
-    ) -> &'py PyArray<f32, Ix2> {
+    ) -> PyResult<&'py PyArray<f32, Ix2>> {
         let array = unsafe { x.as_array() };
-        let multiplication_workers: usize = num_workers.unwrap_or_else(num_cpus::get);
+        let num_rows = array.shape()[0];
+        let num_entities = self.entity_ids.len();
+        if num_rows != num_entities {
+            return Err(PyValueError::new_err(format!(
+                "Embedding matrix has {} rows but graph has {} entities",
+                num_rows, num_entities
+            )));
+        }
+        let multiplication_workers: usize = num_workers.unwrap_or_else(num_cpus::get).max(1);
         let propagated = NdArrayMatrix::multiply(self, array, markov_type, multiplication_workers);
-        propagated.to_pyarray(x.py())
+        Ok(propagated.to_pyarray(x.py()))
     }
 
     pub fn from_rust_iterator<'a>(
@@ -45,15 +51,17 @@ impl SparseMatrix {
         hyperedge_trim_n: usize,
         hyperedges: impl Iterator<Item = &'a str>,
         num_workers: Option<usize>,
-    ) -> Result<SparseMatrix, &'static str> {
-        let columns = configuration::parse_fields(columns).expect("Columns should be valid");
-        let matrix_desc = create_sparse_matrix_descriptor(&columns)?;
+    ) -> Result<SparseMatrix, String> {
+        let columns = configuration::parse_fields(columns)?;
+        let matrix_desc = create_sparse_matrix_descriptor(&columns)
+            .map_err(|e| e.to_string())?;
+        let workers = num_workers.unwrap_or_else(num_cpus::get).max(1);
         let config = Configuration {
             seed: None,
             columns,
             matrix_desc,
             hyperedge_trim_n,
-            num_workers_graph_building: num_workers.unwrap_or_else(|| min(num_cpus::get(), 8)),
+            num_workers_graph_building: workers,
         };
 
         Ok(build_graph_from_iterator(&config, hyperedges))
@@ -81,7 +89,7 @@ impl SparseMatrix {
         &self,
         x: &'py PyArray2<f32>,
         num_workers: Option<usize>,
-    ) -> &'py PyArray<f32, Ix2> {
+    ) -> PyResult<&'py PyArray<f32, Ix2>> {
         self.markov_propagate(x, MarkovType::Left, num_workers)
     }
 
@@ -90,7 +98,7 @@ impl SparseMatrix {
         &self,
         x: &'py PyArray2<f32>,
         num_workers: Option<usize>,
-    ) -> &'py PyArray<f32, Ix2> {
+    ) -> PyResult<&'py PyArray<f32, Ix2>> {
         self.markov_propagate(x, MarkovType::Symmetric, num_workers)
     }
 
@@ -103,15 +111,28 @@ impl SparseMatrix {
         num_workers: Option<usize>,
     ) -> PyResult<SparseMatrix> {
         let hyperedges = hyperedges.map(|line| {
-            let line = line.expect("Should be proper line");
+            let line = line.map_err(|e| {
+                PyValueError::new_err(format!("Error reading iterator element: {}", e))
+            })?;
             let line: &PyString = line
                 .downcast()
-                .expect("Iterator elements should be strings");
-            let line = line.to_str().expect("Should be proper UTF-8 string");
-            line
+                .map_err(|_| PyValueError::new_err("Iterator elements must be strings"))?;
+            let line = line
+                .to_str()
+                .map_err(|_| PyValueError::new_err("Iterator elements must be valid UTF-8"))?;
+            Ok::<&str, PyErr>(line)
         });
-        SparseMatrix::from_rust_iterator(columns, hyperedge_trim_n, hyperedges, num_workers)
-            .map_err(PyValueError::new_err)
+
+        let collected: Result<Vec<&str>, PyErr> = hyperedges.collect();
+        let collected = collected?;
+
+        SparseMatrix::from_rust_iterator(
+            columns,
+            hyperedge_trim_n,
+            collected.iter().map(|s| *s),
+            num_workers,
+        )
+        .map_err(PyValueError::new_err)
     }
 
     #[staticmethod]
@@ -122,23 +143,29 @@ impl SparseMatrix {
         hyperedge_trim_n: usize,
         num_workers: Option<usize>,
     ) -> PyResult<SparseMatrix> {
+        if filepaths.is_empty() {
+            return Err(PyValueError::new_err("At least one file path is required"));
+        }
         for filepath in filepaths.iter() {
-            if !filepath.ends_with(".tsv") {
-                return Err(PyValueError::new_err("Only .tsv files are supported"));
+            if !filepath.ends_with(".tsv") && !filepath.ends_with(".csv") && !filepath.ends_with(".txt") {
+                return Err(PyValueError::new_err(
+                    format!("Unsupported file format: {}. Supported: .tsv, .csv, .txt", filepath)
+                ));
             }
         }
 
-        let columns = configuration::parse_fields(columns).expect("Columns should be valid");
+        let columns = configuration::parse_fields(columns)
+            .map_err(PyValueError::new_err)?;
         let matrix_desc =
             create_sparse_matrix_descriptor(&columns).map_err(PyValueError::new_err)?;
 
+        let workers = num_workers.unwrap_or_else(num_cpus::get).max(1);
         let config = Configuration {
             seed: None,
             matrix_desc,
             columns,
             hyperedge_trim_n,
-            // TODO consider limiting to some maximum no of workers
-            num_workers_graph_building: num_workers.unwrap_or_else(num_cpus::get),
+            num_workers_graph_building: workers,
         };
         Ok(build_graph_from_files(&config, filepaths))
     }
@@ -154,7 +181,10 @@ impl SparseMatrix {
         ]);
         let column_id = column_id_by_name
             .get(&column_name)
-            .ok_or(PyValueError::new_err("Column name invalid"))?;
+            .ok_or(PyValueError::new_err(format!(
+                "Column name '{}' not found. Available: '{}', '{}'",
+                column_name, self.descriptor.col_a_name, self.descriptor.col_b_name
+            )))?;
 
         let mask: Vec<bool> = self
             .column_ids
@@ -171,6 +201,42 @@ impl SparseMatrix {
         Array1::from_vec(entity_degrees).to_pyarray(py)
     }
 
+    #[getter]
+    fn num_entities(&self) -> usize {
+        self.entity_ids.len()
+    }
+
+    #[getter]
+    fn num_edges(&self) -> usize {
+        self.edges.len()
+    }
+
+    fn get_entity_index(&self, entity_id: &str) -> PyResult<usize> {
+        self.entity_ids
+            .iter()
+            .position(|id| id == entity_id)
+            .ok_or_else(|| PyValueError::new_err(format!("Entity '{}' not found", entity_id)))
+    }
+
+    fn get_entity_indices(&self, entity_ids: Vec<String>) -> PyResult<Vec<usize>> {
+        let index_map: HashMap<&str, usize> = self
+            .entity_ids
+            .iter()
+            .enumerate()
+            .map(|(i, id)| (id.as_str(), i))
+            .collect();
+
+        entity_ids
+            .iter()
+            .map(|id| {
+                index_map
+                    .get(id.as_str())
+                    .copied()
+                    .ok_or_else(|| PyValueError::new_err(format!("Entity '{}' not found", id)))
+            })
+            .collect()
+    }
+
     #[pyo3(signature = (feature_dim, seed = 0))]
     fn initialize_deterministically<'py>(
         &self,
@@ -183,12 +249,25 @@ impl SparseMatrix {
         vectors.to_pyarray(py)
     }
 
-    // Stuff needed for pickle to work (new, getstate, setstate)
+    fn __repr__(&self) -> String {
+        format!(
+            "SparseMatrix(entities={}, edges={}, columns=('{}', '{}'))",
+            self.entity_ids.len(),
+            self.edges.len(),
+            self.descriptor.col_a_name,
+            self.descriptor.col_b_name
+        )
+    }
+
+    fn __len__(&self) -> usize {
+        self.entity_ids.len()
+    }
+
     #[new]
     #[pyo3(signature = (*args))]
-    fn new(args: &PyTuple) -> Self {
+    fn new(args: &PyTuple) -> PyResult<Self> {
         match args.len() {
-            0 => SparseMatrix {
+            0 => Ok(SparseMatrix {
                 descriptor: SparseMatrixDescriptor {
                     col_a_id: 0,
                     col_a_name: "".to_string(),
@@ -200,24 +279,25 @@ impl SparseMatrix {
                 edges: vec![],
                 slices: vec![],
                 column_ids: vec![],
-            },
-            _ => panic!("SparseMatrix::new never meant to be called by user. Only 0-arg implementation provided to make pickle happy"),
+            }),
+            _ => Err(PyValueError::new_err(
+                "SparseMatrix cannot be constructed directly. Use SparseMatrix.from_files() or SparseMatrix.from_iterator()."
+            )),
         }
     }
 
     pub fn __getstate__(&self, py: Python) -> PyResult<PyObject> {
-        Ok(PyBytes::new(py, &serialize(self).unwrap()).to_object(py))
+        let bytes = serialize(self)
+            .map_err(|e| PyRuntimeError::new_err(format!("Serialization failed: {}", e)))?;
+        Ok(PyBytes::new(py, &bytes).to_object(py))
     }
 
     pub fn __setstate__(&mut self, py: Python, state: PyObject) -> PyResult<()> {
-        match state.extract::<&PyBytes>(py) {
-            Ok(s) => {
-                let sm: SparseMatrix = deserialize(s.as_bytes()).unwrap();
-                *self = sm;
-                Ok(())
-            }
-            Err(e) => Err(e),
-        }
+        let bytes = state.extract::<&PyBytes>(py)?;
+        let sm: SparseMatrix = deserialize(bytes.as_bytes())
+            .map_err(|e| PyRuntimeError::new_err(format!("Deserialization failed: {}", e)))?;
+        *self = sm;
+        Ok(())
     }
 }
 

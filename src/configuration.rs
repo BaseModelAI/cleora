@@ -11,17 +11,11 @@ pub struct Configuration {
 
 #[derive(Debug, Default)]
 pub struct Column {
-    /// Name, header of the column
     pub name: String,
-
-    /// The field is composite, containing multiple entity identifiers separated by space
     pub complex: bool,
-
-    /// The field is reflexive, which means that it interacts with itself, additional output file is written for every such field
     pub reflexive: bool,
 }
 
-/// Extract columns config based on raw strings.
 pub fn parse_fields(columns: &str) -> Result<Vec<Column>, String> {
     let cols: Vec<&str> = columns.split(' ').collect();
 
@@ -64,8 +58,6 @@ pub fn parse_fields(columns: &str) -> Result<Vec<Column>, String> {
 
 fn validate_column_modifiers(cols: Vec<Column>) -> Result<Vec<Column>, String> {
     for col in &cols {
-        // transient::reflexive - this would generate no output
-        // transient::reflexive::complex - this would generate no output
         if col.reflexive && !col.complex {
             let message = format!(
                 "A field cannot be REFLEXIVE but NOT COMPLEX. It does not make sense: {}",

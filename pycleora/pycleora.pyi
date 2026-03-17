@@ -1,11 +1,22 @@
-from typing import Any, Iterable, Optional, Self
+from typing import Any, Iterable, List, Optional, Self
 
 import numpy as np
 from numpy.typing import NDArray
 
 
 class SparseMatrix:
+    entity_ids: List[str]
+    num_entities: int
+    num_edges: int
+    entity_degrees: NDArray[np.float32]
+
     def __new__(cls, *args: Any) -> Self:
+        pass
+
+    def __repr__(self) -> str:
+        pass
+
+    def __len__(self) -> int:
         pass
 
     @classmethod
@@ -28,11 +39,20 @@ class SparseMatrix:
     ) -> NDArray[np.float32]:
         pass
 
-    def get_entity_column_mask(self, column_name: str) -> NDArray[np.bool]:
+    def get_entity_column_mask(self, column_name: str) -> NDArray[np.bool_]:
         pass
 
-    def entity_degrees(self) -> NDArray[np.float32]:
+    def get_entity_index(self, entity_id: str) -> int:
+        pass
+
+    def get_entity_indices(self, entity_ids: List[str]) -> List[int]:
         pass
 
     def initialize_deterministically(self, feature_dim: int, seed: int = 0) -> NDArray[np.float32]:
+        pass
+
+    def __getstate__(self) -> bytes:
+        pass
+
+    def __setstate__(self, state: bytes) -> None:
         pass

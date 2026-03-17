@@ -2,7 +2,6 @@ use std::cell::RefCell;
 use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
-use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use dashmap::DashMap;
@@ -25,10 +24,6 @@ struct Row {
     row_sum: f32,
 }
 
-/// Data locality plays huge role in propagation phase performance
-/// We want connected nodes to have similar indices, as they will get updated together.
-/// NodeIndexer assigns successive indices to nodes connected via hyper-edges.
-/// Such ordering yields significant performance boost in propagation phase.
 #[derive(Debug, Default)]
 pub struct NodeIndexer {
     pub key_2_index: HashMap<u64, usize, BuildHasherDefault<FxHasher>>,
@@ -106,49 +101,30 @@ impl NodeIndexerBuilder for AsyncNodeIndexerBuilder {
     }
 
     fn finish(self) -> NodeIndexer {
-        // Thin wrappers over pointer to make it Send/Sync
-        // https://stackoverflow.com/a/70848420
-
-        #[derive(Copy, Clone)]
-        struct PointerU64(*mut u64);
-        unsafe impl Send for PointerU64 {}
-        unsafe impl Sync for PointerU64 {}
-
-        #[derive(Copy, Clone)]
-        struct PointerString(*mut String);
-        unsafe impl Send for PointerString {}
-        unsafe impl Sync for PointerString {}
-
-        #[derive(Copy, Clone)]
-        struct PointerU8(*mut u8);
-        unsafe impl Send for PointerU8 {}
-        unsafe impl Sync for PointerU8 {}
-
         let numel = self.next_index.into_inner();
         let mut index_2_key: Vec<u64> = vec![0; numel];
-        let mut index_2_entity_id = vec![String::new(); numel];
-        let mut index_2_column_id = vec![0; numel];
+        let mut index_2_entity_id: Vec<Option<String>> = (0..numel).map(|_| None).collect();
+        let mut index_2_column_id: Vec<u8> = vec![0; numel];
 
-        let index_2_key_ptr = PointerU64(index_2_key.as_mut_ptr());
-        let index_2_entity_id_ptr = PointerString(index_2_entity_id.as_mut_ptr());
-        let index_2_column_id_ptr = PointerU8(index_2_column_id.as_mut_ptr());
-
-        let key_2_index = self
+        let key_2_index: HashMap<u64, usize, BuildHasherDefault<FxHasher>> = self
             .key_2_entity
-            .into_par_iter()
+            .into_iter()
             .map(|(key, indexed_entity)| {
                 let IndexedEntity {
                     index,
                     id: entity_id,
                     column_id,
                 } = indexed_entity;
-                unsafe {
-                    ptr::write(index_2_key_ptr.0.add(index), key);
-                    ptr::write(index_2_entity_id_ptr.0.add(index), entity_id);
-                    ptr::write(index_2_column_id_ptr.0.add(index), column_id);
-                }
+                index_2_key[index] = key;
+                index_2_entity_id[index] = Some(entity_id);
+                index_2_column_id[index] = column_id;
                 (key, index)
             })
+            .collect();
+
+        let index_2_entity_id: Vec<String> = index_2_entity_id
+            .into_iter()
+            .map(|opt| opt.unwrap_or_default())
             .collect();
 
         NodeIndexer {
@@ -214,7 +190,6 @@ impl SparseMatrixBuffer {
         self.handle_combinations(nodes_a_high, nodes_b_high, value);
         self.handle_combinations(nodes_a_high, nodes_b_low, value);
         self.handle_combinations(nodes_a_low, nodes_b_high, value);
-        // Ignore 'low-to-low' combinations
     }
 
     fn get_high_low_nodes<'a>(
@@ -239,22 +214,6 @@ impl SparseMatrixBuffer {
         }
     }
 
-    /// It creates sparse matrix for two columns in the incoming data.
-    /// Let's say that we have such columns:
-    /// customers | products                | brands
-    /// incoming data:
-    /// userId1   | productId1, productId2  | brandId1, brandId2
-    /// userId2   | productId1              | brandId3, brandId4, brandId5
-    /// etc.
-    /// One of the sparse matrices could represent customers and products relation (products and brands relation, customers and brands relation).
-    /// This sparse matrix (customers and products relation) handles every combination in these columns according to
-    /// total combinations in a row.
-    /// The first row in the incoming data produces two combinations according to 4 total combinations:
-    /// userId1, productId1 and userId1, productId2
-    /// The second row produces one combination userId2, productId1 according to 3 total combinations.
-    /// `a_hash` - hash of a entity for a column A
-    /// `b_hash` - hash of a entity for a column B
-    /// `count` - total number of combinations in a row
     fn add_pair_symmetric(&mut self, a_hash: u64, b_hash: u64, value: f32) {
         self.edge_count += 1;
         self.update_edge(a_hash, b_hash, value);
@@ -321,7 +280,6 @@ impl SparseMatrixBuffersReducer {
             .install(|| {
                 let node_indexer = self.node_indexer;
 
-                // Extract buffers so their fields can be moved to reducing functions
                 let (hash_2_row_maps, hashes_2_edge_map): (Vec<_>, Vec<_>) = self
                     .buffers
                     .into_iter()
@@ -349,7 +307,6 @@ impl SparseMatrixBuffersReducer {
                     .into_par_iter()
                     .map(|entry| Edge {
                         other_entity_ix: entry.col,
-                        // use this field for different purpose to avoid reallocation
                         left_markov_value: entry.value,
                         symmetric_markov_value: 0.0,
                     })
@@ -408,8 +365,6 @@ impl SparseMatrixBuffersReducer {
         node_indexer: &NodeIndexer,
         edge_maps: Vec<HashMap<(u64, u64), f32, BuildHasherDefault<FxHasher>>>,
     ) -> Vec<EdgeEntry> {
-        // Dashmap to have concurrent write access with par_drain
-        // par_drain is recommended to not increase peak memory usage
         let reduced_edge_map: DashMap<(u64, u64), f32, BuildHasherDefault<FxHasher>> =
             Default::default();
         for mut edge_map in edge_maps.into_iter() {

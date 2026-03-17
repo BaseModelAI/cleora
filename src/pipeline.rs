@@ -28,7 +28,6 @@ pub fn build_graph_from_iterator<'a>(
     cb_thread::scope(|s| {
         let (hyperedges_s, hyperedges_r) = channel::bounded(64 * config.num_workers_graph_building);
 
-        // Consumer first, producer second to avoid deadlock
         let matrix_buffer = make_consumer(hyperedges_r, config, s);
         let node_indexer = make_producer_from_iterator(config, hyperedges, hyperedges_s);
 
@@ -64,7 +63,7 @@ fn consume_line<S: NodeIndexerBuilder>(
     entity_processor: &EntityProcessor<S>,
     line: &str,
 ) {
-    let row = parse_tsv_line(line);
+    let row = parse_line(line);
     let line_col_num = row.len();
     if line_col_num == config.columns.len() {
         let hyperedge = entity_processor.process_row_and_get_edges(&row);
@@ -84,7 +83,6 @@ pub fn build_graph_from_files(config: &Configuration, input_files: Vec<String>) 
     cb_thread::scope(|s| {
         let (hyperedges_s, hyperedges_r) = channel::bounded(processing_worker_num * 64);
 
-        // Consumer first, producer second to avoid deadlock
         let matrix_buffers: Vec<_> = make_consumer(hyperedges_r, config, s);
         let node_indexer = make_producer_from_files(config, &input_files, s, hyperedges_s);
 
@@ -143,7 +141,7 @@ fn make_producer_from_files<'c: 'e, 'e: 's, 's>(
                 })
             })
             .collect_vec();
-        drop(hyperedges_s); // hyperedges_s got distributed among producers, drop seed object
+        drop(hyperedges_s);
         drop(files_r);
 
         producers.into_iter().for_each(|h| h.join().unwrap());
@@ -188,33 +186,31 @@ fn make_consumer<'s, 'a: 'a>(
         .collect()
 }
 
-/// Read file line by line. Pass every valid line to handler for parsing.
 fn read_file<F>(filepath: &str, log_every: u64, mut line_handler: F)
 where
     F: FnMut(&str),
 {
-    let input_file = File::open(filepath).expect("Can't open file");
-    let mut buffered = BufReader::new(input_file);
+    let input_file = match File::open(filepath) {
+        Ok(f) => f,
+        Err(e) => {
+            error!("Cannot open file '{}': {}", filepath, e);
+            return;
+        }
+    };
+    let buffered = BufReader::with_capacity(64 * 1024, input_file);
 
     let mut line_number = 1u64;
-    let mut line = String::new();
-    loop {
-        match buffered.read_line(&mut line) {
-            Ok(bytes_read) => {
-                // EOF
-                if bytes_read == 0 {
-                    break;
+    for result in buffered.lines() {
+        match result {
+            Ok(line) => {
+                if !line.is_empty() {
+                    line_handler(&line);
                 }
-
-                line_handler(&line);
             }
             Err(err) => {
                 error!("Can't read line number: {}. Error: {}.", line_number, err);
             }
         };
-
-        // clear to reuse the buffer
-        line.clear();
 
         if line_number % log_every == 0 {
             info!("Number of lines processed: {}", line_number);
@@ -224,8 +220,15 @@ where
     }
 }
 
-/// Parse a line of TSV and read its columns into a vector for processing.
-fn parse_tsv_line(line: &str) -> Vec<SmallVec<[&str; SMALL_VECTOR_SIZE]>> {
-    let values = line.trim().split('\t');
-    values.map(|c| c.split(' ').collect()).collect()
+fn parse_line(line: &str) -> Vec<SmallVec<[&str; SMALL_VECTOR_SIZE]>> {
+    let trimmed = line.trim();
+    if trimmed.contains('\t') {
+        trimmed.split('\t').map(|c| c.split(' ').collect()).collect()
+    } else if trimmed.contains(',') {
+        trimmed.split(',').map(|c| c.trim().split(' ').collect()).collect()
+    } else {
+        let mut result = Vec::with_capacity(1);
+        result.push(trimmed.split(' ').collect());
+        result
+    }
 }
