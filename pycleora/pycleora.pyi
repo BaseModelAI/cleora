@@ -10,57 +10,27 @@ class SparseMatrix:
     num_edges: int
     entity_degrees: NDArray[np.float32]
 
-    def __new__(cls, *args: Any) -> Self:
-        pass
-
-    def __repr__(self) -> str:
-        pass
-
-    def __len__(self) -> int:
-        pass
+    def __new__(cls, *args: Any) -> Self: ...
+    def __repr__(self) -> str: ...
+    def __len__(self) -> int: ...
 
     @classmethod
     def from_iterator(
         cls, hyperedges: Iterable[str], columns: str, hyperedge_trim_n: int = 16, num_workers: Optional[int] = None
-    ) -> Self:
-        pass
+    ) -> Self: ...
 
     @classmethod
     def from_files(
         cls, filepaths: list[str], columns: str, hyperedge_trim_n: int = 16, num_workers: Optional[int] = None
-    ) -> Self:
-        pass
+    ) -> Self: ...
 
-    def left_markov_propagate(self, x: NDArray[np.float32], num_workers: Optional[int] = None) -> NDArray[np.float32]:
-        pass
-
-    def symmetric_markov_propagate(
-        self, x: NDArray[np.float32], num_workers: Optional[int] = None
-    ) -> NDArray[np.float32]:
-        pass
-
-    def get_entity_column_mask(self, column_name: str) -> NDArray[np.bool_]:
-        pass
-
-    def get_entity_index(self, entity_id: str) -> int:
-        pass
-
-    def get_entity_indices(self, entity_ids: List[str]) -> List[int]:
-        pass
-
-    def get_neighbors(self, entity_id: str) -> List[Tuple[str, float]]:
-        pass
-
-    def to_sparse_csr(
-        self, markov_type: Optional[str] = None
-    ) -> Tuple[NDArray[np.uint32], NDArray[np.uint32], NDArray[np.float32], int, int]:
-        pass
-
-    def initialize_deterministically(self, feature_dim: int, seed: int = 0) -> NDArray[np.float32]:
-        pass
-
-    def __getstate__(self) -> bytes:
-        pass
-
-    def __setstate__(self, state: bytes) -> None:
-        pass
+    def left_markov_propagate(self, x: NDArray[np.float32], num_workers: Optional[int] = None) -> NDArray[np.float32]: ...
+    def symmetric_markov_propagate(self, x: NDArray[np.float32], num_workers: Optional[int] = None) -> NDArray[np.float32]: ...
+    def get_entity_column_mask(self, column_name: str) -> NDArray[np.bool_]: ...
+    def get_entity_index(self, entity_id: str) -> int: ...
+    def get_entity_indices(self, entity_ids: List[str]) -> List[int]: ...
+    def get_neighbors(self, entity_id: str) -> List[Tuple[str, float]]: ...
+    def to_sparse_csr(self, markov_type: Optional[str] = None) -> Tuple[NDArray[np.uint32], NDArray[np.uint32], NDArray[np.float32], int, int]: ...
+    def initialize_deterministically(self, feature_dim: int, seed: int = 0) -> NDArray[np.float32]: ...
+    def __getstate__(self) -> bytes: ...
+    def __setstate__(self, state: bytes) -> None: ...

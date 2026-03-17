@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Optional, List, Dict, Callable, Tuple
+from typing import Optional, List, Dict, Callable, Tuple, Union
 
 from .pycleora import SparseMatrix
 
@@ -65,6 +65,45 @@ def embed(
             callback(i, embeddings)
 
     return embeddings
+
+
+def embed_with_node_features(
+    graph: SparseMatrix,
+    node_features: Dict[str, np.ndarray],
+    num_iterations: int = 4,
+    propagation: str = "left",
+    normalization: str = "l2",
+    feature_weight: float = 0.5,
+    num_workers: Optional[int] = None,
+) -> np.ndarray:
+    if not node_features:
+        raise ValueError("node_features must be a non-empty dict of entity_id -> feature_vector")
+
+    sample_feat = next(iter(node_features.values()))
+    feat_dim = len(sample_feat)
+
+    init_emb = graph.initialize_deterministically(feat_dim)
+
+    index_map = {eid: i for i, eid in enumerate(graph.entity_ids)}
+    for eid, feat in node_features.items():
+        idx = index_map.get(eid)
+        if idx is not None:
+            feat_arr = np.array(feat, dtype=np.float32)
+            if len(feat_arr) != feat_dim:
+                raise ValueError(
+                    f"Feature for '{eid}' has dimension {len(feat_arr)}, expected {feat_dim}"
+                )
+            init_emb[idx] = (1 - feature_weight) * init_emb[idx] + feature_weight * feat_arr
+
+    return embed(
+        graph,
+        feature_dim=feat_dim,
+        num_iterations=num_iterations,
+        propagation=propagation,
+        normalization=normalization,
+        initial_embeddings=init_emb,
+        num_workers=num_workers,
+    )
 
 
 def embed_with_attention(
@@ -168,6 +207,105 @@ def embed_multiscale(
         all_embeddings.append(embeddings.copy())
 
     return np.concatenate(all_embeddings, axis=1)
+
+
+def embed_weighted(
+    edges_with_weights: List[Tuple[str, float]],
+    columns: str,
+    feature_dim: int = 128,
+    num_iterations: int = 4,
+    propagation: str = "left",
+    normalization: str = "l2",
+    seed: int = 0,
+    hyperedge_trim_n: int = 16,
+    num_workers: Optional[int] = None,
+) -> Tuple[SparseMatrix, np.ndarray]:
+    from scipy.sparse import csr_matrix, diags
+
+    edge_strs = [e for e, w in edges_with_weights]
+    weights = {e: w for e, w in edges_with_weights}
+
+    graph = SparseMatrix.from_iterator(iter(edge_strs), columns, hyperedge_trim_n, num_workers)
+
+    embeddings = graph.initialize_deterministically(feature_dim, seed)
+
+    rows, cols, vals, n, _ = graph.to_sparse_csr(propagation)
+    adj = csr_matrix(
+        (vals.astype(np.float64), (rows.astype(np.int32), cols.astype(np.int32))),
+        shape=(n, n),
+    )
+
+    weight_diag = np.ones(n, dtype=np.float64)
+    index_map = {eid: i for i, eid in enumerate(graph.entity_ids)}
+
+    for edge_str, w in edges_with_weights:
+        entities = edge_str.strip().split()
+        for ent in entities:
+            idx = index_map.get(ent)
+            if idx is not None:
+                weight_diag[idx] = max(weight_diag[idx], w)
+
+    W = diags(weight_diag)
+    weighted_adj = W @ adj
+    row_sums = np.array(weighted_adj.sum(axis=1)).flatten()
+    row_sums = np.maximum(row_sums, 1e-10)
+    weighted_adj = diags(1.0 / row_sums) @ weighted_adj
+
+    for i in range(num_iterations):
+        embeddings = (weighted_adj @ embeddings).astype(np.float32)
+        embeddings = _normalize(embeddings, normalization)
+
+    return graph, embeddings
+
+
+def embed_directed(
+    edges: List[str],
+    columns: str,
+    feature_dim: int = 128,
+    num_iterations: int = 4,
+    normalization: str = "l2",
+    seed: int = 0,
+    hyperedge_trim_n: int = 16,
+    num_workers: Optional[int] = None,
+) -> Tuple[SparseMatrix, np.ndarray]:
+    from scipy.sparse import csr_matrix, diags
+
+    graph = SparseMatrix.from_iterator(iter(edges), columns, hyperedge_trim_n, num_workers)
+
+    directed_pairs = set()
+    for edge_str in edges:
+        parts = edge_str.strip().split()
+        if len(parts) >= 2:
+            for i in range(len(parts)):
+                for j in range(i + 1, len(parts)):
+                    directed_pairs.add((parts[i], parts[j]))
+
+    index_map = {eid: i for i, eid in enumerate(graph.entity_ids)}
+    rows_list, cols_list, vals_list = [], [], []
+
+    r_arr, c_arr, v_arr, n, _ = graph.to_sparse_csr("left")
+    for r, c, v in zip(r_arr, c_arr, v_arr):
+        r_id = graph.entity_ids[int(r)]
+        c_id = graph.entity_ids[int(c)]
+        if (r_id, c_id) in directed_pairs:
+            rows_list.append(int(r))
+            cols_list.append(int(c))
+            vals_list.append(float(v))
+
+    adj = csr_matrix(
+        (vals_list, (rows_list, cols_list)),
+        shape=(n, n),
+    )
+    row_sums = np.array(adj.sum(axis=1)).flatten()
+    row_sums = np.maximum(row_sums, 1e-10)
+    adj = diags(1.0 / row_sums) @ adj
+
+    embeddings = graph.initialize_deterministically(feature_dim, seed)
+    for i in range(num_iterations):
+        embeddings = (adj @ embeddings).astype(np.float32)
+        embeddings = _normalize(embeddings, normalization)
+
+    return graph, embeddings
 
 
 def supervised_refine(
@@ -283,6 +421,20 @@ def update_graph(
     return SparseMatrix.from_iterator(iter(all_edges), columns, hyperedge_trim_n, num_workers)
 
 
+def remove_edges(
+    existing_edges: List[str],
+    edges_to_remove: List[str],
+    columns: str,
+    hyperedge_trim_n: int = 16,
+    num_workers: Optional[int] = None,
+) -> SparseMatrix:
+    remove_set = set(edges_to_remove)
+    remaining = [e for e in existing_edges if e not in remove_set]
+    if not remaining:
+        raise ValueError("Cannot remove all edges from the graph")
+    return SparseMatrix.from_iterator(iter(remaining), columns, hyperedge_trim_n, num_workers)
+
+
 def embed_inductive(
     trained_graph: SparseMatrix,
     trained_embeddings: np.ndarray,
@@ -324,6 +476,107 @@ def embed_inductive(
     )
 
     return updated_graph, updated_embeddings
+
+
+def embed_streaming(
+    edge_batches,
+    columns: str,
+    feature_dim: int = 128,
+    num_iterations: int = 4,
+    propagation: str = "left",
+    normalization: str = "l2",
+    hyperedge_trim_n: int = 16,
+    num_workers: Optional[int] = None,
+    batch_callback: Optional[Callable[[int, SparseMatrix, np.ndarray], None]] = None,
+) -> Tuple[SparseMatrix, np.ndarray]:
+    all_edges = []
+    graph = None
+    embeddings = None
+
+    for batch_idx, batch in enumerate(edge_batches):
+        all_edges.extend(batch)
+        graph = SparseMatrix.from_iterator(
+            iter(all_edges), columns, hyperedge_trim_n, num_workers
+        )
+
+        if embeddings is not None:
+            old_index_map = {}
+            for i, eid in enumerate(prev_entity_ids):
+                old_index_map[eid] = i
+
+            init = np.random.randn(graph.num_entities, feature_dim).astype(np.float32) * 0.01
+            for i, eid in enumerate(graph.entity_ids):
+                if eid in old_index_map:
+                    old_idx = old_index_map[eid]
+                    if old_idx < embeddings.shape[0]:
+                        init[i] = embeddings[old_idx]
+
+            embeddings = embed(
+                graph, feature_dim=feature_dim, num_iterations=num_iterations,
+                propagation=propagation, normalization=normalization,
+                initial_embeddings=init, num_workers=num_workers,
+            )
+        else:
+            embeddings = embed(
+                graph, feature_dim=feature_dim, num_iterations=num_iterations,
+                propagation=propagation, normalization=normalization,
+                num_workers=num_workers,
+            )
+
+        prev_entity_ids = list(graph.entity_ids)
+
+        if batch_callback is not None:
+            batch_callback(batch_idx, graph, embeddings)
+
+    return graph, embeddings
+
+
+def predict_links(
+    graph: SparseMatrix,
+    embeddings: np.ndarray,
+    top_k: int = 10,
+    exclude_existing: bool = True,
+    source_entities: Optional[List[str]] = None,
+) -> List[Dict]:
+    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    norms = np.maximum(norms, 1e-10)
+    normed = embeddings / norms
+
+    existing_edges = set()
+    if exclude_existing:
+        rows, cols, _, _, _ = graph.to_sparse_csr()
+        for r, c in zip(rows, cols):
+            existing_edges.add((int(r), int(c)))
+
+    if source_entities is not None:
+        source_indices = []
+        for eid in source_entities:
+            source_indices.append(graph.get_entity_index(eid))
+    else:
+        source_indices = list(range(graph.num_entities))
+
+    predictions = []
+    for src_idx in source_indices:
+        sims = normed @ normed[src_idx]
+        sims[src_idx] = -2.0
+
+        if exclude_existing:
+            for other_idx in range(graph.num_entities):
+                if (src_idx, other_idx) in existing_edges or (other_idx, src_idx) in existing_edges:
+                    sims[other_idx] = -2.0
+
+        top_indices = np.argsort(sims)[::-1][:top_k]
+        for tgt_idx in top_indices:
+            if sims[tgt_idx] <= -2.0:
+                continue
+            predictions.append({
+                "source": graph.entity_ids[src_idx],
+                "target": graph.entity_ids[int(tgt_idx)],
+                "score": float(sims[int(tgt_idx)]),
+            })
+
+    predictions.sort(key=lambda x: x["score"], reverse=True)
+    return predictions[:top_k]
 
 
 def propagate_gpu(
