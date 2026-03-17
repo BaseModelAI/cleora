@@ -249,6 +249,72 @@ impl SparseMatrix {
         vectors.to_pyarray(py)
     }
 
+    #[pyo3(signature = (markov_type = None))]
+    fn to_sparse_csr<'py>(
+        &self,
+        py: Python<'py>,
+        markov_type: Option<&str>,
+    ) -> PyResult<(
+        &'py PyArray<u32, Ix1>,
+        &'py PyArray<u32, Ix1>,
+        &'py PyArray<f32, Ix1>,
+        usize,
+        usize,
+    )> {
+        let n = self.entity_ids.len();
+        let nnz = self.edges.len();
+        let mut row_indices: Vec<u32> = Vec::with_capacity(nnz);
+        let mut col_indices: Vec<u32> = Vec::with_capacity(nnz);
+        let mut values: Vec<f32> = Vec::with_capacity(nnz);
+
+        let mt = markov_type.unwrap_or("left");
+        if mt != "left" && mt != "symmetric" {
+            return Err(PyValueError::new_err(format!(
+                "Unknown markov_type '{}'. Use 'left' or 'symmetric'.",
+                mt
+            )));
+        }
+        let use_symmetric = mt == "symmetric";
+
+        for (row_ix, (start, end)) in self.slices.iter().enumerate() {
+            for edge in &self.edges[*start..*end] {
+                row_indices.push(row_ix as u32);
+                col_indices.push(edge.other_entity_ix);
+                values.push(if use_symmetric {
+                    edge.symmetric_markov_value
+                } else {
+                    edge.left_markov_value
+                });
+            }
+        }
+
+        Ok((
+            Array1::from_vec(row_indices).to_pyarray(py),
+            Array1::from_vec(col_indices).to_pyarray(py),
+            Array1::from_vec(values).to_pyarray(py),
+            n,
+            n,
+        ))
+    }
+
+    fn get_neighbors(&self, entity_id: &str) -> PyResult<Vec<(String, f32)>> {
+        let idx = self
+            .entity_ids
+            .iter()
+            .position(|id| id == entity_id)
+            .ok_or_else(|| PyValueError::new_err(format!("Entity '{}' not found", entity_id)))?;
+
+        let (start, end) = self.slices[idx];
+        let neighbors: Vec<(String, f32)> = self.edges[start..end]
+            .iter()
+            .map(|edge| {
+                let neighbor_id = self.entity_ids[edge.other_entity_ix as usize].clone();
+                (neighbor_id, edge.left_markov_value)
+            })
+            .collect();
+        Ok(neighbors)
+    }
+
     fn __repr__(&self) -> String {
         format!(
             "SparseMatrix(entities={}, edges={}, columns=('{}', '{}'))",

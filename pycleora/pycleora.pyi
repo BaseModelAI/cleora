@@ -1,4 +1,4 @@
-from typing import Any, Iterable, List, Optional, Self
+from typing import Any, Iterable, List, Optional, Self, Tuple
 
 import numpy as np
 from numpy.typing import NDArray
@@ -46,6 +46,14 @@ class SparseMatrix:
         pass
 
     def get_entity_indices(self, entity_ids: List[str]) -> List[int]:
+        pass
+
+    def get_neighbors(self, entity_id: str) -> List[Tuple[str, float]]:
+        pass
+
+    def to_sparse_csr(
+        self, markov_type: Optional[str] = None
+    ) -> Tuple[NDArray[np.uint32], NDArray[np.uint32], NDArray[np.float32], int, int]:
         pass
 
     def initialize_deterministically(self, feature_dim: int, seed: int = 0) -> NDArray[np.float32]:
