@@ -245,6 +245,130 @@ def embed_grarep(
     return (result / norms).astype(np.float32)
 
 
+def _build_adj_list(graph):
+    rows, cols, vals, n, _ = graph.to_sparse_csr()
+    adj = [[] for _ in range(n)]
+    weights = [[] for _ in range(n)]
+    for r, c, v in zip(rows, cols, vals):
+        ri, ci = int(r), int(c)
+        if ri != ci:
+            adj[ri].append(ci)
+            weights[ri].append(float(v))
+    return adj, weights, n
+
+
+def _random_walks(adj, weights, n, num_walks, walk_length, p, q, seed):
+    rng = np.random.default_rng(seed)
+    walks = []
+
+    for _ in range(num_walks):
+        for start in range(n):
+            if not adj[start]:
+                continue
+            walk = [start]
+            prev = -1
+            curr = start
+
+            for _ in range(walk_length - 1):
+                neighbors = adj[curr]
+                if not neighbors:
+                    break
+
+                if prev == -1 or (p == 1.0 and q == 1.0):
+                    idx = rng.integers(len(neighbors))
+                    nxt = neighbors[idx]
+                else:
+                    w = np.array(weights[curr], dtype=np.float64)
+                    alpha = np.ones(len(neighbors), dtype=np.float64)
+                    prev_neighbors = set(adj[prev]) if adj[prev] else set()
+
+                    for j, nb in enumerate(neighbors):
+                        if nb == prev:
+                            alpha[j] = 1.0 / p
+                        elif nb not in prev_neighbors:
+                            alpha[j] = 1.0 / q
+
+                    probs = w * alpha
+                    probs_sum = probs.sum()
+                    if probs_sum < 1e-15:
+                        break
+                    probs /= probs_sum
+                    idx = rng.choice(len(neighbors), p=probs)
+                    nxt = neighbors[idx]
+
+                walk.append(nxt)
+                prev = curr
+                curr = nxt
+
+            walks.append(walk)
+
+    return walks
+
+
+def _walks_to_embeddings(walks, n, feature_dim, window_size):
+    cooccur = np.zeros((n, n), dtype=np.float64)
+
+    for walk in walks:
+        for i, node in enumerate(walk):
+            start = max(0, i - window_size)
+            end = min(len(walk), i + window_size + 1)
+            for j in range(start, end):
+                if i != j:
+                    cooccur[node, walk[j]] += 1.0
+
+    row_sums = cooccur.sum(axis=1, keepdims=True)
+    row_sums = np.maximum(row_sums, 1e-10)
+    total = cooccur.sum()
+    col_sums = cooccur.sum(axis=0, keepdims=True)
+    col_sums = np.maximum(col_sums, 1e-10)
+
+    with np.errstate(divide='ignore', invalid='ignore'):
+        pmi = np.log(np.maximum(cooccur * total / (row_sums * col_sums), 1e-15))
+    pmi = np.maximum(pmi, 0.0)
+
+    u, s, _ = np.linalg.svd(pmi, full_matrices=False)
+    k = min(feature_dim, u.shape[1])
+    result = u[:, :k] * np.sqrt(np.maximum(s[:k], 0))
+
+    if result.shape[1] < feature_dim:
+        pad = np.zeros((n, feature_dim - result.shape[1]), dtype=np.float64)
+        result = np.concatenate([result, pad], axis=1)
+
+    norms = np.linalg.norm(result, axis=1, keepdims=True)
+    norms = np.maximum(norms, 1e-10)
+    return (result / norms).astype(np.float32)
+
+
+def embed_deepwalk(
+    graph,
+    feature_dim: int = 128,
+    num_walks: int = 10,
+    walk_length: int = 80,
+    window_size: int = 5,
+    seed: int = 0,
+) -> np.ndarray:
+    adj, weights, n = _build_adj_list(graph)
+    walks = _random_walks(adj, weights, n, num_walks, walk_length,
+                          p=1.0, q=1.0, seed=seed)
+    return _walks_to_embeddings(walks, n, feature_dim, window_size)
+
+
+def embed_node2vec(
+    graph,
+    feature_dim: int = 128,
+    num_walks: int = 10,
+    walk_length: int = 80,
+    window_size: int = 5,
+    p: float = 1.0,
+    q: float = 1.0,
+    seed: int = 0,
+) -> np.ndarray:
+    adj, weights, n = _build_adj_list(graph)
+    walks = _random_walks(adj, weights, n, num_walks, walk_length,
+                          p=p, q=q, seed=seed)
+    return _walks_to_embeddings(walks, n, feature_dim, window_size)
+
+
 def list_algorithms() -> List[Dict]:
     return [
         {"name": "prone", "function": "embed_prone",
@@ -257,4 +381,8 @@ def list_algorithms() -> List[Dict]:
          "description": "NetMF: Network Matrix Factorization. Theoretical generalization of DeepWalk."},
         {"name": "grarep", "function": "embed_grarep",
          "description": "GraRep: Multi-scale matrix factorization with k-step transitions."},
+        {"name": "deepwalk", "function": "embed_deepwalk",
+         "description": "DeepWalk: Random walk + SVD. The original graph embedding algorithm."},
+        {"name": "node2vec", "function": "embed_node2vec",
+         "description": "Node2Vec: Biased random walk with p,q parameters controlling BFS/DFS balance."},
     ]

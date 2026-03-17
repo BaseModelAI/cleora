@@ -4,14 +4,14 @@ A Python library for efficient, scalable graph embeddings using sparse hypergrap
 
 ## Overview
 
-**pycleora** is a graph embedding library/SDK, not a web application. It provides the most comprehensive set of graph embedding features available in a single lightweight package — 52 tested features across 8 modules.
+**pycleora** is a graph embedding library/SDK, not a web application. It provides the most comprehensive set of graph embedding features available in a single lightweight package — 54 tested features across 8 modules.
 
 ## Project Structure
 
 ```
 pycleora/               Python package
   __init__.py            Main API: embed, attention, supervised, weighted, directed, streaming, etc.
-  algorithms.py          Alternative algorithms: ProNE, RandNE, HOPE, NetMF, GraRep
+  algorithms.py          Alternative algorithms: ProNE, RandNE, HOPE, NetMF, GraRep, DeepWalk, Node2Vec
   classify.py            Classification: Label Propagation, MLP classifier (numpy-based)
   community.py           Community detection: k-means, spectral, Louvain + modularity
   datasets.py            Built-in datasets: 12 graphs (Karate Club → Reddit scale)
@@ -29,7 +29,7 @@ src/                    Rust source code
   sparse_matrix_builder.rs  Parallel node indexing
   configuration.rs       Column DSL parsing
   entity.rs              XxHash64 entity hashing
-run.py                  Full feature demo (52 tests)
+run.py                  Full feature demo (54 tests)
 ```
 
 ## Build
@@ -61,6 +61,8 @@ cp ~/.pythonlibs/lib/python3.12/site-packages/pycleora/pycleora.cpython-312-x86_
 - `embed_hope()` - HOPE: asymmetric, good for directed graphs
 - `embed_netmf()` - NetMF: theoretical generalization of DeepWalk
 - `embed_grarep()` - GraRep: multi-scale matrix factorization
+- `embed_deepwalk()` - DeepWalk: random walk + SVD (the original graph embedding)
+- `embed_node2vec()` - Node2Vec: biased random walk with p,q parameters (BFS/DFS balance)
 
 ### Graph Updates (`pycleora`)
 - `update_graph()` - Add new edges (preserves original hyperedges)
@@ -143,4 +145,4 @@ Medium (generated with community structure, cached):
 
 ## Workflow
 
-- **Start application**: `python3 run.py` — demo script (console output, 52 feature tests)
+- **Start application**: `python3 run.py` — demo script (console output, 54 feature tests)

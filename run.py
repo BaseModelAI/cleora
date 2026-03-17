@@ -1,5 +1,5 @@
 """
-pycleora 2.3 - Complete Feature Demo (50+ tests)
+pycleora 2.4 - Complete Feature Demo (54 tests)
 """
 import numpy as np
 import time
@@ -19,7 +19,7 @@ from pycleora.community import detect_communities_kmeans, detect_communities_spe
 from pycleora.datasets import list_datasets, load_dataset
 from pycleora.io_utils import to_networkx, to_edge_list, save_embeddings, load_embeddings
 from pycleora.viz import reduce_dimensions, plot_embeddings, visualize
-from pycleora.algorithms import embed_prone, embed_randne, embed_hope, embed_netmf, embed_grarep, list_algorithms
+from pycleora.algorithms import embed_prone, embed_randne, embed_hope, embed_netmf, embed_grarep, embed_deepwalk, embed_node2vec, list_algorithms
 from pycleora.classify import label_propagation, mlp_classify, label_propagation_predict
 from pycleora.hetero import HeteroGraph
 
@@ -44,7 +44,7 @@ edges = [
 ]
 
 print("=" * 70)
-print("  pycleora 2.3 - Complete Graph Embedding Library")
+print("  pycleora 2.4 - Complete Graph Embedding Library")
 print("=" * 70)
 
 print("=" * 70)
@@ -211,7 +211,7 @@ nc_dblp = node_classification_scores(g_dblp, e_dblp, dblp["labels"])
 print(f"    {dblp['name']}: {dblp['num_nodes']} nodes, Accuracy={nc_dblp['accuracy']:.4f}")
 
 print("=" * 70)
-print("  PART 8: ALTERNATIVE ALGORITHMS (5 new)")
+print("  PART 8: ALTERNATIVE ALGORITHMS (7 total)")
 print("=" * 70)
 
 t = T("Available algorithms:")
@@ -243,12 +243,24 @@ t0 = time.time()
 emb_grarep = embed_grarep(graph, feature_dim=64)
 print(f"    Shape: {emb_grarep.shape}, time: {time.time()-t0:.4f}s")
 
+t = T("DeepWalk embedding:")
+t0 = time.time()
+emb_dw = embed_deepwalk(graph, feature_dim=64, num_walks=10, walk_length=40)
+print(f"    Shape: {emb_dw.shape}, time: {time.time()-t0:.4f}s")
+
+t = T("Node2Vec embedding (p=0.5, q=2.0):")
+t0 = time.time()
+emb_n2v = embed_node2vec(graph, feature_dim=64, num_walks=10, walk_length=40, p=0.5, q=2.0)
+print(f"    Shape: {emb_n2v.shape}, time: {time.time()-t0:.4f}s")
+
 t = T("Algorithm comparison (Karate Club accuracy):")
 algos_results = {}
 for name_alg, fn in [("cleora", lambda g: embed(g, 128, 4)),
                       ("prone", lambda g: embed_prone(g, 128)),
                       ("randne", lambda g: embed_randne(g, 128)),
-                      ("hope", lambda g: embed_hope(g, 128))]:
+                      ("hope", lambda g: embed_hope(g, 128)),
+                      ("deepwalk", lambda g: embed_deepwalk(g, 128, num_walks=20, walk_length=40)),
+                      ("node2vec", lambda g: embed_node2vec(g, 128, num_walks=20, walk_length=40, p=1.0, q=0.5))]:
     e_alg = fn(g_kc)
     if e_alg.shape[0] == g_kc.num_entities:
         sc = node_classification_scores(g_kc, e_alg, kc["labels"])
