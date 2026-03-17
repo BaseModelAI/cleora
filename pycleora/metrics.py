@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple, Optional, Dict, Callable
 
 
 def link_prediction_scores(
@@ -245,6 +245,275 @@ def clustering_scores(
         "avg_intra_cluster_similarity": avg_intra_similarity,
         "num_clusters": k,
     }
+
+
+def map_at_k(
+    graph,
+    embeddings: np.ndarray,
+    test_edges: List[Tuple[str, str]],
+    k: int = 10,
+) -> float:
+    index_map = {eid: i for i, eid in enumerate(graph.entity_ids)}
+    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    norms = np.maximum(norms, 1e-10)
+    normed = embeddings / norms
+
+    rows, cols, _, _, _ = graph.to_sparse_csr()
+    existing = set()
+    for r, c in zip(rows, cols):
+        existing.add((int(r), int(c)))
+
+    aps = []
+    queries = {}
+    for a, b in test_edges:
+        ia, ib = index_map.get(a), index_map.get(b)
+        if ia is not None and ib is not None:
+            queries.setdefault(ia, set()).add(ib)
+
+    for src, true_targets in queries.items():
+        sims = normed @ normed[src]
+        sims[src] = -2.0
+        for other in range(len(sims)):
+            if (src, other) in existing and other not in true_targets:
+                sims[other] = -2.0
+        top_k = np.argsort(sims)[::-1][:k]
+
+        hits = 0
+        ap_sum = 0.0
+        for rank, idx in enumerate(top_k):
+            if idx in true_targets:
+                hits += 1
+                ap_sum += hits / (rank + 1)
+        aps.append(ap_sum / min(len(true_targets), k))
+
+    return float(np.mean(aps)) if aps else 0.0
+
+
+def ndcg_at_k(
+    graph,
+    embeddings: np.ndarray,
+    test_edges: List[Tuple[str, str]],
+    k: int = 10,
+) -> float:
+    index_map = {eid: i for i, eid in enumerate(graph.entity_ids)}
+    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    norms = np.maximum(norms, 1e-10)
+    normed = embeddings / norms
+
+    queries = {}
+    for a, b in test_edges:
+        ia, ib = index_map.get(a), index_map.get(b)
+        if ia is not None and ib is not None:
+            queries.setdefault(ia, set()).add(ib)
+
+    rows, cols, _, _, _ = graph.to_sparse_csr()
+    existing = set()
+    for r, c in zip(rows, cols):
+        existing.add((int(r), int(c)))
+
+    ndcgs = []
+    for src, true_targets in queries.items():
+        sims = normed @ normed[src]
+        sims[src] = -2.0
+        for other in range(len(sims)):
+            if (src, other) in existing and other not in true_targets:
+                sims[other] = -2.0
+        top_k = np.argsort(sims)[::-1][:k]
+
+        dcg = 0.0
+        for rank, idx in enumerate(top_k):
+            if idx in true_targets:
+                dcg += 1.0 / np.log2(rank + 2)
+
+        ideal_hits = min(len(true_targets), k)
+        idcg = sum(1.0 / np.log2(r + 2) for r in range(ideal_hits))
+
+        ndcgs.append(dcg / max(idcg, 1e-10))
+
+    return float(np.mean(ndcgs)) if ndcgs else 0.0
+
+
+def adjusted_rand_index(labels_true: np.ndarray, labels_pred: np.ndarray) -> float:
+    n = len(labels_true)
+    classes_true = np.unique(labels_true)
+    classes_pred = np.unique(labels_pred)
+    contingency = np.zeros((len(classes_true), len(classes_pred)), dtype=np.int64)
+
+    true_map = {c: i for i, c in enumerate(classes_true)}
+    pred_map = {c: i for i, c in enumerate(classes_pred)}
+
+    for i in range(n):
+        contingency[true_map[labels_true[i]], pred_map[labels_pred[i]]] += 1
+
+    sum_comb_c = sum(int(nij) * (int(nij) - 1) // 2 for row in contingency for nij in row)
+    sum_comb_a = sum(int(ai) * (int(ai) - 1) // 2 for ai in contingency.sum(axis=1))
+    sum_comb_b = sum(int(bj) * (int(bj) - 1) // 2 for bj in contingency.sum(axis=0))
+    total_comb = n * (n - 1) // 2
+
+    expected = sum_comb_a * sum_comb_b / max(total_comb, 1)
+    max_index = (sum_comb_a + sum_comb_b) / 2
+    denom = max_index - expected
+
+    if abs(denom) < 1e-10:
+        return 0.0
+    return float((sum_comb_c - expected) / denom)
+
+
+def silhouette_score(embeddings: np.ndarray, labels: np.ndarray) -> float:
+    n = len(labels)
+    if n < 2:
+        return 0.0
+
+    unique_labels = np.unique(labels)
+    if len(unique_labels) < 2:
+        return 0.0
+
+    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    norms = np.maximum(norms, 1e-10)
+    normed = embeddings / norms
+    dist_matrix = 1.0 - normed @ normed.T
+
+    silhouettes = []
+    for i in range(n):
+        own_label = labels[i]
+        own_mask = labels == own_label
+        own_count = np.sum(own_mask) - 1
+
+        if own_count <= 0:
+            silhouettes.append(0.0)
+            continue
+
+        a_i = np.sum(dist_matrix[i, own_mask]) / own_count
+
+        b_i = np.inf
+        for label in unique_labels:
+            if label == own_label:
+                continue
+            other_mask = labels == label
+            other_count = np.sum(other_mask)
+            if other_count > 0:
+                avg_dist = np.sum(dist_matrix[i, other_mask]) / other_count
+                b_i = min(b_i, avg_dist)
+
+        if b_i == np.inf:
+            silhouettes.append(0.0)
+        else:
+            s_i = (b_i - a_i) / max(a_i, b_i, 1e-10)
+            silhouettes.append(s_i)
+
+    return float(np.mean(silhouettes))
+
+
+def cross_validate(
+    graph,
+    embeddings: np.ndarray,
+    labels: Dict[str, int],
+    k_folds: int = 5,
+    eval_fn: Optional[Callable] = None,
+    seed: int = 42,
+) -> Dict[str, float]:
+    index_map = {eid: i for i, eid in enumerate(graph.entity_ids)}
+    valid_entities = [(eid, label) for eid, label in labels.items() if eid in index_map]
+
+    if k_folds < 2:
+        raise ValueError(f"k_folds must be >= 2, got {k_folds}")
+    if len(valid_entities) < k_folds:
+        raise ValueError(f"Not enough labeled entities ({len(valid_entities)}) for {k_folds}-fold CV")
+
+    rng = np.random.default_rng(seed)
+    perm = rng.permutation(len(valid_entities))
+    fold_size = len(valid_entities) // k_folds
+
+    all_accuracies = []
+    all_f1s = []
+
+    for fold in range(k_folds):
+        test_start = fold * fold_size
+        test_end = test_start + fold_size if fold < k_folds - 1 else len(valid_entities)
+        test_indices = set(perm[test_start:test_end].tolist())
+
+        train_labels = {}
+        test_labels = {}
+        for idx, (eid, label) in enumerate(valid_entities):
+            if idx in test_indices:
+                test_labels[eid] = label
+            else:
+                train_labels[eid] = label
+
+        if eval_fn:
+            scores = eval_fn(graph, embeddings, train_labels, test_labels)
+        else:
+            scores = _simple_classify(graph, embeddings, train_labels, test_labels)
+
+        all_accuracies.append(scores.get("accuracy", 0.0))
+        all_f1s.append(scores.get("macro_f1", 0.0))
+
+    return {
+        "mean_accuracy": float(np.mean(all_accuracies)),
+        "std_accuracy": float(np.std(all_accuracies)),
+        "mean_macro_f1": float(np.mean(all_f1s)),
+        "std_macro_f1": float(np.std(all_f1s)),
+        "fold_accuracies": all_accuracies,
+        "k_folds": k_folds,
+    }
+
+
+def _simple_classify(graph, embeddings, train_labels, test_labels):
+    index_map = {eid: i for i, eid in enumerate(graph.entity_ids)}
+    classes = sorted(set(train_labels.values()))
+    centroids = {}
+    for c in classes:
+        vecs = [embeddings[index_map[eid]] for eid, label in train_labels.items() if label == c and eid in index_map]
+        if vecs:
+            centroids[c] = np.mean(vecs, axis=0)
+
+    correct = 0
+    total = 0
+    y_true = []
+    y_pred = []
+    for eid, true_label in test_labels.items():
+        idx = index_map.get(eid)
+        if idx is None:
+            continue
+        vec = embeddings[idx]
+        norm_v = np.linalg.norm(vec)
+        if norm_v < 1e-10:
+            continue
+        vec_n = vec / norm_v
+
+        best_sim = -2
+        best_class = classes[0]
+        for c, centroid in centroids.items():
+            cn = np.linalg.norm(centroid)
+            if cn < 1e-10:
+                continue
+            sim = float(np.dot(vec_n, centroid / cn))
+            if sim > best_sim:
+                best_sim = sim
+                best_class = c
+
+        y_true.append(true_label)
+        y_pred.append(best_class)
+        total += 1
+        if best_class == true_label:
+            correct += 1
+
+    accuracy = correct / max(total, 1)
+
+    per_class_f1 = []
+    all_classes = sorted(set(y_true + y_pred))
+    y_true_arr = np.array(y_true)
+    y_pred_arr = np.array(y_pred)
+    for c in all_classes:
+        tp = np.sum((y_pred_arr == c) & (y_true_arr == c))
+        fp = np.sum((y_pred_arr == c) & (y_true_arr != c))
+        fn = np.sum((y_pred_arr != c) & (y_true_arr == c))
+        precision = tp / max(tp + fp, 1)
+        recall = tp / max(tp + fn, 1)
+        f1 = 2 * precision * recall / max(precision + recall, 1e-10)
+        per_class_f1.append(f1)
+
+    return {"accuracy": accuracy, "macro_f1": float(np.mean(per_class_f1)) if per_class_f1 else 0.0}
 
 
 def _normalized_mutual_info(a: np.ndarray, b: np.ndarray, k: int) -> float:

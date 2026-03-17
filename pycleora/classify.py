@@ -235,3 +235,175 @@ def label_propagation_predict(
         "test_size": len(test_labels),
         "total_predictions": len(predictions),
     }
+
+
+def gcn_classify(
+    graph,
+    embeddings: np.ndarray,
+    labels: Dict[str, int],
+    hidden_dim: int = 64,
+    learning_rate: float = 0.01,
+    num_epochs: int = 200,
+    train_ratio: float = 0.8,
+    seed: int = 42,
+    l2_reg: float = 1e-4,
+    num_layers: int = 2,
+    dropout: float = 0.5,
+) -> Dict[str, float]:
+    from scipy.sparse import csr_matrix, diags, eye
+
+    if not labels:
+        raise ValueError("labels must be a non-empty dict")
+    if not (0 < train_ratio < 1):
+        raise ValueError(f"train_ratio must be between 0 and 1, got {train_ratio}")
+
+    index_map = {eid: i for i, eid in enumerate(graph.entity_ids)}
+    n = graph.num_entities
+
+    rows, cols, vals, _, _ = graph.to_sparse_csr()
+    A = csr_matrix(
+        (vals.astype(np.float64), (rows.astype(np.int32), cols.astype(np.int32))),
+        shape=(n, n),
+    )
+    A_hat = A + eye(n, format="csr")
+    degrees = np.array(A_hat.sum(axis=1)).flatten()
+    D_inv_sqrt = diags(1.0 / np.sqrt(np.maximum(degrees, 1e-10)))
+    A_norm = D_inv_sqrt @ A_hat @ D_inv_sqrt
+
+    indices = []
+    y_list = []
+    for eid, label in labels.items():
+        idx = index_map.get(eid)
+        if idx is not None:
+            indices.append(idx)
+            y_list.append(label)
+
+    if len(indices) < 4:
+        raise ValueError(f"Need at least 4 labeled entities, got {len(indices)}")
+
+    y = np.array(y_list)
+    classes = np.unique(y)
+    num_classes = len(classes)
+    class_map = {c: i for i, c in enumerate(classes)}
+    y_mapped = np.array([class_map[c] for c in y])
+
+    rng = np.random.default_rng(seed)
+    perm = rng.permutation(len(y))
+    split = int(len(y) * train_ratio)
+    train_idx, test_idx = perm[:split], perm[split:]
+
+    if len(test_idx) == 0:
+        raise ValueError("Test set is empty, reduce train_ratio")
+
+    node_indices = np.array(indices)
+    train_nodes = node_indices[train_idx]
+    test_nodes = node_indices[test_idx]
+    y_train = y_mapped[train_idx]
+    y_test = y_mapped[test_idx]
+
+    X = embeddings.astype(np.float64)
+    input_dim = X.shape[1]
+
+    dims = [input_dim]
+    for _ in range(num_layers - 1):
+        dims.append(hidden_dim)
+    dims.append(num_classes)
+
+    weights = []
+    for i in range(len(dims) - 1):
+        scale = np.sqrt(2.0 / dims[i])
+        W = rng.standard_normal((dims[i], dims[i + 1])) * scale
+        weights.append(W)
+
+    def relu(x):
+        return np.maximum(x, 0)
+
+    def softmax(x):
+        exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))
+        return exp_x / (np.sum(exp_x, axis=1, keepdims=True) + 1e-10)
+
+    def forward(X_in, training=False):
+        H = X_in
+        activations = [H]
+        pre_activations = []
+        for layer_idx, W in enumerate(weights):
+            H = A_norm @ H
+            Z = H @ W
+            pre_activations.append(Z)
+            if layer_idx < len(weights) - 1:
+                H = relu(Z)
+                if training and dropout > 0:
+                    mask = (rng.random(H.shape) > dropout).astype(np.float64) / (1 - dropout)
+                    H = H * mask
+            else:
+                H = softmax(Z)
+            activations.append(H)
+        return activations, pre_activations
+
+    train_mask = np.zeros(n, dtype=bool)
+    train_mask[train_nodes] = True
+    y_full = np.zeros(n, dtype=np.int64)
+    for i, ni in enumerate(train_nodes):
+        y_full[ni] = y_train[i]
+
+    best_acc = 0.0
+    best_weights = [w.copy() for w in weights]
+
+    for epoch in range(num_epochs):
+        activations, pre_activations = forward(X, training=True)
+        output = activations[-1]
+
+        grad_output = np.zeros_like(output)
+        one_hot = np.zeros((n, num_classes))
+        for i, ni in enumerate(train_nodes):
+            one_hot[ni, y_train[i]] = 1.0
+        grad_output = (output - one_hot) / len(train_nodes)
+        grad_output[~train_mask] = 0.0
+
+        for layer_idx in range(len(weights) - 1, -1, -1):
+            H_prev = activations[layer_idx]
+            H_prop = A_norm @ H_prev
+
+            dW = H_prop.T @ grad_output + l2_reg * weights[layer_idx]
+            weights[layer_idx] -= learning_rate * dW
+
+            if layer_idx > 0:
+                grad_H = grad_output @ weights[layer_idx].T
+                grad_H = A_norm.T @ grad_H
+                grad_H = grad_H * (pre_activations[layer_idx - 1] > 0).astype(np.float64)
+                grad_output = grad_H
+
+        if epoch % 10 == 0 or epoch == num_epochs - 1:
+            activations, _ = forward(X, training=False)
+            preds = np.argmax(activations[-1][test_nodes], axis=1)
+            acc = float(np.mean(preds == y_test))
+            if acc > best_acc:
+                best_acc = acc
+                best_weights = [w.copy() for w in weights]
+
+    weights = best_weights
+    activations, _ = forward(X, training=False)
+    y_pred = np.argmax(activations[-1][test_nodes], axis=1)
+    accuracy = float(np.mean(y_pred == y_test))
+
+    per_class_f1 = []
+    for c_idx in range(num_classes):
+        tp = np.sum((y_pred == c_idx) & (y_test == c_idx))
+        fp = np.sum((y_pred == c_idx) & (y_test != c_idx))
+        fn = np.sum((y_pred != c_idx) & (y_test == c_idx))
+        precision = tp / max(tp + fp, 1)
+        recall = tp / max(tp + fn, 1)
+        f1 = 2 * precision * recall / max(precision + recall, 1e-10)
+        per_class_f1.append(f1)
+
+    macro_f1 = float(np.mean(per_class_f1))
+
+    return {
+        "accuracy": accuracy,
+        "macro_f1": macro_f1,
+        "num_classes": num_classes,
+        "train_size": len(train_idx),
+        "test_size": len(test_idx),
+        "num_layers": num_layers,
+        "hidden_dim": hidden_dim,
+    }

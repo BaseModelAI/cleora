@@ -675,6 +675,77 @@ def find_most_similar(
     return results
 
 
+def embed_edge_features(
+    graph: SparseMatrix,
+    edge_features: Dict[str, np.ndarray],
+    feature_dim: int = 128,
+    num_iterations: int = 4,
+    propagation: str = "left",
+    normalization: str = "l2",
+    combine: str = "concat",
+    num_workers: Optional[int] = None,
+) -> np.ndarray:
+    from scipy.sparse import csr_matrix, diags
+
+    _validate_propagation(propagation)
+
+    struct_emb = embed(
+        graph, feature_dim=feature_dim, num_iterations=num_iterations,
+        propagation=propagation, normalization=normalization, num_workers=num_workers,
+    )
+
+    if not edge_features:
+        return struct_emb
+
+    sample_feat = next(iter(edge_features.values()))
+    edge_feat_dim = len(sample_feat)
+
+    rows, cols, vals, n, _ = graph.to_sparse_csr(propagation)
+    index_map = {eid: i for i, eid in enumerate(graph.entity_ids)}
+
+    node_feats = np.zeros((n, edge_feat_dim), dtype=np.float64)
+    node_counts = np.zeros(n, dtype=np.float64)
+
+    for edge_key, feat in edge_features.items():
+        parts = edge_key.strip().split()
+        if len(parts) == 2:
+            ia = index_map.get(parts[0])
+            ib = index_map.get(parts[1])
+            if ia is not None and ib is not None:
+                feat_arr = np.array(feat, dtype=np.float64)
+                node_feats[ia] += feat_arr
+                node_feats[ib] += feat_arr
+                node_counts[ia] += 1
+                node_counts[ib] += 1
+
+    node_counts = np.maximum(node_counts, 1.0)
+    node_feats /= node_counts[:, None]
+
+    adj = csr_matrix(
+        (vals.astype(np.float64), (rows.astype(np.int32), cols.astype(np.int32))),
+        shape=(n, n),
+    )
+
+    H = node_feats
+    for _ in range(num_iterations):
+        H = (adj @ H)
+        feat_norms = np.linalg.norm(H, axis=1, keepdims=True)
+        feat_norms = np.maximum(feat_norms, 1e-10)
+        H = H / feat_norms
+
+    edge_emb = H.astype(np.float32)
+
+    if combine == "concat":
+        return np.concatenate([struct_emb, edge_emb], axis=1)
+    elif combine == "mean":
+        min_dim = min(struct_emb.shape[1], edge_emb.shape[1])
+        return (struct_emb[:, :min_dim] + edge_emb[:, :min_dim]) / 2.0
+    elif combine == "edge_only":
+        return edge_emb
+    else:
+        raise ValueError(f"Unknown combine mode: '{combine}'. Use 'concat', 'mean', or 'edge_only'.")
+
+
 def _normalize(embeddings: np.ndarray, method: str) -> np.ndarray:
     if method == "l2":
         norms = np.linalg.norm(embeddings, ord=2, axis=-1, keepdims=True)

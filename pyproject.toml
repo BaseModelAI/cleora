@@ -10,14 +10,17 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
-version = "2.1.0"
-description = "Sparse hypergraph structure and markov-propagation for node embeddings embeddings exposed via Python bindings."
+version = "3.0.0"
+description = "Fast CPU-only graph embedding library with Rust core. Supports Cleora, DeepWalk, Node2Vec, ProNE, GCN, and more."
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
     { name = "Jacek Dabrowski", email = "jack.dabrowski@synerise.com" }
 ]
 license = { file = "LICENSE" }
 
+
+[project.scripts]
+pycleora = "pycleora.cli:main"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
