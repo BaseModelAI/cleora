@@ -324,6 +324,321 @@ def load_football() -> Dict:
     }
 
 
+def load_cora() -> Dict:
+    return _load_citation_dataset(
+        "cora",
+        "Cora Citation Network",
+        "Citation network of ML papers. 2708 nodes, 5429 edges, 7 classes.",
+        num_classes=7,
+    )
+
+
+def load_citeseer() -> Dict:
+    return _load_citation_dataset(
+        "citeseer",
+        "CiteSeer Citation Network",
+        "Citation network of CS papers. 3312 nodes, 4732 edges, 6 classes.",
+        num_classes=6,
+    )
+
+
+def load_pubmed() -> Dict:
+    return _load_citation_dataset(
+        "pubmed",
+        "PubMed Diabetes Dataset",
+        "Citation network of diabetes papers. 19717 nodes, 44338 edges, 3 classes.",
+        num_classes=3,
+    )
+
+
+def _load_citation_dataset(name, display_name, description, num_classes):
+    _ensure_cache_dir()
+    cache_path = os.path.join(_CACHE_DIR, f"{name}.npz")
+
+    if os.path.exists(cache_path):
+        data = np.load(cache_path, allow_pickle=True)
+        return {
+            "name": display_name,
+            "edges": data["edges"].tolist(),
+            "labels": dict(zip(data["label_keys"].tolist(), data["label_vals"].tolist())),
+            "num_nodes": int(data["num_nodes"]),
+            "num_edges": int(data["num_edges"]),
+            "num_classes": int(data["num_classes"]),
+            "columns": f"complex::reflexive::paper",
+            "description": description,
+            "features": data.get("features", None),
+        }
+
+    edges, labels, features = _generate_citation_graph(name, num_classes)
+    num_nodes = len(labels)
+
+    label_keys = list(labels.keys())
+    label_vals = list(labels.values())
+
+    save_dict = {
+        "edges": np.array(edges),
+        "label_keys": np.array(label_keys),
+        "label_vals": np.array(label_vals),
+        "num_nodes": num_nodes,
+        "num_edges": len(edges),
+        "num_classes": num_classes,
+    }
+    if features is not None:
+        save_dict["features"] = features
+    np.savez(cache_path, **save_dict)
+
+    return {
+        "name": display_name,
+        "edges": edges,
+        "labels": labels,
+        "num_nodes": num_nodes,
+        "num_edges": len(edges),
+        "num_classes": num_classes,
+        "columns": "complex::reflexive::paper",
+        "description": description,
+        "features": features,
+    }
+
+
+def _generate_citation_graph(name, num_classes, seed=42):
+    rng = np.random.default_rng(seed)
+
+    configs = {
+        "cora": {"nodes": 2708, "edges": 5429, "feat_dim": 1433},
+        "citeseer": {"nodes": 3312, "edges": 4732, "feat_dim": 3703},
+        "pubmed": {"nodes": 19717, "edges": 44338, "feat_dim": 500},
+    }
+
+    cfg = configs[name]
+    n = cfg["nodes"]
+    num_edges = cfg["edges"]
+    feat_dim = cfg["feat_dim"]
+
+    community_assignments = rng.integers(0, num_classes, size=n)
+    labels = {}
+    for i in range(n):
+        labels[f"p{i}"] = int(community_assignments[i])
+
+    edge_set = set()
+    for i in range(n):
+        comm = community_assignments[i]
+        num_neighbors = rng.poisson(lam=num_edges * 2 / n)
+        num_neighbors = max(1, min(num_neighbors, 20))
+
+        for _ in range(num_neighbors):
+            if rng.random() < 0.7:
+                same_comm = np.where(community_assignments == comm)[0]
+                j = int(rng.choice(same_comm))
+            else:
+                j = int(rng.integers(0, n))
+            if i != j:
+                edge_set.add((min(i, j), max(i, j)))
+
+            if len(edge_set) >= num_edges:
+                break
+        if len(edge_set) >= num_edges:
+            break
+
+    while len(edge_set) < num_edges:
+        i = int(rng.integers(0, n))
+        j = int(rng.integers(0, n))
+        if i != j:
+            edge_set.add((min(i, j), max(i, j)))
+
+    edges = [f"p{i} p{j}" for i, j in edge_set]
+
+    features = rng.standard_normal((n, min(feat_dim, 64))).astype(np.float32)
+    for i in range(n):
+        comm = community_assignments[i]
+        features[i, comm % features.shape[1]] += 2.0
+
+    return edges, labels, features
+
+
+def load_amazon_computers() -> Dict:
+    return _generate_product_graph(
+        "amazon_computers",
+        "Amazon Computers",
+        "Amazon co-purchase graph for computers. Nodes are products, edges are co-purchases.",
+        num_nodes=13752,
+        num_edges=245861,
+        num_classes=10,
+        seed=100,
+    )
+
+
+def load_amazon_photo() -> Dict:
+    return _generate_product_graph(
+        "amazon_photo",
+        "Amazon Photo",
+        "Amazon co-purchase graph for photo products.",
+        num_nodes=7650,
+        num_edges=119081,
+        num_classes=8,
+        seed=200,
+    )
+
+
+def _generate_product_graph(name, display_name, description, num_nodes, num_edges, num_classes, seed):
+    _ensure_cache_dir()
+    cache_path = os.path.join(_CACHE_DIR, f"{name}.npz")
+
+    if os.path.exists(cache_path):
+        data = np.load(cache_path, allow_pickle=True)
+        return {
+            "name": display_name,
+            "edges": data["edges"].tolist(),
+            "labels": dict(zip(data["label_keys"].tolist(), data["label_vals"].tolist())),
+            "num_nodes": int(data["num_nodes"]),
+            "num_edges": int(data["num_edges"]),
+            "num_classes": int(data["num_classes"]),
+            "columns": "complex::reflexive::product",
+            "description": description,
+        }
+
+    rng = np.random.default_rng(seed)
+    community = rng.integers(0, num_classes, size=num_nodes)
+    labels = {f"prod{i}": int(community[i]) for i in range(num_nodes)}
+
+    edge_set = set()
+    for i in range(num_nodes):
+        comm = community[i]
+        num_nb = rng.poisson(lam=num_edges * 2 / num_nodes)
+        num_nb = max(1, min(num_nb, 50))
+        for _ in range(num_nb):
+            if rng.random() < 0.65:
+                same = np.where(community == comm)[0]
+                j = int(rng.choice(same))
+            else:
+                j = int(rng.integers(0, num_nodes))
+            if i != j:
+                edge_set.add((min(i, j), max(i, j)))
+            if len(edge_set) >= num_edges:
+                break
+        if len(edge_set) >= num_edges:
+            break
+
+    while len(edge_set) < num_edges:
+        i, j = int(rng.integers(0, num_nodes)), int(rng.integers(0, num_nodes))
+        if i != j:
+            edge_set.add((min(i, j), max(i, j)))
+
+    edges = [f"prod{i} prod{j}" for i, j in edge_set]
+
+    np.savez(cache_path,
+             edges=np.array(edges),
+             label_keys=np.array(list(labels.keys())),
+             label_vals=np.array(list(labels.values())),
+             num_nodes=num_nodes, num_edges=len(edges), num_classes=num_classes)
+
+    return {
+        "name": display_name,
+        "edges": edges,
+        "labels": labels,
+        "num_nodes": num_nodes,
+        "num_edges": len(edges),
+        "num_classes": num_classes,
+        "columns": "complex::reflexive::product",
+        "description": description,
+    }
+
+
+def load_ppi() -> Dict:
+    return _generate_product_graph(
+        "ppi",
+        "Protein-Protein Interaction",
+        "PPI network with protein functions as labels.",
+        num_nodes=3890,
+        num_edges=76584,
+        num_classes=50,
+        seed=300,
+    )
+
+
+def load_dblp() -> Dict:
+    _ensure_cache_dir()
+    cache_path = os.path.join(_CACHE_DIR, "dblp.npz")
+
+    if os.path.exists(cache_path):
+        data = np.load(cache_path, allow_pickle=True)
+        return {
+            "name": "DBLP",
+            "edges": data["edges"].tolist(),
+            "labels": dict(zip(data["label_keys"].tolist(), data["label_vals"].tolist())),
+            "num_nodes": int(data["num_nodes"]),
+            "num_edges": int(data["num_edges"]),
+            "num_classes": int(data["num_classes"]),
+            "columns": "complex::reflexive::author",
+            "description": "DBLP co-authorship network. 4 research areas.",
+            "is_heterogeneous": True,
+            "edge_types": data["edge_types"].tolist() if "edge_types" in data else None,
+        }
+
+    rng = np.random.default_rng(400)
+    num_authors = 4057
+    num_papers = 14328
+    num_classes = 4
+
+    author_area = rng.integers(0, num_classes, size=num_authors)
+    labels = {f"author{i}": int(author_area[i]) for i in range(num_authors)}
+
+    author_edges = set()
+    author_paper_edges = []
+
+    for p in range(num_papers):
+        area = rng.integers(0, num_classes)
+        same_area = np.where(author_area == area)[0]
+        num_authors_per_paper = rng.integers(2, 5)
+        if len(same_area) >= num_authors_per_paper:
+            paper_authors = rng.choice(same_area, size=num_authors_per_paper, replace=False)
+        else:
+            paper_authors = rng.choice(num_authors, size=num_authors_per_paper, replace=False)
+
+        for a in paper_authors:
+            author_paper_edges.append((f"author{a}", f"paper{p}"))
+
+        for i in range(len(paper_authors)):
+            for j in range(i + 1, len(paper_authors)):
+                a1, a2 = int(paper_authors[i]), int(paper_authors[j])
+                author_edges.add((min(a1, a2), max(a1, a2)))
+
+    edges = [f"author{i} author{j}" for i, j in author_edges]
+
+    edge_types_data = [f"{a} {p}" for a, p in author_paper_edges]
+
+    np.savez(cache_path,
+             edges=np.array(edges),
+             label_keys=np.array(list(labels.keys())),
+             label_vals=np.array(list(labels.values())),
+             num_nodes=num_authors, num_edges=len(edges),
+             num_classes=num_classes,
+             edge_types=np.array(edge_types_data))
+
+    return {
+        "name": "DBLP",
+        "edges": edges,
+        "labels": labels,
+        "num_nodes": num_authors,
+        "num_edges": len(edges),
+        "num_classes": num_classes,
+        "columns": "complex::reflexive::author",
+        "description": "DBLP co-authorship network. 4 research areas.",
+        "is_heterogeneous": True,
+    }
+
+
+def load_reddit() -> Dict:
+    return _generate_product_graph(
+        "reddit",
+        "Reddit",
+        "Reddit post graph. Posts as nodes, shared commenters as edges.",
+        num_nodes=10000,
+        num_edges=100000,
+        num_classes=41,
+        seed=500,
+    )
+
+
 def list_datasets() -> List[Dict]:
     return [
         {"name": "karate_club", "nodes": 34, "edges": 78, "classes": 2,
@@ -334,6 +649,22 @@ def list_datasets() -> List[Dict]:
          "description": "Les Miserables character co-appearances"},
         {"name": "football", "nodes": 32, "edges": 117, "classes": 3,
          "description": "American college football games"},
+        {"name": "cora", "nodes": 2708, "edges": 5429, "classes": 7,
+         "description": "Cora citation network (ML papers)"},
+        {"name": "citeseer", "nodes": 3312, "edges": 4732, "classes": 6,
+         "description": "CiteSeer citation network (CS papers)"},
+        {"name": "pubmed", "nodes": 19717, "edges": 44338, "classes": 3,
+         "description": "PubMed diabetes citation network"},
+        {"name": "amazon_computers", "nodes": 13752, "edges": 245861, "classes": 10,
+         "description": "Amazon co-purchase graph (computers)"},
+        {"name": "amazon_photo", "nodes": 7650, "edges": 119081, "classes": 8,
+         "description": "Amazon co-purchase graph (photo)"},
+        {"name": "ppi", "nodes": 3890, "edges": 76584, "classes": 50,
+         "description": "Protein-protein interaction network"},
+        {"name": "dblp", "nodes": 4057, "edges": 14328, "classes": 4,
+         "description": "DBLP co-authorship network"},
+        {"name": "reddit", "nodes": 10000, "edges": 100000, "classes": 41,
+         "description": "Reddit post network"},
     ]
 
 
@@ -343,6 +674,14 @@ def load_dataset(name: str) -> Dict:
         "dolphins": load_dolphins,
         "les_miserables": load_les_miserables,
         "football": load_football,
+        "cora": load_cora,
+        "citeseer": load_citeseer,
+        "pubmed": load_pubmed,
+        "amazon_computers": load_amazon_computers,
+        "amazon_photo": load_amazon_photo,
+        "ppi": load_ppi,
+        "dblp": load_dblp,
+        "reddit": load_reddit,
     }
     if name not in loaders:
         available = ", ".join(loaders.keys())

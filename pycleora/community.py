@@ -99,69 +99,68 @@ def detect_communities_louvain(
     rows, cols, vals, n, _ = graph.to_sparse_csr()
 
     adj = {}
-    total_weight = 0.0
     degrees = np.zeros(n, dtype=np.float64)
+    total_weight = 0.0
 
     for r, c, v in zip(rows, cols, vals):
-        r, c = int(r), int(c)
-        v = float(v)
-        if r not in adj:
-            adj[r] = {}
-        adj[r][c] = adj[r].get(c, 0) + v
-        degrees[r] += v
-        total_weight += v
+        ri, ci = int(r), int(c)
+        if ri == ci:
+            continue
+        w = 1.0
+        if ri not in adj:
+            adj[ri] = {}
+        adj[ri][ci] = adj[ri].get(ci, 0.0) + w
+        degrees[ri] += w
+        total_weight += w
 
     if total_weight < 1e-10:
         return {eid: 0 for eid in graph.entity_ids}
 
-    m2 = total_weight
-
+    m = total_weight / 2.0
     community = list(range(n))
+    sigma_tot = {i: degrees[i] for i in range(n)}
 
     improved = True
-    while improved:
+    max_passes = 50
+    pass_count = 0
+
+    while improved and pass_count < max_passes:
         improved = False
+        pass_count += 1
         for node in range(n):
             current_comm = community[node]
-            best_comm = current_comm
-            best_gain = 0.0
-
-            neighbors = adj.get(node, {})
-            neighbor_comms = set()
-            for nb in neighbors:
-                neighbor_comms.add(community[nb])
-            neighbor_comms.add(current_comm)
-
             ki = degrees[node]
+            neighbors = adj.get(node, {})
 
-            for comm in neighbor_comms:
-                sum_in = 0.0
-                sum_tot = 0.0
-                ki_in = 0.0
+            ki_in = {}
+            for nb, w in neighbors.items():
+                c = community[nb]
+                ki_in[c] = ki_in.get(c, 0.0) + w
 
-                for i in range(n):
-                    if community[i] == comm:
-                        sum_tot += degrees[i]
-                        if i != node:
-                            for nb, w in adj.get(i, {}).items():
-                                if community[nb] == comm:
-                                    sum_in += w
+            sigma_tot[current_comm] -= ki
 
-                for nb, w in neighbors.items():
-                    if community[nb] == comm:
-                        ki_in += w
+            best_comm = current_comm
+            best_delta = 0.0
 
+            ki_in_current = ki_in.get(current_comm, 0.0)
+            delta_remove = ki_in_current / m - resolution * ki * sigma_tot.get(current_comm, 0.0) / (2.0 * m * m)
+
+            for comm, ki_in_c in ki_in.items():
                 if comm == current_comm:
                     continue
-
-                gain = (ki_in - resolution * ki * sum_tot / m2)
-                if gain > best_gain:
-                    best_gain = gain
+                sigma_c = sigma_tot.get(comm, 0.0)
+                delta_add = ki_in_c / m - resolution * ki * sigma_c / (2.0 * m * m)
+                delta = delta_add - delta_remove
+                if delta > best_delta:
+                    best_delta = delta
                     best_comm = comm
 
             if best_comm != current_comm:
                 community[node] = best_comm
+                sigma_tot[best_comm] = sigma_tot.get(best_comm, 0.0) + ki
                 improved = True
+            else:
+                sigma_tot[current_comm] += ki
 
     label_map = {}
     next_label = 0
@@ -181,13 +180,20 @@ def detect_communities_louvain(
 
 def modularity(graph, communities: Dict[str, int]) -> float:
     rows, cols, vals, n, _ = graph.to_sparse_csr()
-    total_weight = float(np.sum(vals))
+    degrees = np.zeros(n, dtype=np.float64)
+    total_weight = 0.0
+    edge_list = []
+
+    for r, c in zip(rows, cols):
+        ri, ci = int(r), int(c)
+        if ri == ci:
+            continue
+        edge_list.append((ri, ci))
+        degrees[ri] += 1.0
+        total_weight += 1.0
+
     if total_weight < 1e-10:
         return 0.0
-
-    degrees = np.zeros(n, dtype=np.float64)
-    for r, v in zip(rows, vals):
-        degrees[int(r)] += float(v)
 
     index_map = {eid: i for i, eid in enumerate(graph.entity_ids)}
     comm_arr = np.zeros(n, dtype=np.int32)
@@ -197,9 +203,8 @@ def modularity(graph, communities: Dict[str, int]) -> float:
             comm_arr[idx] = comm
 
     Q = 0.0
-    for r, c, v in zip(rows, cols, vals):
-        r, c = int(r), int(c)
-        if comm_arr[r] == comm_arr[c]:
-            Q += float(v) - degrees[r] * degrees[c] / total_weight
+    for ri, ci in edge_list:
+        if comm_arr[ri] == comm_arr[ci]:
+            Q += 1.0 - degrees[ri] * degrees[ci] / total_weight
 
     return float(Q / total_weight)
