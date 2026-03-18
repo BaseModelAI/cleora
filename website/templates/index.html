@@ -128,23 +128,94 @@
     </div>
 </section>
 
+<section class="section case-study-section">
+    <div class="section-header scroll-reveal">
+        <div class="section-badge">Case Study</div>
+        <h2>How Zomato Replaced GraphSAGE with Cleora</h2>
+        <p>From 20 hours to under 5 minutes — powering recommendations for 80M+ users across 500+ cities</p>
+    </div>
+
+    <div class="case-study scroll-reveal">
+        <div class="case-study-header">
+            <div class="case-study-logo">Zomato</div>
+            <a href="https://www.zomato.com/blog/connecting-the-dots-strengthening-recommendations-for-our-customers-part-two/" target="_blank" class="case-study-link">Read the full blog post &rarr;</a>
+        </div>
+
+        <div class="case-study-problem">
+            <h3>The Problem</h3>
+            <p>Zomato's ML team needed graph embeddings to power "People Like You" restaurant recommendations. Their initial approach with <strong>GraphSAGE took ~20 hours</strong> just to process customer-restaurant interaction data for a single city region — making it impossible to scale across 500+ cities.</p>
+        </div>
+
+        <div class="case-study-flow">
+            <div class="flow-step scroll-reveal">
+                <div class="flow-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                </div>
+                <div>
+                    <h4>Customer-Restaurant Graph</h4>
+                    <p>Bipartite graph of customer orders and restaurant interactions across the Zomato platform</p>
+                </div>
+            </div>
+            <div class="flow-arrow scroll-reveal">&darr;</div>
+            <div class="flow-step scroll-reveal" data-delay="100">
+                <div class="flow-icon highlight-flow">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                </div>
+                <div>
+                    <h4>Cleora Embeddings <span class="flow-time">&lt; 5 minutes</span></h4>
+                    <p>197x faster than DeepWalk. No sampling of positive/negative examples. Purely structure-based — iterative weighted averaging of neighbor embeddings + L2 normalization.</p>
+                </div>
+            </div>
+            <div class="flow-arrow scroll-reveal">&darr;</div>
+            <div class="flow-step scroll-reveal" data-delay="200">
+                <div class="flow-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                </div>
+                <div>
+                    <h4>EMDE Density Estimation</h4>
+                    <p>Customer preferences modeled as probability density functions. Locality-sensitive hashing compresses multiple embedding vectors into single representations.</p>
+                </div>
+            </div>
+            <div class="flow-arrow scroll-reveal">&darr;</div>
+            <div class="flow-step scroll-reveal" data-delay="300">
+                <div class="flow-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+                </div>
+                <div>
+                    <h4>Production Recommendations</h4>
+                    <p>Restaurant recommendations, search ranking, dish suggestions, and "People Like You" lookalikes — all powered by Cleora embeddings across 500+ cities.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="case-study-results">
+            <div class="result-metric scroll-reveal">
+                <div class="result-value">197x</div>
+                <div class="result-label">faster than DeepWalk</div>
+            </div>
+            <div class="result-metric scroll-reveal" data-delay="100">
+                <div class="result-value">&lt; 5 min</div>
+                <div class="result-label">embedding generation</div>
+            </div>
+            <div class="result-metric scroll-reveal" data-delay="200">
+                <div class="result-value">500+</div>
+                <div class="result-label">cities scaled to</div>
+            </div>
+            <div class="result-metric scroll-reveal" data-delay="300">
+                <div class="result-value">0</div>
+                <div class="result-label">GPUs required</div>
+            </div>
+        </div>
+    </div>
+</section>
+
 <section class="section social-proof-section">
     <div class="section-header scroll-reveal">
-        <div class="section-badge">Production-Proven</div>
-        <h2>Trusted by Engineering Teams Worldwide</h2>
-        <p>From food delivery to video streaming, Cleora powers recommendations at scale</p>
+        <div class="section-badge">Also Used By</div>
+        <h2>Trusted in Production Worldwide</h2>
     </div>
     <div class="testimonials-grid">
         <div class="testimonial-card scroll-reveal">
-            <div class="testimonial-quote">
-                "Embedding generation was superfast (under 5 minutes). GraphSAGE took ~20 hours for the same data. Cleora gave us customer lookalikes at a fraction of the cost."
-            </div>
-            <div class="testimonial-source">
-                <div class="testimonial-company">Zomato</div>
-                <div class="testimonial-role">Food delivery, 80M+ users</div>
-            </div>
-        </div>
-        <div class="testimonial-card scroll-reveal" data-delay="150">
             <div class="testimonial-quote">
                 "Personalized video recommendations with improved relevance and catalog coverage. Cleora embeddings integrated seamlessly into our existing ML pipeline."
             </div>
@@ -153,7 +224,7 @@
                 <div class="testimonial-role">Video platform, 350M+ monthly visitors</div>
             </div>
         </div>
-        <div class="testimonial-card scroll-reveal" data-delay="300">
+        <div class="testimonial-card scroll-reveal" data-delay="150">
             <div class="testimonial-quote">
                 "2nd place in the Booking.com WSDM WebTour challenge. Cleora embeddings for travel destination sequences outperformed deep learning approaches."
             </div>
