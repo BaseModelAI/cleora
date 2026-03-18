@@ -1,3 +1,51 @@
+@font-face {
+    font-family: 'Graphik';
+    src: url('/static/fonts/Graphik-Light.otf') format('opentype');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Graphik';
+    src: url('/static/fonts/Graphik-Regular.otf') format('opentype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Graphik';
+    src: url('/static/fonts/Graphik-Medium.otf') format('opentype');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Graphik';
+    src: url('/static/fonts/Graphik-Semibold.otf') format('opentype');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Graphik';
+    src: url('/static/fonts/Graphik-Bold.otf') format('opentype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Graphik';
+    src: url('/static/fonts/Graphik-Black.otf') format('opentype');
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+}
+
 :root {
     --bg: #0a0a0f;
     --bg-card: #12121a;
@@ -16,7 +64,7 @@
     --orange: #f59e0b;
     --red: #ef4444;
     --blue: #3b82f6;
-    --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font: 'Graphik', -apple-system, BlinkMacSystemFont, sans-serif;
     --mono: 'JetBrains Mono', 'Fira Code', monospace;
     --radius: 12px;
     --radius-sm: 8px;
@@ -62,13 +110,17 @@ nav {
 .nav-brand {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     color: #fff;
     font-weight: 700;
     font-size: 1.1rem;
 }
 
-.brand-icon { font-size: 1.4rem; color: var(--accent); }
+.brand-logo {
+    height: 24px;
+    width: auto;
+}
+
 .brand-version {
     font-size: 0.7rem;
     background: var(--accent);
