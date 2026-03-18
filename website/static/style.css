@@ -1236,6 +1236,11 @@ footer {
     margin-bottom: 40px;
 }
 
+.bench-grid-3x2 {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
 .bench-highlight-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -1368,6 +1373,69 @@ footer {
     margin-top: 8px;
     padding-top: 12px;
     border-top: 1px solid var(--border);
+}
+
+/* MEMORY STRIP */
+.bench-memory-strip {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin-bottom: 20px;
+}
+
+.bench-memory-strip h4 {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+    font-weight: 500;
+}
+
+.memory-strip-items {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+}
+
+.memory-strip-item {
+    text-align: center;
+    padding: 12px 8px;
+    background: rgba(255,255,255,0.02);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(255,255,255,0.04);
+}
+
+.memory-strip-dataset {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+
+.memory-strip-dataset span {
+    color: var(--text-dim);
+    font-weight: 400;
+    font-size: 0.75rem;
+}
+
+.memory-strip-compare {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    margin-bottom: 4px;
+}
+
+.memory-strip-compare strong {
+    color: var(--green);
+    font-weight: 600;
+}
+
+.memory-strip-factor {
+    font-size: 0.72rem;
+    color: var(--accent-bright);
+    font-weight: 600;
 }
 
 /* COMPARISON TABLE HIGHLIGHT COL */
@@ -1719,6 +1787,8 @@ footer {
     .advantages-grid { grid-template-columns: 1fr; }
     .testimonials-grid { grid-template-columns: 1fr; }
     .bench-highlights { grid-template-columns: 1fr; }
+    .bench-grid-3x2 { grid-template-columns: repeat(2, 1fr); }
+    .memory-strip-items { grid-template-columns: repeat(3, 1fr); }
     .stats-bar { grid-template-columns: repeat(2, 1fr); }
     .hero h1 { font-size: 2.4rem; }
     .docs-layout { grid-template-columns: 1fr; }
@@ -1758,6 +1828,8 @@ footer {
     .how-step { padding: 16px; gap: 12px; }
     .step-number { font-size: 1.4rem; min-width: 36px; }
     .arch-modules { grid-template-columns: 1fr; }
+    .bench-grid-3x2 { grid-template-columns: 1fr; }
+    .memory-strip-items { grid-template-columns: repeat(2, 1fr); }
     .chart-container, .chart-container-lg { height: 300px; }
     .features-category-header { flex-direction: column; gap: 12px; }
     .features-tag-grid { gap: 8px; }

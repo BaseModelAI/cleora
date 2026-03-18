@@ -332,12 +332,12 @@
     <div class="section-header scroll-reveal">
         <div class="section-badge">Benchmarks</div>
         <h2>Real Numbers, Real Datasets</h2>
-        <p>Tested on SNAP datasets from 4K to 5M nodes. Cleora wins on accuracy and scales linearly.</p>
+        <p>Tested on real-world graphs from 4K to 2M+ nodes. Cleora wins on accuracy, speed, and memory.</p>
     </div>
 
-    <div class="bench-highlights">
+    <div class="bench-highlights bench-grid-3x2">
         <div class="bench-highlight-card scroll-reveal">
-            <h3>ego-Facebook <span class="bench-meta">4,039 nodes &middot; 88K edges</span></h3>
+            <h3>ego-Facebook <span class="bench-meta">4K nodes &middot; 88K edges &middot; Accuracy</span></h3>
             <div class="bench-bars">
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
                     <span class="bench-bar-label">Cleora</span>
@@ -376,11 +376,183 @@
                     <span class="bench-bar-time">51.4s</span>
                 </div>
             </div>
-            <div class="bench-insight">Cleora: highest accuracy <em>and</em> 170x faster than Node2Vec</div>
+            <div class="bench-insight">Highest accuracy <em>and</em> 170x faster than Node2Vec</div>
+        </div>
+
+        <div class="bench-highlight-card scroll-reveal" data-delay="50">
+            <h3>PPI-large <span class="bench-meta">57K nodes &middot; 793K edges &middot; Speed</span></h3>
+            <div class="bench-bars">
+                <div class="bench-bar-row scroll-reveal" data-delay="0">
+                    <span class="bench-bar-label">Cleora</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill bench-bar-best" data-width="95" style="width: 0%">
+                            <span class="bench-bar-value">0.33s</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">28 MB</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="50">
+                    <span class="bench-bar-label">RandNE</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill" data-width="65" style="width: 0%">
+                            <span class="bench-bar-value">1.07s</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">291 MB</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="100">
+                    <span class="bench-bar-label">ProNE</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill" data-width="25" style="width: 0%">
+                            <span class="bench-bar-value">8.34s</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">458 MB</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="150">
+                    <span class="bench-bar-label">NetMF</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill bench-bar-fail" data-width="10" style="width: 0%">
+                            <span class="bench-bar-value">OOM</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">&#x2715;</span>
+                </div>
+            </div>
+            <div class="bench-insight"><em>25x faster</em> than ProNE, using <em>16x less memory</em></div>
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="100">
-            <h3>roadNet-CA <span class="bench-meta">1.96M nodes &middot; 5.5M edges</span></h3>
+            <h3>Flickr <span class="bench-meta">89K nodes &middot; 899K edges &middot; Accuracy</span></h3>
+            <div class="bench-bars">
+                <div class="bench-bar-row scroll-reveal" data-delay="0">
+                    <span class="bench-bar-label">Cleora</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill bench-bar-best" data-width="90" style="width: 0%">
+                            <span class="bench-bar-value">0.158</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">0.47s</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="50">
+                    <span class="bench-bar-label">RandNE</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill" data-width="83" style="width: 0%">
+                            <span class="bench-bar-value">0.146</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">1.33s</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="100">
+                    <span class="bench-bar-label">ProNE</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill" data-width="79" style="width: 0%">
+                            <span class="bench-bar-value">0.139</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">5.57s</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="150">
+                    <span class="bench-bar-label">Others</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill bench-bar-fail" data-width="10" style="width: 0%">
+                            <span class="bench-bar-value">OOM</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">&#x2715;</span>
+                </div>
+            </div>
+            <div class="bench-insight">Best accuracy <em>and</em> <em>12x faster</em> than ProNE</div>
+        </div>
+
+        <div class="bench-highlight-card scroll-reveal" data-delay="150">
+            <h3>ogbn-arxiv <span class="bench-meta">169K nodes &middot; 1.2M edges &middot; Accuracy + Memory</span></h3>
+            <div class="bench-bars">
+                <div class="bench-bar-row scroll-reveal" data-delay="0">
+                    <span class="bench-bar-label">Cleora</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill bench-bar-best" data-width="92" style="width: 0%">
+                            <span class="bench-bar-value">0.038</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">83 MB</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="50">
+                    <span class="bench-bar-label">RandNE</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill" data-width="73" style="width: 0%">
+                            <span class="bench-bar-value">0.030</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">807 MB</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="100">
+                    <span class="bench-bar-label">ProNE</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill" data-width="63" style="width: 0%">
+                            <span class="bench-bar-value">0.026</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">1.3 GB</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="150">
+                    <span class="bench-bar-label">Others</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill bench-bar-fail" data-width="10" style="width: 0%">
+                            <span class="bench-bar-value">OOM</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">&#x2715;</span>
+                </div>
+            </div>
+            <div class="bench-insight">Top accuracy with <em>16x less memory</em> than ProNE (83 MB vs 1.3 GB)</div>
+        </div>
+
+        <div class="bench-highlight-card scroll-reveal" data-delay="200">
+            <h3>Yelp <span class="bench-meta">717K nodes &middot; 13.9M edges &middot; Scale</span></h3>
+            <div class="bench-bars">
+                <div class="bench-bar-row scroll-reveal" data-delay="0">
+                    <span class="bench-bar-label">Cleora</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill bench-bar-best" data-width="95" style="width: 0%">
+                            <span class="bench-bar-value">3.3s</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">350 MB</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="50">
+                    <span class="bench-bar-label">ProNE</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill bench-bar-fail" data-width="10" style="width: 0%">
+                            <span class="bench-bar-value">OOM</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">&#x2715;</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="100">
+                    <span class="bench-bar-label">RandNE</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill bench-bar-fail" data-width="10" style="width: 0%">
+                            <span class="bench-bar-value">OOM</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">&#x2715;</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="150">
+                    <span class="bench-bar-label">NetMF</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill bench-bar-fail" data-width="10" style="width: 0%">
+                            <span class="bench-bar-value">OOM</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">&#x2715;</span>
+                </div>
+            </div>
+            <div class="bench-insight"><em>Only algorithm that finished.</em> All competitors ran out of memory.</div>
+        </div>
+
+        <div class="bench-highlight-card scroll-reveal" data-delay="250">
+            <h3>roadNet-CA <span class="bench-meta">1.96M nodes &middot; 5.5M edges &middot; Speed</span></h3>
             <div class="bench-bars">
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
                     <span class="bench-bar-label">Cleora</span>
@@ -419,7 +591,38 @@
                     <span class="bench-bar-time">&#x2715;</span>
                 </div>
             </div>
-            <div class="bench-insight">2M nodes embedded in 4 seconds. NetMF, DeepWalk, Node2Vec all crash.</div>
+            <div class="bench-insight">2M nodes in <em>4 seconds</em>. NetMF, DeepWalk, Node2Vec all crash.</div>
+        </div>
+    </div>
+
+    <div class="bench-memory-strip scroll-reveal">
+        <h4>Memory Efficiency Across Scales</h4>
+        <div class="memory-strip-items">
+            <div class="memory-strip-item">
+                <div class="memory-strip-dataset">PPI-large <span>57K</span></div>
+                <div class="memory-strip-compare"><strong>28 MB</strong> vs 458 MB</div>
+                <div class="memory-strip-factor">16x less</div>
+            </div>
+            <div class="memory-strip-item">
+                <div class="memory-strip-dataset">Flickr <span>89K</span></div>
+                <div class="memory-strip-compare"><strong>44 MB</strong> vs 701 MB</div>
+                <div class="memory-strip-factor">16x less</div>
+            </div>
+            <div class="memory-strip-item">
+                <div class="memory-strip-dataset">ogbn-arxiv <span>169K</span></div>
+                <div class="memory-strip-compare"><strong>83 MB</strong> vs 1.3 GB</div>
+                <div class="memory-strip-factor">16x less</div>
+            </div>
+            <div class="memory-strip-item">
+                <div class="memory-strip-dataset">Yelp <span>717K</span></div>
+                <div class="memory-strip-compare"><strong>350 MB</strong> vs OOM</div>
+                <div class="memory-strip-factor">Only one</div>
+            </div>
+            <div class="memory-strip-item">
+                <div class="memory-strip-dataset">roadNet <span>2M</span></div>
+                <div class="memory-strip-compare"><strong>1.9 GB</strong> vs 14.6 GB</div>
+                <div class="memory-strip-factor">~8x less</div>
+            </div>
         </div>
     </div>
 
@@ -430,15 +633,30 @@
         </div>
         <div class="scale-arrow">&rarr;</div>
         <div class="scale-item">
-            <div class="scale-nodes">2M</div>
-            <div class="scale-label">roadNet</div>
+            <div class="scale-nodes">57K</div>
+            <div class="scale-label">PPI-large</div>
         </div>
         <div class="scale-arrow">&rarr;</div>
         <div class="scale-item">
-            <div class="scale-nodes">4.8M</div>
-            <div class="scale-label">LiveJournal</div>
+            <div class="scale-nodes">89K</div>
+            <div class="scale-label">Flickr</div>
         </div>
-        <div class="scale-factor">Cleora scales with only 19x slowdown at 500x more nodes</div>
+        <div class="scale-arrow">&rarr;</div>
+        <div class="scale-item">
+            <div class="scale-nodes">169K</div>
+            <div class="scale-label">ogbn-arxiv</div>
+        </div>
+        <div class="scale-arrow">&rarr;</div>
+        <div class="scale-item">
+            <div class="scale-nodes">717K</div>
+            <div class="scale-label">Yelp</div>
+        </div>
+        <div class="scale-arrow">&rarr;</div>
+        <div class="scale-item">
+            <div class="scale-nodes">2M</div>
+            <div class="scale-label">roadNet</div>
+        </div>
+        <div class="scale-factor">500x more nodes with only ~19x runtime increase &mdash; from 0.22s to 4.2s</div>
     </div>
 
     <div style="text-align: center; margin-top: 32px;" class="scroll-reveal">
