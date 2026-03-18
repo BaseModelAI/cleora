@@ -255,6 +255,200 @@
     </div>
 </section>
 
+<section class="section pipeline-section">
+    <div class="section-header scroll-reveal">
+        <div class="section-badge">How Cleora Works</div>
+        <h2>From Raw Graph to Embeddings in Seconds</h2>
+        <p>A deterministic pipeline that replaces random walks, skip-gram, and GPU training with pure linear algebra.</p>
+    </div>
+
+    <div class="pipeline-wrapper">
+        <div class="pipeline-track">
+            <svg class="pipeline-line" viewBox="0 0 2 600" preserveAspectRatio="none">
+                <line x1="1" y1="0" x2="1" y2="600" class="pipeline-line-bg" />
+                <line x1="1" y1="0" x2="1" y2="600" class="pipeline-line-progress" />
+            </svg>
+
+            <div class="pipeline-step scroll-reveal" data-delay="0">
+                <div class="pipeline-dot">
+                    <span class="pipeline-dot-ping"></span>
+                </div>
+                <div class="pipeline-card">
+                    <div class="pipeline-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <rect x="4" y="6" width="10" height="3" rx="1.5" stroke="var(--accent-bright)" stroke-width="1.5"/>
+                            <rect x="4" y="12" width="16" height="3" rx="1.5" stroke="var(--accent-bright)" stroke-width="1.5"/>
+                            <rect x="4" y="18" width="12" height="3" rx="1.5" stroke="var(--accent-bright)" stroke-width="1.5"/>
+                            <rect x="4" y="24" width="20" height="3" rx="1.5" stroke="var(--accent-bright)" stroke-width="1.5"/>
+                            <circle cx="26" cy="7.5" r="2" fill="var(--green)" opacity="0.6"/>
+                            <circle cx="26" cy="13.5" r="2" fill="var(--green)" opacity="0.6"/>
+                        </svg>
+                    </div>
+                    <div class="pipeline-text">
+                        <div class="pipeline-step-num">01</div>
+                        <h3>Input Data</h3>
+                        <p>Feed edge lists, interaction logs, or knowledge triples. Cleora accepts any TSV with typed columns — entities, relations, and modifiers in a single file.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pipeline-step scroll-reveal" data-delay="100">
+                <div class="pipeline-dot">
+                    <span class="pipeline-dot-ping"></span>
+                </div>
+                <div class="pipeline-card">
+                    <div class="pipeline-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <circle cx="8" cy="8" r="3" stroke="var(--accent-bright)" stroke-width="1.5"/>
+                            <circle cx="24" cy="8" r="3" stroke="var(--accent-bright)" stroke-width="1.5"/>
+                            <circle cx="16" cy="16" r="3" stroke="var(--green)" stroke-width="1.5"/>
+                            <circle cx="8" cy="24" r="3" stroke="var(--accent-bright)" stroke-width="1.5"/>
+                            <circle cx="24" cy="24" r="3" stroke="var(--accent-bright)" stroke-width="1.5"/>
+                            <line x1="10.5" y1="9.5" x2="13.5" y2="14.5" stroke="var(--text-dim)" stroke-width="1"/>
+                            <line x1="21.5" y1="9.5" x2="18.5" y2="14.5" stroke="var(--text-dim)" stroke-width="1"/>
+                            <line x1="10.5" y1="22.5" x2="13.5" y2="17.5" stroke="var(--text-dim)" stroke-width="1"/>
+                            <line x1="21.5" y1="22.5" x2="18.5" y2="17.5" stroke="var(--text-dim)" stroke-width="1"/>
+                            <line x1="11" y1="8" x2="21" y2="8" stroke="var(--text-dim)" stroke-width="1"/>
+                            <line x1="8" y1="11" x2="8" y2="21" stroke="var(--text-dim)" stroke-width="1"/>
+                        </svg>
+                    </div>
+                    <div class="pipeline-text">
+                        <div class="pipeline-step-num">02</div>
+                        <h3>Hypergraph Construction</h3>
+                        <p>Builds a heterogeneous hypergraph where a single edge can connect multiple entities of different types. No bipartite projections needed.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pipeline-step scroll-reveal" data-delay="200">
+                <div class="pipeline-dot">
+                    <span class="pipeline-dot-ping"></span>
+                </div>
+                <div class="pipeline-card">
+                    <div class="pipeline-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <rect x="4" y="4" width="24" height="24" rx="3" stroke="var(--accent-bright)" stroke-width="1.5" stroke-dasharray="3 2"/>
+                            <circle cx="10" cy="10" r="1.5" fill="var(--green)"/>
+                            <circle cx="22" cy="10" r="1.5" fill="var(--accent-bright)" opacity="0.4"/>
+                            <circle cx="16" cy="16" r="1.5" fill="var(--green)"/>
+                            <circle cx="10" cy="22" r="1.5" fill="var(--accent-bright)" opacity="0.4"/>
+                            <circle cx="22" cy="22" r="1.5" fill="var(--green)"/>
+                            <circle cx="16" cy="10" r="1.5" fill="var(--accent-bright)" opacity="0.4"/>
+                            <circle cx="10" cy="16" r="1.5" fill="var(--accent-bright)" opacity="0.4"/>
+                            <circle cx="22" cy="16" r="1.5" fill="var(--accent-bright)" opacity="0.4"/>
+                            <circle cx="16" cy="22" r="1.5" fill="var(--accent-bright)" opacity="0.4"/>
+                        </svg>
+                    </div>
+                    <div class="pipeline-text">
+                        <div class="pipeline-step-num">03</div>
+                        <h3>Sparse Markov Matrix</h3>
+                        <p>Constructs a sparse transition matrix from the graph. Rows are normalized so each row sums to 1 — a proper Markov chain over the entity space.</p>
+                        <div class="pipeline-metric">
+                            <span class="pipeline-metric-label">Sparsity</span>
+                            <div class="pipeline-progress-bar">
+                                <div class="pipeline-progress-fill" data-width="99"></div>
+                            </div>
+                            <span class="pipeline-metric-value">99%+ sparse</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pipeline-step scroll-reveal" data-delay="300">
+                <div class="pipeline-dot pipeline-dot-accent">
+                    <span class="pipeline-dot-ping"></span>
+                </div>
+                <div class="pipeline-card pipeline-card-highlight">
+                    <div class="pipeline-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <rect x="3" y="8" width="10" height="10" rx="2" stroke="var(--green)" stroke-width="1.5"/>
+                            <text x="8" y="15" text-anchor="middle" fill="var(--green)" font-size="7" font-family="var(--mono)">M</text>
+                            <path d="M15 13 L17 13" stroke="var(--text-muted)" stroke-width="1.5"/>
+                            <circle cx="17.5" cy="13" r="1" fill="var(--text-muted)"/>
+                            <circle cx="15" cy="13" r="1" fill="var(--text-muted)"/>
+                            <rect x="19" y="8" width="10" height="10" rx="2" stroke="var(--accent-bright)" stroke-width="1.5"/>
+                            <text x="24" y="15" text-anchor="middle" fill="var(--accent-bright)" font-size="7" font-family="var(--mono)">E</text>
+                            <path d="M16 20 L16 24" stroke="var(--green)" stroke-width="1.5" stroke-dasharray="2 2"/>
+                            <text x="16" y="28" text-anchor="middle" fill="var(--green)" font-size="6" font-family="var(--mono)">=</text>
+                        </svg>
+                    </div>
+                    <div class="pipeline-text">
+                        <div class="pipeline-step-num">04</div>
+                        <h3>Single Matrix Multiplication = All Walks</h3>
+                        <p>One sparse matrix multiplication captures <em>every possible random walk</em> of a given length. No sampling, no noise — this is the mathematical breakthrough that makes Cleora deterministic and fast.</p>
+                        <div class="pipeline-highlight-badge">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                            All walks captured in 1 multiplication
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pipeline-step scroll-reveal" data-delay="400">
+                <div class="pipeline-dot">
+                    <span class="pipeline-dot-ping"></span>
+                </div>
+                <div class="pipeline-card">
+                    <div class="pipeline-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <circle cx="16" cy="16" r="10" stroke="var(--accent-bright)" stroke-width="1.5" stroke-dasharray="4 2"/>
+                            <circle cx="16" cy="16" r="5" stroke="var(--green)" stroke-width="1.5"/>
+                            <line x1="16" y1="6" x2="16" y2="11" stroke="var(--accent-bright)" stroke-width="1" opacity="0.5"/>
+                            <line x1="16" y1="21" x2="16" y2="26" stroke="var(--accent-bright)" stroke-width="1" opacity="0.5"/>
+                            <line x1="6" y1="16" x2="11" y2="16" stroke="var(--accent-bright)" stroke-width="1" opacity="0.5"/>
+                            <line x1="21" y1="16" x2="26" y2="16" stroke="var(--accent-bright)" stroke-width="1" opacity="0.5"/>
+                            <circle cx="16" cy="16" r="2" fill="var(--green)"/>
+                        </svg>
+                    </div>
+                    <div class="pipeline-text">
+                        <div class="pipeline-step-num">05</div>
+                        <h3>L2-Normalized Propagation</h3>
+                        <p>Each iteration replaces every node's embedding with the L2-normalized average of its neighbors. 3-4 iterations for co-occurrence similarity, 7+ for contextual similarity.</p>
+                        <div class="pipeline-iterations">
+                            <span class="pipeline-iter" data-delay="500">iter 1</span>
+                            <span class="pipeline-iter" data-delay="600">iter 2</span>
+                            <span class="pipeline-iter" data-delay="700">iter 3</span>
+                            <span class="pipeline-iter pipeline-iter-active" data-delay="800">iter 4</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pipeline-step scroll-reveal" data-delay="500">
+                <div class="pipeline-dot pipeline-dot-green">
+                    <span class="pipeline-dot-ping pipeline-dot-ping-green"></span>
+                </div>
+                <div class="pipeline-card pipeline-card-final">
+                    <div class="pipeline-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <rect x="4" y="4" width="24" height="24" rx="4" stroke="var(--green)" stroke-width="1.5"/>
+                            <line x1="8" y1="10" x2="24" y2="10" stroke="var(--green)" stroke-width="1.5" opacity="0.6"/>
+                            <line x1="8" y1="16" x2="20" y2="16" stroke="var(--green)" stroke-width="1.5" opacity="0.8"/>
+                            <line x1="8" y1="22" x2="22" y2="22" stroke="var(--green)" stroke-width="1.5"/>
+                            <circle cx="26" cy="6" r="3" fill="var(--green)"/>
+                            <polyline points="24.5,6 25.7,7.2 27.5,5" stroke="#0a0a0f" stroke-width="1.5" fill="none"/>
+                        </svg>
+                    </div>
+                    <div class="pipeline-text">
+                        <div class="pipeline-step-num">06</div>
+                        <h3>Embeddings Ready</h3>
+                        <p>Dense, deterministic embedding vectors for every entity — ready for downstream ML. Same input always yields same output, guaranteed reproducibility.</p>
+                        <div class="pipeline-output-tags">
+                            <span>Recommendations</span>
+                            <span>Clustering</span>
+                            <span>Classification</span>
+                            <span>Similarity Search</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="pipeline-particles" id="pipelineParticles"></div>
+    </div>
+</section>
+
 <section class="section">
     <div class="section-header scroll-reveal">
         <div class="section-badge">Capabilities</div>
@@ -946,6 +1140,35 @@ document.addEventListener('DOMContentLoaded', function() {
             particle.style.width = particle.style.height = (2 + Math.random() * 3) + 'px';
             canvas.appendChild(particle);
         }
+    }
+
+    const pipelineSection = document.querySelector('.pipeline-section');
+    if (pipelineSection) {
+        const pipelineObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    pipelineSection.classList.add('pipeline-animating');
+                    pipelineObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.15 });
+        pipelineObserver.observe(pipelineSection);
+
+        const pipelineParticlesContainer = document.getElementById('pipelineParticles');
+        if (pipelineParticlesContainer) {
+            for (let i = 0; i < 8; i++) {
+                const p = document.createElement('div');
+                p.className = 'pipeline-particle';
+                p.style.animationDelay = (i * 0.7) + 's';
+                p.style.animationDuration = (2.5 + Math.random() * 1.5) + 's';
+                pipelineParticlesContainer.appendChild(p);
+            }
+        }
+
+        document.querySelectorAll('.pipeline-progress-fill[data-width]').forEach(bar => {
+            const w = bar.dataset.width;
+            bar.style.setProperty('--fill-width', w + '%');
+        });
     }
 });
 </script>
