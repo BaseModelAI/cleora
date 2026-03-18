@@ -1,9 +1,42 @@
 import os
+import sys
+import gzip
 import numpy as np
 from typing import Dict, List, Tuple, Optional
+from collections.abc import Sequence
 
 
 _CACHE_DIR = os.path.join(os.path.expanduser("~"), ".pycleora_datasets")
+
+
+class _LazyEdgeList(Sequence):
+    __slots__ = ("_src", "_dst", "_len")
+
+    def __init__(self, src: np.ndarray, dst: np.ndarray):
+        self._src = src
+        self._dst = dst
+        self._len = len(src)
+
+    def __len__(self):
+        return self._len
+
+    def __getitem__(self, idx):
+        if isinstance(idx, slice):
+            return [f"{self._src[i]} {self._dst[i]}" for i in range(*idx.indices(self._len))]
+        if idx < 0:
+            idx += self._len
+        if idx < 0 or idx >= self._len:
+            raise IndexError(f"index {idx} out of range")
+        return f"{self._src[idx]} {self._dst[idx]}"
+
+    def __iter__(self):
+        src = self._src
+        dst = self._dst
+        for i in range(self._len):
+            yield f"{src[i]} {dst[i]}"
+
+    def __repr__(self):
+        return f"_LazyEdgeList(len={self._len:,})"
 
 
 def _ensure_cache_dir():
@@ -15,6 +48,200 @@ def _download_file(url: str, filepath: str):
     import ssl
     ctx = ssl.create_default_context()
     urllib.request.urlretrieve(url, filepath, context=ctx)
+
+
+def _download_with_progress(url: str, filepath: str, description: str = "Downloading"):
+    import urllib.request
+    import ssl
+
+    ctx = ssl.create_default_context()
+    req = urllib.request.Request(url)
+    response = urllib.request.urlopen(req, context=ctx)
+    total_size = response.headers.get("Content-Length")
+    total_size = int(total_size) if total_size else None
+
+    block_size = 1024 * 1024
+    downloaded = 0
+
+    with open(filepath, "wb") as f:
+        while True:
+            chunk = response.read(block_size)
+            if not chunk:
+                break
+            f.write(chunk)
+            downloaded += len(chunk)
+            if total_size:
+                pct = downloaded / total_size * 100
+                mb_done = downloaded / (1024 * 1024)
+                mb_total = total_size / (1024 * 1024)
+                sys.stderr.write(f"\r{description}: {mb_done:.1f}/{mb_total:.1f} MB ({pct:.1f}%)")
+            else:
+                mb_done = downloaded / (1024 * 1024)
+                sys.stderr.write(f"\r{description}: {mb_done:.1f} MB")
+            sys.stderr.flush()
+    sys.stderr.write("\n")
+    sys.stderr.flush()
+
+
+def _load_snap_edge_list(name: str, url: str, display_name: str, description: str,
+                         expected_nodes: int, expected_edges: int,
+                         size_warning: Optional[str] = None) -> Dict:
+    import tempfile
+
+    _ensure_cache_dir()
+    cache_path = os.path.join(_CACHE_DIR, f"{name}.npz")
+
+    if os.path.exists(cache_path):
+        data = np.load(cache_path, allow_pickle=False)
+        src_arr = data["src"]
+        dst_arr = data["dst"]
+        num_nodes = int(data["num_nodes"])
+        num_edges = int(data["num_edges"])
+        return {
+            "name": display_name,
+            "edges": _LazyEdgeList(src_arr, dst_arr),
+            "labels": {},
+            "num_nodes": num_nodes,
+            "num_edges": num_edges,
+            "num_classes": 0,
+            "columns": "complex::reflexive::node",
+            "description": description,
+        }
+
+    if size_warning:
+        sys.stderr.write(f"WARNING: {size_warning}\n")
+        sys.stderr.flush()
+
+    gz_path = os.path.join(_CACHE_DIR, f"{name}.txt.gz")
+    gz_tmp_path = gz_path + ".tmp"
+    if not os.path.exists(gz_path):
+        _download_with_progress(url, gz_tmp_path, description=f"Downloading {display_name}")
+        os.rename(gz_tmp_path, gz_path)
+
+    sys.stderr.write(f"Parsing {display_name} edges (streaming from .gz)...\n")
+    sys.stderr.flush()
+
+    dtype = np.int64 if expected_nodes > 2_147_483_647 else np.int32
+    chunk_size = 1_000_000
+    src_chunks = []
+    dst_chunks = []
+    src_buf = np.empty(chunk_size, dtype=dtype)
+    dst_buf = np.empty(chunk_size, dtype=dtype)
+    buf_idx = 0
+    edge_count = 0
+
+    with gzip.open(gz_path, "rt", encoding="utf-8") as f:
+        for line in f:
+            if not line or line[0] == "#" or line[0] == "\n":
+                continue
+            parts = line.split()
+            if len(parts) < 2:
+                continue
+            src_buf[buf_idx] = int(parts[0])
+            dst_buf[buf_idx] = int(parts[1])
+            buf_idx += 1
+            edge_count += 1
+            if buf_idx == chunk_size:
+                src_chunks.append(src_buf[:buf_idx].copy())
+                dst_chunks.append(dst_buf[:buf_idx].copy())
+                buf_idx = 0
+                if edge_count % 5_000_000 == 0:
+                    sys.stderr.write(f"\r  Parsed {edge_count:,} edges...")
+                    sys.stderr.flush()
+
+    if buf_idx > 0:
+        src_chunks.append(src_buf[:buf_idx].copy())
+        dst_chunks.append(dst_buf[:buf_idx].copy())
+
+    sys.stderr.write(f"\r  Parsed {edge_count:,} edges total. Caching...\n")
+    sys.stderr.flush()
+
+    del src_buf, dst_buf
+
+    src_arr = np.concatenate(src_chunks) if src_chunks else np.array([], dtype=dtype)
+    dst_arr = np.concatenate(dst_chunks) if dst_chunks else np.array([], dtype=dtype)
+    del src_chunks, dst_chunks
+
+    if len(src_arr) > 0:
+        src_unique = np.unique(src_arr)
+        dst_unique = np.unique(dst_arr)
+        all_unique = np.union1d(src_unique, dst_unique)
+        num_nodes = len(all_unique)
+        del src_unique, dst_unique, all_unique
+    else:
+        num_nodes = 0
+    num_edges = len(src_arr)
+
+    edge_drift = abs(num_edges - expected_edges) / max(expected_edges, 1)
+    if edge_drift > 0.20:
+        raise ValueError(
+            f"{display_name}: parsed {num_edges:,} edges but expected ~{expected_edges:,} "
+            f"(drift {edge_drift:.1%}). The download may be corrupt. "
+            f"Delete {gz_path} and retry."
+        )
+    if edge_drift > 0.01 or num_nodes != expected_nodes:
+        sys.stderr.write(
+            f"  Note: parsed {num_nodes:,} nodes / {num_edges:,} edges "
+            f"(expected ~{expected_nodes:,} / ~{expected_edges:,})\n"
+        )
+        sys.stderr.flush()
+
+    fd, tmp_cache_path = tempfile.mkstemp(dir=_CACHE_DIR, suffix=".npz")
+    os.close(fd)
+    try:
+        np.savez(tmp_cache_path,
+                 src=src_arr, dst=dst_arr,
+                 num_nodes=num_nodes, num_edges=num_edges)
+        os.rename(tmp_cache_path, cache_path)
+    except BaseException:
+        try:
+            os.remove(tmp_cache_path)
+        except OSError:
+            pass
+        raise
+
+    try:
+        os.remove(gz_path)
+    except OSError:
+        pass
+
+    sys.stderr.write(f"  {display_name}: {num_nodes:,} nodes, {num_edges:,} edges cached.\n")
+    sys.stderr.flush()
+
+    return {
+        "name": display_name,
+        "edges": _LazyEdgeList(src_arr, dst_arr),
+        "labels": {},
+        "num_nodes": num_nodes,
+        "num_edges": num_edges,
+        "num_classes": 0,
+        "columns": "complex::reflexive::node",
+        "description": description,
+    }
+
+
+def load_com_orkut() -> Dict:
+    return _load_snap_edge_list(
+        name="com_orkut",
+        url="https://snap.stanford.edu/data/bigdata/communities/com-orkut.ungraph.txt.gz",
+        display_name="com-Orkut",
+        description="Orkut online social network (SNAP). ~3M nodes, ~117M edges.",
+        expected_nodes=3_072_441,
+        expected_edges=117_185_083,
+    )
+
+
+def load_com_friendster() -> Dict:
+    return _load_snap_edge_list(
+        name="com_friendster",
+        url="https://snap.stanford.edu/data/bigdata/communities/com-friendster.ungraph.txt.gz",
+        display_name="com-Friendster",
+        description="Friendster online social network (SNAP). ~65.6M nodes, ~1.8B edges.",
+        expected_nodes=65_608_366,
+        expected_edges=1_806_067_135,
+        size_warning="com-Friendster is a very large dataset (~1.2GB compressed download, ~1.8B edges). "
+                     "Download and parsing may take a long time and require significant memory.",
+    )
 
 
 def load_karate_club() -> Dict:
@@ -665,6 +892,10 @@ def list_datasets() -> List[Dict]:
          "description": "DBLP co-authorship network"},
         {"name": "reddit", "nodes": 10000, "edges": 100000, "classes": 41,
          "description": "Reddit post network"},
+        {"name": "com_orkut", "nodes": 3072441, "edges": 117185083, "classes": 0,
+         "description": "Orkut online social network (SNAP, ~3M nodes, ~117M edges)"},
+        {"name": "com_friendster", "nodes": 65608366, "edges": 1806067135, "classes": 0,
+         "description": "Friendster online social network (SNAP, ~65.6M nodes, ~1.8B edges)"},
     ]
 
 
@@ -682,6 +913,8 @@ def load_dataset(name: str) -> Dict:
         "ppi": load_ppi,
         "dblp": load_dblp,
         "reddit": load_reddit,
+        "com_orkut": load_com_orkut,
+        "com_friendster": load_com_friendster,
     }
     if name not in loaders:
         available = ", ".join(loaders.keys())

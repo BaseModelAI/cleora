@@ -14,7 +14,7 @@ pycleora/               Python package
   algorithms.py          Alternative algorithms: ProNE, RandNE, HOPE, NetMF, GraRep, DeepWalk, Node2Vec
   classify.py            Classification: Label Propagation, MLP, GCN (pure numpy/scipy)
   community.py           Community detection: k-means, spectral, Louvain + modularity
-  datasets.py            Built-in datasets: 12 graphs (Karate Club to Reddit scale)
+  datasets.py            Built-in datasets: 14 graphs (Karate Club to SNAP com-Friendster scale)
   hetero.py              Heterogeneous graphs: HeteroGraph, per-relation, metapath embedding
   io_utils.py            I/O: NetworkX, PyG, DGL, save/load (npz/csv/tsv/parquet)
   metrics.py             Evaluation: AUC/MRR/Hits@K, MAP@K, nDCG, ARI, Silhouette, cross-validation
@@ -126,7 +126,7 @@ cp ~/.pythonlibs/lib/python3.12/site-packages/pycleora/pycleora.cpython-312-x86_
 ## Architecture Notes
 
 - **Louvain**: Uses binary adjacency (w=1.0 per edge, no self-loops), NOT Markov transition values. Same for modularity().
-- **Datasets**: Cora, CiteSeer etc. are synthetically generated (community-structured random graphs), cached in `~/.pycleora_datasets/`.
+- **Datasets**: Cora, CiteSeer etc. are synthetically generated (community-structured random graphs), cached in `~/.pycleora_datasets/`. SNAP datasets (com-Orkut, com-Friendster) are downloaded from snap.stanford.edu on first use, streamed from .gz, and cached as .npz.
 - **DeepWalk/Node2Vec**: Use `_build_adj_list()` + random walks + PMI SVD.
 - **GCN**: Pure numpy/scipy implementation with symmetric normalization (D^{-1/2} A_hat D^{-1/2}), dropout, multi-layer support.
 - **Edge Feature Embedding**: Aggregates edge features to nodes, propagates through graph structure, combines with structural embedding.
