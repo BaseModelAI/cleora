@@ -142,6 +142,159 @@ def load_embeddings(filepath: str, format: str = "npz") -> Tuple[np.ndarray, Lis
         raise ValueError(f"Unknown format: {format}. Use 'npz', 'csv', or 'tsv'.")
 
 
+def from_pandas(df, source_col: str, target_col: str, weight_col: Optional[str] = None,
+                 columns: str = "complex::reflexive::node",
+                 hyperedge_trim_n: int = 16, num_workers=None):
+    """Create a SparseMatrix from a pandas DataFrame.
+
+    Each row becomes an edge from source_col to target_col. When weight_col is
+    provided, rows with NaN or zero weight are filtered out; the weight values
+    themselves are not encoded into the SparseMatrix (use embed_weighted for
+    weighted graph embedding).
+    """
+    try:
+        import pandas as pd
+    except ImportError:
+        raise ImportError("pandas is required for DataFrame import. Install with: pip install pandas")
+
+    from .pycleora import SparseMatrix
+
+    if source_col not in df.columns:
+        raise ValueError(f"source_col '{source_col}' not found in DataFrame columns: {list(df.columns)}")
+    if target_col not in df.columns:
+        raise ValueError(f"target_col '{target_col}' not found in DataFrame columns: {list(df.columns)}")
+    if weight_col is not None and weight_col not in df.columns:
+        raise ValueError(f"weight_col '{weight_col}' not found in DataFrame columns: {list(df.columns)}")
+
+    edges = []
+    for _, row in df.iterrows():
+        src = row[source_col]
+        tgt = row[target_col]
+        if pd.isna(src) or pd.isna(tgt):
+            continue
+        if weight_col is not None:
+            w = row[weight_col]
+            if pd.isna(w) or float(w) == 0:
+                continue
+        edges.append(f"{src} {tgt}")
+
+    if not edges:
+        raise ValueError("No valid edges found in DataFrame (all rows may have NaN values)")
+
+    return SparseMatrix.from_iterator(iter(edges), columns, hyperedge_trim_n, num_workers)
+
+
+def from_scipy_sparse(matrix, entity_ids: Optional[List[str]] = None,
+                      columns: str = "complex::reflexive::node",
+                      hyperedge_trim_n: int = 16, num_workers=None):
+    """Create a SparseMatrix from a scipy sparse adjacency matrix.
+
+    If entity_ids is None, uses stringified integer indices as node IDs.
+    The adjacency is treated as undirected: symmetric edge pairs are
+    deduplicated so each edge appears once.
+    """
+    try:
+        import scipy.sparse
+    except ImportError:
+        raise ImportError("scipy is required for sparse matrix import. Install with: pip install scipy")
+
+    from .pycleora import SparseMatrix
+
+    if not scipy.sparse.issparse(matrix):
+        raise ValueError("matrix must be a scipy sparse matrix")
+
+    if matrix.shape[0] != matrix.shape[1]:
+        raise ValueError(f"matrix must be square, got shape {matrix.shape}")
+
+    n = matrix.shape[0]
+    if entity_ids is not None:
+        if len(entity_ids) != n:
+            raise ValueError(f"entity_ids has {len(entity_ids)} elements but matrix has {n} rows")
+        ids = [str(eid) for eid in entity_ids]
+    else:
+        ids = [str(i) for i in range(n)]
+
+    coo = matrix.tocoo()
+    seen = set()
+    edges = []
+    for r, c in zip(coo.row, coo.col):
+        edge_key = (min(r, c), max(r, c))
+        if edge_key not in seen:
+            seen.add(edge_key)
+            edges.append(f"{ids[r]} {ids[c]}")
+
+    if not edges:
+        raise ValueError("No edges found in the sparse matrix")
+
+    return SparseMatrix.from_iterator(iter(edges), columns, hyperedge_trim_n, num_workers)
+
+
+def from_edge_list(edges: List, columns: str = "complex::reflexive::node",
+                   hyperedge_trim_n: int = 16, num_workers=None):
+    """Create a SparseMatrix from a list of (source, target) or (source, target, weight) tuples.
+
+    Weight values in 3-tuples are accepted but not encoded into the SparseMatrix
+    (use embed_weighted for weighted graph embedding).
+    """
+    from .pycleora import SparseMatrix
+
+    if not edges:
+        raise ValueError("edges list must not be empty")
+
+    edge_strs = []
+    for edge in edges:
+        if len(edge) == 2:
+            src, tgt = edge
+            edge_strs.append(f"{src} {tgt}")
+        elif len(edge) == 3:
+            src, tgt, _weight = edge
+            edge_strs.append(f"{src} {tgt}")
+        else:
+            raise ValueError(f"Each edge must be a (source, target) or (source, target, weight) tuple, got length {len(edge)}")
+
+    return SparseMatrix.from_iterator(iter(edge_strs), columns, hyperedge_trim_n, num_workers)
+
+
+def from_numpy(adjacency_matrix, entity_ids: Optional[List[str]] = None,
+               columns: str = "complex::reflexive::node",
+               hyperedge_trim_n: int = 16, num_workers=None):
+    """Create a SparseMatrix from a dense numpy adjacency matrix.
+
+    If entity_ids is None, uses stringified integer indices as node IDs.
+    The adjacency is treated as undirected: an edge is created between nodes i
+    and j if either (i,j) or (j,i) is nonzero.
+    """
+    from .pycleora import SparseMatrix
+
+    if not isinstance(adjacency_matrix, np.ndarray):
+        raise ValueError("adjacency_matrix must be a numpy ndarray")
+
+    if adjacency_matrix.ndim != 2:
+        raise ValueError(f"adjacency_matrix must be 2-dimensional, got {adjacency_matrix.ndim} dimensions")
+
+    if adjacency_matrix.shape[0] != adjacency_matrix.shape[1]:
+        raise ValueError(f"adjacency_matrix must be square, got shape {adjacency_matrix.shape}")
+
+    n = adjacency_matrix.shape[0]
+    if entity_ids is not None:
+        if len(entity_ids) != n:
+            raise ValueError(f"entity_ids has {len(entity_ids)} elements but matrix has {n} rows")
+        ids = [str(eid) for eid in entity_ids]
+    else:
+        ids = [str(i) for i in range(n)]
+
+    edges = []
+    for i in range(n):
+        for j in range(i, n):
+            if adjacency_matrix[i, j] != 0 or adjacency_matrix[j, i] != 0:
+                edges.append(f"{ids[i]} {ids[j]}")
+
+    if not edges:
+        raise ValueError("No edges found in the adjacency matrix")
+
+    return SparseMatrix.from_iterator(iter(edges), columns, hyperedge_trim_n, num_workers)
+
+
 def to_edge_list(graph) -> List[Tuple[str, str, float]]:
     rows, cols, vals, _, _ = graph.to_sparse_csr()
     seen = set()
