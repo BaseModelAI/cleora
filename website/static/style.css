@@ -82,6 +82,8 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+strong, b { font-weight: 500; }
+
 a { color: var(--accent-bright); text-decoration: none; transition: color 0.2s; }
 a:hover { color: #fff; }
 
@@ -640,7 +642,7 @@ pre code {
 
 .best-score {
     color: var(--green);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 /* API SECTION */
@@ -1829,6 +1831,6 @@ footer {
 
 .features-highlight-chip strong {
     color: var(--green);
-    font-weight: 700;
+    font-weight: 600;
     font-family: var(--mono);
 }
