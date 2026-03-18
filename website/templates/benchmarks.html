@@ -44,7 +44,7 @@
 
         <div class="bench-section" id="viz-accuracy">
             <h2 id="summary">Summary Table</h2>
-            <p>Best accuracy per dataset. <span class="best-score">Green</span> = best on that dataset. "&mdash;" = excluded (too large or not applicable).</p>
+            <p>Best accuracy per dataset. <span class="best-score">Green</span> = best on that dataset. "&mdash;" = excluded (too large or not applicable). Cleora results use <code>whiten=True</code> with auto-tuned iterations for optimal quality.</p>
             <div class="bench-toggle">
                 <button class="bench-toggle-btn active" data-view="chart">Chart</button>
                 <button class="bench-toggle-btn" data-view="table">Table</button>
@@ -317,8 +317,8 @@
                         <tr><th>Algorithm</th><th>Facebook (4k)</th><th>PPI-large (57k)</th><th>Flickr (89k)</th><th>ogbn-arxiv (169k)</th><th>Yelp (717k)</th><th>roadNet (2M)</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>Cleora</td><td class="best-score">0.109s</td><td>0.330s</td><td>0.475s</td><td>0.747s</td><td>3.304s</td><td class="best-score">4.242s</td></tr>
-                        <tr><td>Cleora-sym</td><td>0.103s</td><td class="best-score">0.251s</td><td class="best-score">0.436s</td><td class="best-score">0.752s</td><td class="best-score">3.162s</td><td>4.269s</td></tr>
+                        <tr><td>Cleora</td><td>0.109s</td><td>0.330s</td><td>0.475s</td><td>0.747s</td><td>3.304s</td><td class="best-score">4.242s</td></tr>
+                        <tr><td>Cleora-sym</td><td class="best-score">0.103s</td><td class="best-score">0.251s</td><td class="best-score">0.436s</td><td class="best-score">0.752s</td><td class="best-score">3.162s</td><td>4.269s</td></tr>
                         <tr><td>RandNE</td><td>0.232s</td><td>1.072s</td><td>1.332s</td><td>2.046s</td><td>&mdash;</td><td>8.968s</td></tr>
                         <tr><td>ProNE</td><td>1.429s</td><td>8.338s</td><td>5.569s</td><td>8.333s</td><td>&mdash;</td><td>57.716s</td></tr>
                         <tr><td>NetMF</td><td>17.920s</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>

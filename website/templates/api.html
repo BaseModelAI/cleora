@@ -90,7 +90,7 @@
             <div class="api-params">
                 <p><code>graph</code> : <em>SparseMatrix</em> — Input graph</p>
                 <p><code>feature_dim</code> : <em>int</em> — Embedding dimensionality (default: 1024)</p>
-                <p><code>num_iterations</code> : <em>int or "auto"</em> — Propagation iterations (default: 4). <code>"auto"</code> selects 4/8/16 for dim &le;256/512/1024+</p>
+                <p><code>num_iterations</code> : <em>int or "auto"</em> — Propagation iterations (default: 4). <code>"auto"</code> selects 4 for dim &le;256, 8 for dim &le;512, 16 for dim &gt;512</p>
                 <p><code>propagation</code> : <em>str</em> — <code>"left"</code> or <code>"symmetric"</code> (default: "left")</p>
                 <p><code>normalization</code> : <em>str</em> — <code>"l2"</code>, <code>"l1"</code>, <code>"spectral"</code>, or <code>"none"</code></p>
                 <p><code>whiten</code> : <em>bool</em> — Apply PCA whitening post-processing (default: False). Dramatically improves accuracy at high dims</p>
