@@ -47,7 +47,8 @@ website/                Marketing website (Flask)
     index.html           Landing page (features, comparison, code examples)
     docs.html            Documentation (installation, all APIs, guides)
     api.html             API Reference (all functions, params, returns)
-    benchmarks.html      Benchmark results (3 SNAP datasets: ego-Facebook, roadNet-CA, soc-LiveJournal1)
+    benchmarks.html      Benchmark results with interactive Chart.js visualizations (3 SNAP datasets: ego-Facebook, roadNet-CA, soc-LiveJournal1)
+  static/benchmarks.js   Chart.js benchmark charts (accuracy, speed, memory, scatter, cross-validation)
     changelog.html       Version history (v1.0.0 through v3.0.0)
 ```
 

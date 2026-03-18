@@ -13,6 +13,13 @@
         <a href="#speed">Speed Comparison</a>
         <a href="#cross-validation">Cross-Validation</a>
 
+        <h4>Visualizations</h4>
+        <a href="#viz-accuracy">Accuracy Chart</a>
+        <a href="#viz-speed">Speed Chart</a>
+        <a href="#viz-memory">Memory Chart</a>
+        <a href="#viz-scatter">Accuracy vs Speed</a>
+        <a href="#viz-cv">Cross-Validation Chart</a>
+
         <h4>Analysis</h4>
         <a href="#when-to-use">When to Use What</a>
         <a href="#methodology">Methodology</a>
@@ -22,65 +29,78 @@
         <h1>Benchmark Results</h1>
         <p>7 algorithms compared across 3 SNAP datasets. Node classification accuracy (community labels via Louvain) using Nearest Centroid classifier on 80/20 train-test split.</p>
 
-        <h2 id="summary">Summary Table</h2>
-        <p>Best accuracy per dataset. <span class="best-score">Green</span> = best on that dataset. "—" = excluded (too large or not applicable).</p>
-        <table class="bench-table">
-            <thead>
-                <tr>
-                    <th>Dataset</th>
-                    <th>Nodes</th>
-                    <th>Edges</th>
-                    <th>Cleora</th>
-                    <th>Cleora-sym</th>
-                    <th>ProNE</th>
-                    <th>RandNE</th>
-                    <th>NetMF</th>
-                    <th>DeepWalk</th>
-                    <th>Node2Vec</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>ego-Facebook</td>
-                    <td>4,039</td>
-                    <td>88,234</td>
-                    <td class="best-score">0.877</td>
-                    <td>0.827</td>
-                    <td>0.011</td>
-                    <td>0.095</td>
-                    <td>0.868</td>
-                    <td>0.868</td>
-                    <td>0.865</td>
-                </tr>
-                <tr>
-                    <td>roadNet-CA</td>
-                    <td>1,965,206</td>
-                    <td>5,533,214</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>—</td>
-                </tr>
-                <tr>
-                    <td>soc-LiveJournal1</td>
-                    <td>4,847,571</td>
-                    <td>68,993,773</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>—</td>
-                </tr>
-            </tbody>
-        </table>
+        <div class="bench-section" id="viz-accuracy">
+            <h2 id="summary">Summary Table</h2>
+            <p>Best accuracy per dataset. <span class="best-score">Green</span> = best on that dataset. "&mdash;" = excluded (too large or not applicable).</p>
+            <div class="bench-toggle">
+                <button class="bench-toggle-btn active" data-view="chart">Chart</button>
+                <button class="bench-toggle-btn" data-view="table">Table</button>
+            </div>
+            <div class="bench-chart-view">
+                <div class="chart-container chart-container-lg">
+                    <canvas id="chart-accuracy"></canvas>
+                </div>
+            </div>
+            <div class="bench-table-view" style="display:none">
+                <table class="bench-table">
+                    <thead>
+                        <tr>
+                            <th>Dataset</th>
+                            <th>Nodes</th>
+                            <th>Edges</th>
+                            <th>Cleora</th>
+                            <th>Cleora-sym</th>
+                            <th>ProNE</th>
+                            <th>RandNE</th>
+                            <th>NetMF</th>
+                            <th>DeepWalk</th>
+                            <th>Node2Vec</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>ego-Facebook</td>
+                            <td>4,039</td>
+                            <td>88,234</td>
+                            <td class="best-score">0.877</td>
+                            <td>0.827</td>
+                            <td>0.011</td>
+                            <td>0.095</td>
+                            <td>0.868</td>
+                            <td>0.868</td>
+                            <td>0.865</td>
+                        </tr>
+                        <tr>
+                            <td>roadNet-CA</td>
+                            <td>1,965,206</td>
+                            <td>5,533,214</td>
+                            <td>&mdash;</td>
+                            <td>&mdash;</td>
+                            <td>&mdash;</td>
+                            <td>&mdash;</td>
+                            <td>&mdash;</td>
+                            <td>&mdash;</td>
+                            <td>&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td>soc-LiveJournal1</td>
+                            <td>4,847,571</td>
+                            <td>68,993,773</td>
+                            <td>&mdash;</td>
+                            <td>&mdash;</td>
+                            <td>&mdash;</td>
+                            <td>&mdash;</td>
+                            <td>&mdash;</td>
+                            <td>&mdash;</td>
+                            <td>&mdash;</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
         <div class="callout callout-info">
-            <strong>Note:</strong> GraRep and HOPE are excluded from all benchmarks — they require dense matrix construction that is infeasible for graphs with 4,000+ nodes. For roadNet and LiveJournal, community label generation via Louvain exceeds memory limits, so only speed/memory metrics are reported. DeepWalk and Node2Vec are excluded from roadNet and LiveJournal due to walk generation cost at scale.
+            <strong>Note:</strong> GraRep and HOPE are excluded from all benchmarks &mdash; they require dense matrix construction that is infeasible for graphs with 4,000+ nodes. For roadNet and LiveJournal, community label generation via Louvain exceeds memory limits, so only speed/memory metrics are reported. DeepWalk and Node2Vec are excluded from roadNet and LiveJournal due to walk generation cost at scale.
         </div>
 
         <h2 id="facebook">ego-Facebook (4,039 nodes, 89 communities)</h2>
@@ -120,8 +140,8 @@
             <strong>Scalability insight:</strong> Cleora embeds 2M nodes in ~4 seconds using under 2 GB of memory. RandNE takes ~2x longer with ~5x more memory. ProNE requires ~14x more time and ~8x more memory at this scale. NetMF, DeepWalk, and Node2Vec are excluded due to memory/time constraints on million-node graphs.
         </div>
 
-        <h2 id="livejournal">soc-LiveJournal1 (4,847,571 nodes — not benchmarked)</h2>
-        <p>LiveJournal online social network from SNAP (~4.8M nodes, ~69M edges). This dataset is included as a scale reference — benchmarks were not run due to hardware constraints:</p>
+        <h2 id="livejournal">soc-LiveJournal1 (4,847,571 nodes &mdash; not benchmarked)</h2>
+        <p>LiveJournal online social network from SNAP (~4.8M nodes, ~69M edges). This dataset is included as a scale reference &mdash; benchmarks were not run due to hardware constraints:</p>
 
         <table class="bench-table">
             <thead>
@@ -140,33 +160,127 @@
             <strong>Hardware requirements:</strong> Graphs at this scale require dedicated hardware with >16 GB RAM. Graph construction alone processes 69M edges through the Python iterator. Use <code>load_livejournal()</code> to download and cache the dataset, then benchmark on suitable infrastructure.
         </div>
 
-        <h2 id="speed">Speed Comparison</h2>
-        <p>Embedding time across datasets. Shows how each algorithm scales from 4k to 2M nodes:</p>
-        <table class="bench-table">
-            <thead>
-                <tr><th>Algorithm</th><th>Facebook (4k)</th><th>roadNet (2M)</th><th>Scale Factor</th></tr>
-            </thead>
-            <tbody>
-                <tr><td>RandNE</td><td class="best-score">0.046s</td><td>8.968s</td><td>~195x</td></tr>
-                <tr><td>Cleora-sym</td><td>0.137s</td><td>4.269s</td><td>~31x</td></tr>
-                <tr><td>ProNE</td><td>0.192s</td><td>57.716s</td><td>~301x</td></tr>
-                <tr><td>Cleora</td><td>0.222s</td><td class="best-score">4.242s</td><td class="best-score">~19x</td></tr>
-                <tr><td>NetMF</td><td>23.602s</td><td>—</td><td>—</td></tr>
-                <tr><td>DeepWalk</td><td>37.617s</td><td>—</td><td>—</td></tr>
-                <tr><td>Node2Vec</td><td>51.412s</td><td>—</td><td>—</td></tr>
-            </tbody>
-        </table>
+        <div class="bench-section" id="viz-speed">
+            <h2 id="speed">Speed Comparison</h2>
+            <p>Embedding time across datasets. Shows how each algorithm scales from 4k to 2M nodes:</p>
+            <div class="bench-toggle">
+                <button class="bench-toggle-btn active" data-view="chart">Chart</button>
+                <button class="bench-toggle-btn" data-view="table">Table</button>
+            </div>
+            <div class="bench-chart-view">
+                <div class="chart-container chart-container-lg">
+                    <canvas id="chart-speed"></canvas>
+                </div>
+            </div>
+            <div class="bench-table-view" style="display:none">
+                <table class="bench-table">
+                    <thead>
+                        <tr><th>Algorithm</th><th>Facebook (4k)</th><th>roadNet (2M)</th><th>Scale Factor</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>RandNE</td><td class="best-score">0.046s</td><td>8.968s</td><td>~195x</td></tr>
+                        <tr><td>Cleora-sym</td><td>0.137s</td><td>4.269s</td><td>~31x</td></tr>
+                        <tr><td>ProNE</td><td>0.192s</td><td>57.716s</td><td>~301x</td></tr>
+                        <tr><td>Cleora</td><td>0.222s</td><td class="best-score">4.242s</td><td class="best-score">~19x</td></tr>
+                        <tr><td>NetMF</td><td>23.602s</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>DeepWalk</td><td>37.617s</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>Node2Vec</td><td>51.412s</td><td>&mdash;</td><td>&mdash;</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
-        <h2 id="cross-validation">Cross-Validation Results</h2>
-        <p>5-fold cross-validation using Cleora embeddings (128 dim, 4 iterations) on ego-Facebook with Louvain community labels:</p>
-        <table class="bench-table">
-            <thead>
-                <tr><th>Dataset</th><th>Mean Accuracy</th><th>Std</th><th>Mean F1</th><th>Std</th></tr>
-            </thead>
-            <tbody>
-                <tr><td>ego-Facebook</td><td class="best-score">0.888</td><td>0.015</td><td class="best-score">0.757</td><td>0.021</td></tr>
-            </tbody>
-        </table>
+        <div class="bench-section" id="viz-memory">
+            <h2>Memory Usage</h2>
+            <p>Peak memory footprint per algorithm across datasets:</p>
+            <div class="bench-toggle">
+                <button class="bench-toggle-btn active" data-view="chart">Chart</button>
+                <button class="bench-toggle-btn" data-view="table">Table</button>
+            </div>
+            <div class="bench-chart-view">
+                <div class="chart-container chart-container-lg">
+                    <canvas id="chart-memory"></canvas>
+                </div>
+            </div>
+            <div class="bench-table-view" style="display:none">
+                <h3>ego-Facebook Memory</h3>
+                <table class="bench-table">
+                    <thead><tr><th>Algorithm</th><th>Memory</th></tr></thead>
+                    <tbody>
+                        <tr><td>Cleora</td><td>3.99 MB</td></tr>
+                        <tr><td>Cleora-sym</td><td>3.99 MB</td></tr>
+                        <tr><td>RandNE</td><td>22.01 MB</td></tr>
+                        <tr><td>ProNE</td><td>34.04 MB</td></tr>
+                        <tr><td>Node2Vec</td><td>524.21 MB</td></tr>
+                        <tr><td>DeepWalk</td><td>530.97 MB</td></tr>
+                        <tr><td>NetMF</td><td>1037.55 MB</td></tr>
+                    </tbody>
+                </table>
+                <h3>roadNet-CA Memory</h3>
+                <table class="bench-table">
+                    <thead><tr><th>Algorithm</th><th>Memory</th></tr></thead>
+                    <tbody>
+                        <tr><td>Cleora</td><td>1,934 MB</td></tr>
+                        <tr><td>Cleora-sym</td><td>1,934 MB</td></tr>
+                        <tr><td>RandNE</td><td>8,868 MB</td></tr>
+                        <tr><td>ProNE</td><td>14,648 MB</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="bench-section" id="viz-scatter">
+            <h2>Accuracy vs Speed Tradeoff</h2>
+            <p>Scatter plot showing how each algorithm trades off accuracy against embedding time on ego-Facebook:</p>
+            <div class="bench-toggle">
+                <button class="bench-toggle-btn active" data-view="chart">Chart</button>
+                <button class="bench-toggle-btn" data-view="table">Table</button>
+            </div>
+            <div class="bench-chart-view">
+                <div class="chart-container chart-container-lg">
+                    <canvas id="chart-scatter"></canvas>
+                </div>
+            </div>
+            <div class="bench-table-view" style="display:none">
+                <h3>ego-Facebook</h3>
+                <table class="bench-table">
+                    <thead><tr><th>Algorithm</th><th>Accuracy</th><th>Time</th></tr></thead>
+                    <tbody>
+                        <tr><td>Cleora</td><td class="best-score">0.877</td><td>0.222s</td></tr>
+                        <tr><td>NetMF</td><td>0.868</td><td>23.602s</td></tr>
+                        <tr><td>DeepWalk</td><td>0.868</td><td>37.617s</td></tr>
+                        <tr><td>Node2Vec</td><td>0.865</td><td>51.412s</td></tr>
+                        <tr><td>Cleora-sym</td><td>0.827</td><td>0.137s</td></tr>
+                        <tr><td>RandNE</td><td>0.095</td><td>0.046s</td></tr>
+                        <tr><td>ProNE</td><td>0.011</td><td>0.192s</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="bench-section" id="viz-cv">
+            <h2 id="cross-validation">Cross-Validation Results</h2>
+            <p>5-fold cross-validation using Cleora embeddings (128 dim, 4 iterations) on ego-Facebook with Louvain community labels:</p>
+            <div class="bench-toggle">
+                <button class="bench-toggle-btn active" data-view="chart">Chart</button>
+                <button class="bench-toggle-btn" data-view="table">Table</button>
+            </div>
+            <div class="bench-chart-view">
+                <div class="chart-container">
+                    <canvas id="chart-cv"></canvas>
+                </div>
+            </div>
+            <div class="bench-table-view" style="display:none">
+                <table class="bench-table">
+                    <thead>
+                        <tr><th>Dataset</th><th>Mean Accuracy</th><th>Std</th><th>Mean F1</th><th>Std</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>ego-Facebook</td><td class="best-score">0.888</td><td>0.015</td><td class="best-score">0.757</td><td>0.021</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
         <div class="callout callout-info">
             <strong>Note:</strong> Cross-validation is only feasible for ego-Facebook. roadNet and LiveJournal are too large for repeated Louvain label generation and 5-fold evaluation within typical compute budgets.
@@ -219,7 +333,7 @@
             <li><strong>Embedding dimension:</strong> 128 for all algorithms</li>
             <li><strong>Metrics:</strong> Accuracy, Macro F1, wall-clock time, peak memory delta</li>
             <li><strong>Hardware:</strong> Single CPU core, no GPU</li>
-            <li><strong>Datasets:</strong> SNAP graph datasets — ego-Facebook, roadNet-CA, soc-LiveJournal1</li>
+            <li><strong>Datasets:</strong> SNAP graph datasets &mdash; ego-Facebook, roadNet-CA, soc-LiveJournal1</li>
             <li><strong>Walk-based params:</strong> num_walks=10, walk_length=20 (Facebook); excluded for larger graphs</li>
             <li><strong>Excluded algorithms:</strong> GraRep and HOPE (require dense n&times;n matrices, infeasible for 4k+ nodes)</li>
         </ul>
@@ -229,4 +343,7 @@
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="/static/benchmarks.js"></script>
 {% endblock %}

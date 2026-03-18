@@ -1420,6 +1420,56 @@ footer {
     border: 1px solid var(--border);
 }
 
+/* BENCHMARK CHARTS */
+.bench-section {
+    margin-bottom: 16px;
+}
+
+.bench-toggle {
+    display: inline-flex;
+    gap: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.bench-toggle-btn {
+    padding: 8px 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    font-family: var(--font);
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.bench-toggle-btn:hover {
+    color: var(--text);
+    background: var(--bg-card-hover);
+}
+
+.bench-toggle-btn.active {
+    color: #fff;
+    background: var(--accent);
+}
+
+.chart-container {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    position: relative;
+    height: 400px;
+}
+
+.chart-container-lg {
+    height: 480px;
+}
+
 /* RESPONSIVE */
 @media (max-width: 900px) {
     .hamburger { display: block; }
@@ -1471,6 +1521,8 @@ footer {
     .case-study { padding: 24px; }
     .case-study-results { grid-template-columns: repeat(2, 1fr); }
     .case-study-header { flex-direction: column; gap: 12px; align-items: flex-start; }
+    .chart-container { height: 350px; padding: 16px; }
+    .chart-container-lg { height: 400px; }
 }
 
 @media (max-width: 600px) {
@@ -1478,4 +1530,5 @@ footer {
     .hero-buttons { flex-direction: column; align-items: center; }
     .stats-bar { grid-template-columns: 1fr 1fr; }
     .cta-buttons { flex-direction: column; align-items: center; }
+    .chart-container, .chart-container-lg { height: 300px; }
 }
