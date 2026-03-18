@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% set active = "architecture" %}
+{% block title %}Architecture{% endblock %}
+
+{% block content %}
+<div class="docs-layout">
+    <aside class="docs-sidebar">
+        <h4>Architecture</h4>
+        <a href="#overview">Overview</a>
+        <a href="#algorithm">Core Algorithm</a>
+        <a href="#markov">Markov Propagation</a>
+        <a href="#convergence">Convergence</a>
+        <a href="#rust-core">Rust Core</a>
+        <a href="#python-api">Python Layer</a>
+        <a href="#memory">Memory Model</a>
+        <a href="#vs-random-walks">vs Random Walks</a>
+    </aside>
+
+    <div class="docs-content">
+        <h1>How Cleora Works</h1>
+        <p>A technical deep-dive into Cleora's architecture — from mathematical foundations to implementation details.</p>
+
+        <div class="section-divider" id="overview"></div>
+
+        <h2>Architecture Overview</h2>
+
+        <div class="arch-flow">
+            <div class="arch-step">
+                <div class="arch-step-num">1</div>
+                <div class="arch-step-content">
+                    <h3>Input: Edge List</h3>
+                    <p>TSV/space-separated edge file. Each line defines a hyperedge connecting entities. Column types control how entities interact.</p>
+                    <code class="arch-code">alice item_laptop<br>bob item_keyboard<br>alice item_mouse</code>
+                </div>
+            </div>
+            <div class="arch-arrow">&darr;</div>
+            <div class="arch-step">
+                <div class="arch-step-num">2</div>
+                <div class="arch-step-content">
+                    <h3>Sparse Transition Matrix</h3>
+                    <p>Construct a row-stochastic sparse matrix M where M[i][j] = probability of transitioning from node i to node j. For left-Markov: rows sum to 1. For symmetric: D<sup>-1/2</sup> A D<sup>-1/2</sup>.</p>
+                </div>
+            </div>
+            <div class="arch-arrow">&darr;</div>
+            <div class="arch-step">
+                <div class="arch-step-num">3</div>
+                <div class="arch-step-content">
+                    <h3>Deterministic Initialization</h3>
+                    <p>Hash-based initialization: each entity gets a deterministic d-dimensional vector derived from its string ID. No random seeds. Same entity always gets the same initial vector.</p>
+                </div>
+            </div>
+            <div class="arch-arrow">&darr;</div>
+            <div class="arch-step">
+                <div class="arch-step-num">4</div>
+                <div class="arch-step-content">
+                    <h3>Iterative Propagation</h3>
+                    <p>Repeat k times: E<sub>t+1</sub> = normalize(M &times; E<sub>t</sub>). Each multiplication aggregates every possible random walk of that length. After k iterations, each node's embedding encodes its k-hop neighborhood structure.</p>
+                </div>
+            </div>
+            <div class="arch-arrow">&darr;</div>
+            <div class="arch-step">
+                <div class="arch-step-num">5</div>
+                <div class="arch-step-content">
+                    <h3>Output: Embedding Matrix</h3>
+                    <p>N &times; d matrix of L2-normalized embeddings. Each row is a unit vector. Cosine similarity between any two rows measures structural proximity in the original graph.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-divider" id="algorithm"></div>
+
+        <h2>Core Algorithm</h2>
+
+        <p>Cleora's algorithm is a form of spectral embedding. The key insight: a single sparse matrix multiplication M &times; E computes the weighted average of all neighbors' embeddings for every node simultaneously. This is mathematically equivalent to aggregating all possible random walks of length 1.</p>
+
+        <p>After k multiplications, the embedding of node v encodes:</p>
+        <ul>
+            <li>All paths of length &le; k starting from v</li>
+            <li>The probability of reaching every other node in k steps</li>
+            <li>The structural role of v in its k-hop neighborhood</li>
+        </ul>
+
+        <p>The L2 normalization after each iteration prevents embedding collapse and ensures the cosine similarity metric is meaningful.</p>
+
+        <div class="arch-formula">
+            <code>E<sub>0</sub> = hash_init(entity_ids, dim)<br>
+E<sub>t+1</sub> = L2_normalize(M &times; E<sub>t</sub>)<br>
+output = E<sub>k</sub></code>
+        </div>
+
+        <div class="section-divider" id="markov"></div>
+
+        <h2>Markov Propagation Types</h2>
+
+        <div class="arch-compare">
+            <div class="arch-compare-item">
+                <h3>Left Markov (default)</h3>
+                <p>Row-stochastic: D<sup>-1</sup>A. Each row sums to 1. Equivalent to a random walk transition matrix. Better for co-occurrence/similarity tasks where you want "nodes visited by the same random walker are similar."</p>
+                <p><strong>Use for:</strong> recommendations, similarity search, clustering</p>
+            </div>
+            <div class="arch-compare-item">
+                <h3>Symmetric Markov</h3>
+                <p>D<sup>-1/2</sup>AD<sup>-1/2</sup>. Preserves spectral properties. The eigenvectors of this matrix are the graph's spectral embedding. Better for tasks requiring structural equivalence.</p>
+                <p><strong>Use for:</strong> node classification, community detection, role discovery</p>
+            </div>
+        </div>
+
+        <div class="section-divider" id="convergence"></div>
+
+        <h2>Convergence Properties</h2>
+
+        <p>Cleora converges rapidly due to L2 normalization constraining the embedding manifold. Practical guidelines:</p>
+
+        <div class="arch-table-wrapper">
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Iterations</th>
+                        <th>Neighborhood</th>
+                        <th>Best For</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>2-3</td>
+                        <td>Local (2-3 hops)</td>
+                        <td>Direct neighbors, immediate similarity</td>
+                    </tr>
+                    <tr>
+                        <td>4-5</td>
+                        <td>Medium (4-5 hops)</td>
+                        <td>Community-level similarity, recommendations</td>
+                    </tr>
+                    <tr>
+                        <td>7+</td>
+                        <td>Global</td>
+                        <td>Contextual similarity (like skip-gram), role equivalence</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <p>Beyond ~10 iterations, embeddings converge to the principal eigenvector and lose discriminative power. The default of 4 iterations is optimal for most applications.</p>
+
+        <div class="section-divider" id="rust-core"></div>
+
+        <h2>Rust Core (PyO3)</h2>
+
+        <p>The performance-critical operations are implemented in Rust and exposed to Python via PyO3:</p>
+
+        <div class="use-case-card">
+            <h3>SparseMatrix (Rust)</h3>
+            <ul>
+                <li><strong>from_iterator</strong> — parses edge strings, builds adjacency in a single pass. Multithreaded via Rayon for large inputs.</li>
+                <li><strong>initialize_deterministically</strong> — SipHash-based vector initialization. No randomness, no seeds.</li>
+                <li><strong>left_markov_propagate / symmetric_markov_propagate</strong> — sparse matrix-vector multiplication with adaptive thread pool. Processes rows in parallel chunks sized to L2 cache.</li>
+                <li><strong>to_sparse_csr</strong> — exports the Markov matrix to scipy-compatible CSR format for advanced operations in Python.</li>
+            </ul>
+        </div>
+
+        <p>The Rust layer handles ~95% of compute time. Python orchestrates iteration and normalization. This hybrid approach gives Rust speed with Python flexibility.</p>
+
+        <div class="section-divider" id="python-api"></div>
+
+        <h2>Python API Layer</h2>
+
+        <p>The Python layer provides high-level APIs on top of the Rust core:</p>
+
+        <div class="arch-modules">
+            <div class="arch-module">
+                <h4>pycleora (core)</h4>
+                <p>embed(), embed_multiscale(), embed_with_attention(), supervised_refine(), CleoraEmbedder</p>
+            </div>
+            <div class="arch-module">
+                <h4>pycleora.algorithms</h4>
+                <p>ProNE, RandNE, HOPE, NetMF, GraRep, DeepWalk, Node2Vec</p>
+            </div>
+            <div class="arch-module">
+                <h4>pycleora.metrics</h4>
+                <p>AUC, MRR, Hits@K, MAP@K, nDCG, F1, ARI, Silhouette</p>
+            </div>
+            <div class="arch-module">
+                <h4>pycleora.sampling</h4>
+                <p>neighborhood, subgraph, GraphSAINT, negative, train/test splits</p>
+            </div>
+            <div class="arch-module">
+                <h4>pycleora.viz</h4>
+                <p>t-SNE, UMAP, PCA reduction + matplotlib plotting</p>
+            </div>
+            <div class="arch-module">
+                <h4>pycleora.io_utils</h4>
+                <p>NetworkX, PyG, DGL export. NPZ/CSV/TSV/Parquet save/load</p>
+            </div>
+        </div>
+
+        <div class="section-divider" id="memory"></div>
+
+        <h2>Memory Model</h2>
+
+        <p>Cleora's memory usage is dominated by two structures:</p>
+
+        <div class="use-case-card">
+            <ul>
+                <li><strong>Sparse matrix</strong> — O(edges) memory. CSR format stores only non-zero values. A graph with 5M edges uses ~60 MB for the matrix.</li>
+                <li><strong>Embedding matrix</strong> — O(nodes &times; dim) memory. 2M nodes &times; 128 dims &times; 4 bytes = ~1 GB.</li>
+            </ul>
+            <p>Total for roadNet-CA (2M nodes, 5.5M edges, dim=128): <strong>1.9 GB</strong>. Compare: NetMF requires O(nodes&sup2;) for the dense log matrix — 2M&sup2; &times; 8 bytes = 32 TB. This is why NetMF crashes on large graphs.</p>
+        </div>
+
+        <div class="section-divider" id="vs-random-walks"></div>
+
+        <h2>Why Not Random Walks?</h2>
+
+        <p>Traditional methods (DeepWalk, Node2Vec) sample random walks, then train a skip-gram model on the walk sequences. This has three fundamental limitations:</p>
+
+        <div class="arch-compare">
+            <div class="arch-compare-item">
+                <h3>Random Walk Methods</h3>
+                <ul>
+                    <li>Sample a small subset of possible walks</li>
+                    <li>Require negative sampling (approximation)</li>
+                    <li>Non-deterministic: different runs give different results</li>
+                    <li>Need many walks per node for convergence</li>
+                    <li>Skip-gram training adds O(walks &times; walk_length &times; dim) time</li>
+                </ul>
+            </div>
+            <div class="arch-compare-item">
+                <h3>Cleora (Matrix Propagation)</h3>
+                <ul>
+                    <li>Computes ALL walks simultaneously via matrix multiplication</li>
+                    <li>No sampling, no approximation</li>
+                    <li>Fully deterministic: same input = same output</li>
+                    <li>Converges in 3-5 iterations</li>
+                    <li>Time complexity: O(iterations &times; edges &times; dim)</li>
+                </ul>
+            </div>
+        </div>
+
+        <p>The result: Cleora is typically 100-240x faster than random walk methods on the same graph, with equal or better accuracy on node classification benchmarks.</p>
+    </div>
+</div>
+{% endblock %}

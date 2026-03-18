@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% set active = "use-cases" %}
+{% block title %}Use Cases{% endblock %}
+
+{% block content %}
+<div class="docs-layout">
+    <aside class="docs-sidebar">
+        <h4>Use Cases</h4>
+        <a href="#recommendations">Recommendations</a>
+        <a href="#fraud-detection">Fraud Detection</a>
+        <a href="#social-networks">Social Networks</a>
+        <a href="#knowledge-graphs">Knowledge Graphs</a>
+        <a href="#entity-resolution">Entity Resolution</a>
+        <a href="#drug-discovery">Drug Discovery</a>
+
+        <h4>Tutorials</h4>
+        <a href="#tutorial-recsys">Build a RecSys</a>
+        <a href="#tutorial-communities">Community Detection</a>
+        <a href="#tutorial-sklearn">Scikit-learn Pipeline</a>
+    </aside>
+
+    <div class="docs-content">
+        <h1>Use Cases & Tutorials</h1>
+        <p>Real-world applications of graph embeddings with pycleora. Each use case includes a working code example.</p>
+
+        <div class="section-divider" id="recommendations"></div>
+
+        <h2>Recommendation Systems</h2>
+        <p>Graph embeddings transform user-item interactions into dense vectors where proximity encodes preference similarity. Cleora's deterministic output and sub-minute embedding time make it ideal for production recommendation pipelines that need daily retraining.</p>
+
+        <div class="use-case-card">
+            <h3>How It Works</h3>
+            <p>Model users and items as nodes in a bipartite graph. Each purchase, view, or rating becomes an edge. Cleora propagates structural information so that users who interact with similar items get similar embeddings — and items consumed by similar users cluster together.</p>
+            <ul>
+                <li><strong>Collaborative filtering</strong> — find users with similar taste profiles</li>
+                <li><strong>Item similarity</strong> — "customers who bought X also bought Y"</li>
+                <li><strong>Cold-start mitigation</strong> — new items with even 1-2 interactions get meaningful embeddings through neighbor propagation</li>
+            </ul>
+        </div>
+
+        <pre><code><span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> SparseMatrix, embed, find_most_similar
+
+<span class="code-comment"># User-item interaction edges</span>
+edges = [
+    <span class="code-string">"user_1 product_laptop"</span>, <span class="code-string">"user_1 product_mouse"</span>,
+    <span class="code-string">"user_2 product_laptop"</span>, <span class="code-string">"user_2 product_keyboard"</span>,
+    <span class="code-string">"user_3 product_phone"</span>,  <span class="code-string">"user_3 product_case"</span>,
+]
+graph = SparseMatrix.<span class="code-func">from_iterator</span>(
+    <span class="code-func">iter</span>(edges), <span class="code-string">"complex::reflexive::product"</span>
+)
+embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">64</span>, num_iterations=<span class="code-num">4</span>)
+
+<span class="code-comment"># Find products similar to "product_laptop"</span>
+similar = <span class="code-func">find_most_similar</span>(graph, embeddings, <span class="code-string">"product_laptop"</span>, top_k=<span class="code-num">5</span>)
+<span class="code-keyword">for</span> r <span class="code-keyword">in</span> similar:
+    <span class="code-func">print</span>(<span class="code-string">f"</span>{r[<span class="code-string">'entity_id'</span>]}: {r[<span class="code-string">'similarity'</span>]:.4f}<span class="code-string">"</span>)</code></pre>
+
+        <div class="section-divider" id="fraud-detection"></div>
+
+        <h2>Fraud Detection</h2>
+        <p>Fraudulent accounts often share devices, IPs, phone numbers, or payment methods with other fraudulent accounts. Graph embeddings capture these transitive relationships even when direct signals are weak.</p>
+
+        <div class="use-case-card">
+            <h3>How It Works</h3>
+            <p>Build a heterogeneous graph connecting accounts to their devices, IPs, emails, and payment instruments. Cleora embeds all entity types jointly — fraudulent accounts that share infrastructure with known bad actors will cluster together in embedding space, even across 3-4 hops of indirection.</p>
+            <ul>
+                <li><strong>Account takeover</strong> — detect when legitimate accounts start sharing infrastructure with fraud rings</li>
+                <li><strong>Synthetic identity</strong> — catch fabricated identities that reuse real SSNs, addresses, or phone numbers</li>
+                <li><strong>Money laundering</strong> — trace layered transactions through intermediary accounts</li>
+            </ul>
+        </div>
+
+        <pre><code><span class="code-comment"># Heterogeneous fraud graph: accounts, devices, IPs</span>
+edges = [
+    <span class="code-string">"account_1 device_abc ip_1.2.3.4"</span>,
+    <span class="code-string">"account_2 device_abc ip_5.6.7.8"</span>,  <span class="code-comment"># shares device with account_1</span>
+    <span class="code-string">"account_3 device_xyz ip_5.6.7.8"</span>,  <span class="code-comment"># shares IP with account_2</span>
+    <span class="code-string">"account_4 device_xyz ip_9.0.1.2"</span>,
+]
+graph = SparseMatrix.<span class="code-func">from_iterator</span>(
+    <span class="code-func">iter</span>(edges), <span class="code-string">"complex::reflexive::entity"</span>
+)
+embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">32</span>, num_iterations=<span class="code-num">5</span>)
+
+<span class="code-comment"># Accounts sharing infrastructure cluster together</span>
+<span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> cosine_similarity
+idx1 = graph.<span class="code-func">get_entity_index</span>(<span class="code-string">"account_1"</span>)
+idx3 = graph.<span class="code-func">get_entity_index</span>(<span class="code-string">"account_3"</span>)
+<span class="code-func">print</span>(<span class="code-string">f"Similarity: </span>{<span class="code-func">cosine_similarity</span>(embeddings[idx1], embeddings[idx3]):.4f}<span class="code-string">"</span>)</code></pre>
+
+        <div class="section-divider" id="social-networks"></div>
+
+        <h2>Social Network Analysis</h2>
+        <p>Social networks are natural graphs. Embeddings capture community structure, influence patterns, and user similarity without manual feature engineering.</p>
+
+        <div class="use-case-card">
+            <h3>Applications</h3>
+            <ul>
+                <li><strong>Community detection</strong> — Cleora embeddings + clustering reveal natural communities without explicit label data</li>
+                <li><strong>Influence scoring</strong> — central users get embeddings distinct from peripheral users</li>
+                <li><strong>Friend suggestions</strong> — link prediction using embedding similarity</li>
+                <li><strong>Content recommendation</strong> — users with similar social neighborhoods see similar content</li>
+            </ul>
+        </div>
+
+        <pre><code><span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> SparseMatrix, embed
+<span class="code-keyword">from</span> pycleora.community <span class="code-keyword">import</span> detect_communities_louvain
+<span class="code-keyword">from</span> pycleora.datasets <span class="code-keyword">import</span> load_dataset
+
+<span class="code-comment"># Load Facebook social network (4,039 nodes)</span>
+data = <span class="code-func">load_dataset</span>(<span class="code-string">"facebook"</span>)
+graph = SparseMatrix.<span class="code-func">from_iterator</span>(
+    <span class="code-func">iter</span>(data[<span class="code-string">"edges"</span>]), <span class="code-string">"complex::reflexive::user"</span>
+)
+embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">128</span>, num_iterations=<span class="code-num">4</span>)
+
+<span class="code-comment"># Discover communities</span>
+communities = <span class="code-func">detect_communities_louvain</span>(graph)
+<span class="code-func">print</span>(<span class="code-string">f"Found </span>{<span class="code-func">len</span>(<span class="code-func">set</span>(communities.values()))}<span class="code-string"> communities"</span>)</code></pre>
+
+        <div class="section-divider" id="knowledge-graphs"></div>
+
+        <h2>Knowledge Graphs</h2>
+        <p>Knowledge graphs encode facts as (subject, predicate, object) triples. Embedding these graphs enables relation prediction, entity typing, and question answering.</p>
+
+        <div class="use-case-card">
+            <h3>Applications</h3>
+            <ul>
+                <li><strong>Link prediction</strong> — predict missing facts ("Who directed Inception?")</li>
+                <li><strong>Entity resolution</strong> — match entities across different knowledge bases</li>
+                <li><strong>Semantic search</strong> — find entities related to a query concept</li>
+            </ul>
+        </div>
+
+        <pre><code><span class="code-comment"># Knowledge graph: (entity, relation, entity) triples</span>
+edges = [
+    <span class="code-string">"inception directed_by nolan"</span>,
+    <span class="code-string">"inception genre_scifi"</span>,
+    <span class="code-string">"interstellar directed_by nolan"</span>,
+    <span class="code-string">"interstellar genre_scifi"</span>,
+    <span class="code-string">"tenet directed_by nolan"</span>,
+]
+graph = SparseMatrix.<span class="code-func">from_iterator</span>(
+    <span class="code-func">iter</span>(edges), <span class="code-string">"complex::reflexive::entity"</span>
+)
+embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">64</span>, num_iterations=<span class="code-num">4</span>)
+
+<span class="code-comment"># Predict links: what else might Nolan direct?</span>
+<span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> predict_links
+predictions = <span class="code-func">predict_links</span>(graph, embeddings, top_k=<span class="code-num">5</span>, source_entities=[<span class="code-string">"nolan"</span>])</code></pre>
+
+        <div class="section-divider" id="entity-resolution"></div>
+
+        <h2>Entity Resolution</h2>
+        <p>When the same real-world entity appears under different names across datasets, graph embeddings can match them by structural similarity rather than string matching.</p>
+
+        <div class="use-case-card">
+            <h3>How It Works</h3>
+            <p>Connect entities to their attributes (address fragments, phone prefixes, email domains). Entities sharing multiple attributes will have similar embeddings even if their names differ completely. This captures the "guilt by association" pattern that string matching cannot.</p>
+        </div>
+
+        <div class="section-divider" id="drug-discovery"></div>
+
+        <h2>Drug Discovery</h2>
+        <p>Molecular interaction networks, protein-protein interaction graphs, and drug-target networks are natural applications for graph embeddings. Cleora's speed enables rapid iteration over large biomedical graphs.</p>
+
+        <div class="use-case-card">
+            <h3>Applications</h3>
+            <ul>
+                <li><strong>Drug repurposing</strong> — find existing drugs that may treat new diseases based on network proximity</li>
+                <li><strong>Side effect prediction</strong> — drugs with similar target profiles share similar side effects</li>
+                <li><strong>Protein function prediction</strong> — annotate uncharacterized proteins based on their interaction partners</li>
+            </ul>
+        </div>
+
+        <div class="section-divider" id="tutorial-recsys"></div>
+
+        <h2>Tutorial: Build a Recommendation System</h2>
+        <p>End-to-end example: from raw interaction data to production-ready recommendations.</p>
+
+        <pre><code><span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> SparseMatrix, embed, find_most_similar, predict_links
+<span class="code-keyword">from</span> pycleora.io_utils <span class="code-keyword">import</span> save_embeddings
+
+<span class="code-comment"># Step 1: Load interaction data</span>
+<span class="code-keyword">with</span> <span class="code-func">open</span>(<span class="code-string">"interactions.tsv"</span>) <span class="code-keyword">as</span> f:
+    edges = [line.strip() <span class="code-keyword">for</span> line <span class="code-keyword">in</span> f <span class="code-keyword">if</span> line.strip()]
+
+<span class="code-comment"># Step 2: Build graph and embed</span>
+graph = SparseMatrix.<span class="code-func">from_iterator</span>(
+    <span class="code-func">iter</span>(edges), <span class="code-string">"complex::reflexive::product"</span>
+)
+embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">128</span>, num_iterations=<span class="code-num">4</span>)
+
+<span class="code-comment"># Step 3: Generate recommendations for a user</span>
+recs = <span class="code-func">find_most_similar</span>(graph, embeddings, <span class="code-string">"user_42"</span>, top_k=<span class="code-num">20</span>)
+item_recs = [r <span class="code-keyword">for</span> r <span class="code-keyword">in</span> recs <span class="code-keyword">if</span> r[<span class="code-string">"entity_id"</span>].startswith(<span class="code-string">"item_"</span>)]
+
+<span class="code-comment"># Step 4: Save for serving</span>
+<span class="code-func">save_embeddings</span>(graph, embeddings, <span class="code-string">"embeddings.npz"</span>)</code></pre>
+
+        <div class="section-divider" id="tutorial-communities"></div>
+
+        <h2>Tutorial: Community Detection</h2>
+        <p>Discover communities in a social network and visualize the results.</p>
+
+        <pre><code><span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> SparseMatrix, embed
+<span class="code-keyword">from</span> pycleora.community <span class="code-keyword">import</span> detect_communities_louvain
+<span class="code-keyword">from</span> pycleora.viz <span class="code-keyword">import</span> visualize
+<span class="code-keyword">from</span> pycleora.datasets <span class="code-keyword">import</span> load_dataset
+
+<span class="code-comment"># Load and embed</span>
+data = <span class="code-func">load_dataset</span>(<span class="code-string">"facebook"</span>)
+graph = SparseMatrix.<span class="code-func">from_iterator</span>(<span class="code-func">iter</span>(data[<span class="code-string">"edges"</span>]), <span class="code-string">"complex::reflexive::user"</span>)
+embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">128</span>)
+
+<span class="code-comment"># Detect communities</span>
+communities = <span class="code-func">detect_communities_louvain</span>(graph)
+
+<span class="code-comment"># Visualize with t-SNE, colored by community</span>
+<span class="code-func">visualize</span>(graph, embeddings, labels=communities,
+         method=<span class="code-string">"tsne"</span>, save_path=<span class="code-string">"communities.png"</span>)</code></pre>
+
+        <div class="section-divider" id="tutorial-sklearn"></div>
+
+        <h2>Tutorial: Scikit-learn Pipeline</h2>
+        <p>Use CleoraEmbedder with scikit-learn's familiar fit/transform API.</p>
+
+        <pre><code><span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> CleoraEmbedder
+
+<span class="code-comment"># Scikit-learn compatible interface</span>
+embedder = <span class="code-func">CleoraEmbedder</span>(
+    feature_dim=<span class="code-num">128</span>,
+    num_iterations=<span class="code-num">4</span>,
+    columns=<span class="code-string">"complex::reflexive::product"</span>
+)
+
+<span class="code-comment"># fit_transform returns embeddings directly</span>
+edges = [<span class="code-string">"alice item_1"</span>, <span class="code-string">"alice item_2"</span>, <span class="code-string">"bob item_2"</span>, <span class="code-string">"bob item_3"</span>]
+embeddings = embedder.<span class="code-func">fit_transform</span>(edges)
+
+<span class="code-comment"># Access the graph and entity IDs after fitting</span>
+<span class="code-func">print</span>(embedder.entity_ids_)
+<span class="code-func">print</span>(embedder.embeddings_.shape)
+
+<span class="code-comment"># get_params/set_params for sklearn compatibility</span>
+<span class="code-func">print</span>(embedder.<span class="code-func">get_params</span>())</code></pre>
+    </div>
+</div>
+{% endblock %}

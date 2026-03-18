@@ -24,5 +24,13 @@ def benchmarks():
 def api_ref():
     return render_template('api.html')
 
+@app.route('/use-cases')
+def use_cases():
+    return render_template('use-cases.html')
+
+@app.route('/architecture')
+def architecture():
+    return render_template('architecture.html')
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)

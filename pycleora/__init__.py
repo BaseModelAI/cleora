@@ -746,6 +746,89 @@ def embed_edge_features(
         raise ValueError(f"Unknown combine mode: '{combine}'. Use 'concat', 'mean', or 'edge_only'.")
 
 
+class CleoraEmbedder:
+    def __init__(
+        self,
+        feature_dim: int = 128,
+        num_iterations: int = 4,
+        propagation: str = "left",
+        normalization: str = "l2",
+        columns: str = "complex::reflexive::node",
+        seed: int = 0,
+        hyperedge_trim_n: int = 16,
+        num_workers: Optional[int] = None,
+    ):
+        self.feature_dim = feature_dim
+        self.num_iterations = num_iterations
+        self.propagation = propagation
+        self.normalization = normalization
+        self.columns = columns
+        self.seed = seed
+        self.hyperedge_trim_n = hyperedge_trim_n
+        self.num_workers = num_workers
+        self.graph_ = None
+        self.embeddings_ = None
+        self.entity_ids_ = None
+
+    def fit(self, edges: List[str], y=None):
+        self.graph_ = SparseMatrix.from_iterator(
+            iter(edges), self.columns, self.hyperedge_trim_n, self.num_workers
+        )
+        self.embeddings_ = embed(
+            self.graph_,
+            feature_dim=self.feature_dim,
+            num_iterations=self.num_iterations,
+            propagation=self.propagation,
+            normalization=self.normalization,
+            seed=self.seed,
+            num_workers=self.num_workers,
+        )
+        self.entity_ids_ = list(self.graph_.entity_ids)
+        return self
+
+    def transform(self, edges: Optional[List[str]] = None) -> np.ndarray:
+        if self.embeddings_ is None:
+            raise RuntimeError("Call fit() before transform()")
+        if edges is None:
+            return self.embeddings_
+        index_map = {eid: i for i, eid in enumerate(self.entity_ids_)}
+        seen = set()
+        ordered_indices = []
+        for edge in edges:
+            for ent in edge.strip().split():
+                if ent not in seen:
+                    idx = index_map.get(ent)
+                    if idx is not None:
+                        seen.add(ent)
+                        ordered_indices.append(idx)
+        if not ordered_indices:
+            raise ValueError("None of the entities in edges were found in the fitted graph")
+        return self.embeddings_[ordered_indices]
+
+    def fit_transform(self, edges: List[str], y=None) -> np.ndarray:
+        return self.fit(edges, y).transform()
+
+    def get_params(self, deep=True) -> Dict:
+        return {
+            "feature_dim": self.feature_dim,
+            "num_iterations": self.num_iterations,
+            "propagation": self.propagation,
+            "normalization": self.normalization,
+            "columns": self.columns,
+            "seed": self.seed,
+            "hyperedge_trim_n": self.hyperedge_trim_n,
+            "num_workers": self.num_workers,
+        }
+
+    def set_params(self, **params):
+        for key, value in params.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+            else:
+                raise ValueError(f"Invalid parameter: {key}")
+        return self
+
+
 def _normalize(embeddings: np.ndarray, method: str) -> np.ndarray:
     if method == "l2":
         norms = np.linalg.norm(embeddings, ord=2, axis=-1, keepdims=True)

@@ -49,7 +49,9 @@ website/                Marketing website (Flask)
     api.html             API Reference (all functions, params, returns)
     benchmarks.html      Benchmark results with interactive Chart.js visualizations (3 SNAP datasets: ego-Facebook, roadNet-CA, soc-LiveJournal1)
   static/benchmarks.js   Chart.js benchmark charts (accuracy, speed, memory, scatter, cross-validation)
-    changelog.html       Version history (v1.0.0 through v3.0.0)
+    changelog.html       Version history (v1.0.0 through v3.1.0)
+    use-cases.html       Use cases & tutorials (6 use cases, 3 tutorials)
+    architecture.html    Architecture deep-dive (algorithm, Rust core, memory model)
 ```
 
 ## Build
@@ -78,6 +80,7 @@ cp ~/.pythonlibs/lib/python3.12/site-packages/pycleora/pycleora.cpython-312-x86_
 - `update_graph()` / `remove_edges()` - Dynamic graph modification
 - `predict_links()` - Top-K link prediction
 - `find_most_similar()` / `cosine_similarity()` - Similarity queries
+- `CleoraEmbedder` - Scikit-learn compatible class (fit/transform/fit_transform/get_params/set_params)
 
 ### Alternative Algorithms (`algorithms.py`) — 7 total
 - ProNE, RandNE, HOPE, NetMF, GraRep, DeepWalk, Node2Vec
