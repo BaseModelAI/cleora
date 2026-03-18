@@ -19,7 +19,10 @@
                 <img src="/static/img/cleora-logo-white.svg" alt="Cleora" class="brand-logo">
                 <span class="brand-version">3.0</span>
             </a>
-            <div class="nav-links">
+            <button class="hamburger" id="hamburger" aria-label="Menu">
+                <span></span><span></span><span></span>
+            </button>
+            <div class="nav-links" id="navLinks">
                 <a href="/" class="{% if active == 'home' %}active{% endif %}">Home</a>
                 <a href="/docs" class="{% if active == 'docs' %}active{% endif %}">Docs</a>
                 <a href="/api" class="{% if active == 'api' %}active{% endif %}">API</a>
@@ -58,5 +61,11 @@
             </div>
         </div>
     </footer>
+<script>
+document.getElementById('hamburger').addEventListener('click', function() {
+    this.classList.toggle('open');
+    document.getElementById('navLinks').classList.toggle('open');
+});
+</script>
 </body>
 </html>

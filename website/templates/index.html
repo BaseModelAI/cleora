@@ -328,6 +328,124 @@
     </div>
 </section>
 
+<section class="section benchmark-section">
+    <div class="section-header scroll-reveal">
+        <div class="section-badge">Benchmarks</div>
+        <h2>Real Numbers, Real Datasets</h2>
+        <p>Tested on SNAP datasets from 4K to 5M nodes. Cleora wins on accuracy and scales linearly.</p>
+    </div>
+
+    <div class="bench-highlights">
+        <div class="bench-highlight-card scroll-reveal">
+            <h3>ego-Facebook <span class="bench-meta">4,039 nodes &middot; 88K edges</span></h3>
+            <div class="bench-bars">
+                <div class="bench-bar-row scroll-reveal" data-delay="0">
+                    <span class="bench-bar-label">Cleora</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill bench-bar-best" data-width="87.7" style="width: 0%">
+                            <span class="bench-bar-value">0.877</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">0.22s</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="50">
+                    <span class="bench-bar-label">NetMF</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill" data-width="86.8" style="width: 0%">
+                            <span class="bench-bar-value">0.868</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">23.6s</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="100">
+                    <span class="bench-bar-label">DeepWalk</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill" data-width="86.8" style="width: 0%">
+                            <span class="bench-bar-value">0.868</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">37.6s</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="150">
+                    <span class="bench-bar-label">Node2Vec</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill" data-width="86.5" style="width: 0%">
+                            <span class="bench-bar-value">0.865</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">51.4s</span>
+                </div>
+            </div>
+            <div class="bench-insight">Cleora: highest accuracy <em>and</em> 170x faster than Node2Vec</div>
+        </div>
+
+        <div class="bench-highlight-card scroll-reveal" data-delay="100">
+            <h3>roadNet-CA <span class="bench-meta">1.96M nodes &middot; 5.5M edges</span></h3>
+            <div class="bench-bars">
+                <div class="bench-bar-row scroll-reveal" data-delay="0">
+                    <span class="bench-bar-label">Cleora</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill bench-bar-best" data-width="93" style="width: 0%">
+                            <span class="bench-bar-value">4.2s</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">1.9 GB</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="50">
+                    <span class="bench-bar-label">RandNE</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill" data-width="85" style="width: 0%">
+                            <span class="bench-bar-value">9.0s</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">8.9 GB</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="100">
+                    <span class="bench-bar-label">ProNE</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill" data-width="40" style="width: 0%">
+                            <span class="bench-bar-value">57.7s</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">14.6 GB</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="150">
+                    <span class="bench-bar-label">NetMF</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill bench-bar-fail" data-width="10" style="width: 0%">
+                            <span class="bench-bar-value">OOM</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">&#x2715;</span>
+                </div>
+            </div>
+            <div class="bench-insight">2M nodes embedded in 4 seconds. NetMF, DeepWalk, Node2Vec all crash.</div>
+        </div>
+    </div>
+
+    <div class="bench-scale-strip scroll-reveal">
+        <div class="scale-item">
+            <div class="scale-nodes">4K</div>
+            <div class="scale-label">Facebook</div>
+        </div>
+        <div class="scale-arrow">&rarr;</div>
+        <div class="scale-item">
+            <div class="scale-nodes">2M</div>
+            <div class="scale-label">roadNet</div>
+        </div>
+        <div class="scale-arrow">&rarr;</div>
+        <div class="scale-item">
+            <div class="scale-nodes">4.8M</div>
+            <div class="scale-label">LiveJournal</div>
+        </div>
+        <div class="scale-factor">Cleora scales with only 19x slowdown at 500x more nodes</div>
+    </div>
+
+    <div style="text-align: center; margin-top: 32px;" class="scroll-reveal">
+        <a href="/benchmarks" class="btn btn-secondary">Full Benchmark Results &rarr;</a>
+    </div>
+</section>
+
 <section class="section">
     <div class="section-header scroll-reveal">
         <div class="section-badge">Comparison</div>
@@ -510,6 +628,24 @@ document.addEventListener('DOMContentLoaded', function() {
     }, { threshold: 0.5 });
 
     counters.forEach(c => counterObserver.observe(c));
+
+    const barObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const bars = entry.target.querySelectorAll('.bench-bar-fill');
+                bars.forEach((bar, i) => {
+                    const w = bar.dataset.width;
+                    setTimeout(() => {
+                        bar.style.width = w + '%';
+                        bar.style.transition = 'width 1s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                    }, i * 120);
+                });
+                barObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.3 });
+
+    document.querySelectorAll('.bench-bars').forEach(el => barObserver.observe(el));
 
     const canvas = document.getElementById('particles');
     if (canvas) {
