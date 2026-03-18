@@ -6,6 +6,7 @@
 <div class="docs-layout">
     <aside class="docs-sidebar">
         <h4>Versions</h4>
+        <a href="#v3-2-0">v3.2.0</a>
         <a href="#v3-1-0">v3.1.0</a>
         <a href="#v3-0-0">v3.0.0</a>
         <a href="#v2-1-0">v2.1.0</a>
@@ -13,162 +14,344 @@
         <a href="#v1-2-0">v1.2.0</a>
         <a href="#v1-1-0">v1.1.0</a>
         <a href="#v1-0-0">v1.0.0</a>
+        <a href="#v0-1-0">v0.1.0 — Original Cleora</a>
+        <h4 style="margin-top: 24px;">Context</h4>
+        <a href="#vs-original">vs Original Repo</a>
     </aside>
 
     <div class="docs-content">
         <h1>Changelog</h1>
-        <p>All notable changes to pycleora, organized by version.</p>
+        <p>Complete history of pycleora — from the original Synerise Cleora Rust implementation to the current full-featured Python graph embedding library.</p>
 
         <div style="margin-top: 48px">
+
+            <!-- v3.2.0 -->
+            <div class="changelog-entry" id="v3-2-0">
+                <h3>v3.2.0</h3>
+                <div class="changelog-date">March 2026 — Performance & Ecosystem Release</div>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Rust-native Full Embed Loop (<code>embed_fast</code>)</strong></p>
+                <p>The entire embedding pipeline — initialization, propagation, normalization, and iteration — now runs inside a single Rust call. Eliminates Python↔Rust boundary crossing on every iteration. <strong>3.7× faster</strong> on roadNet (2M nodes): 15.8s → 4.3s. <strong>1.7× faster</strong> on Cora (2.5K nodes).</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Embedding Whitening (<code>whiten_embeddings</code>)</strong></p>
+                <p>Post-processing that mean-centers and decorrelates embedding dimensions via eigendecomposition. <strong>Boosts node classification accuracy from 0.26 → 0.70</strong> on Cora. Combined with multiscale, achieves <strong>0.83 accuracy</strong>. Available as <code>whiten=True</code> parameter in <code>embed()</code>.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Residual Connections</strong></p>
+                <p>Mix propagated embeddings with previous iteration: <code>emb = (1-α)·propagated + α·prev</code>. Prevents over-smoothing on deep iterations. Parameter: <code>residual_weight</code> in <code>embed()</code>.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Convergence-Based Early Stopping</strong></p>
+                <p>Automatically detects when embeddings stabilize (RMSE between iterations drops below threshold). Saves compute on graphs that converge before <code>max_iterations</code>. Parameter: <code>convergence_threshold</code> in <code>embed()</code>.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Graph Statistics Module (<code>pycleora.stats</code>)</strong></p>
+                <ul>
+                    <li><code>graph_summary()</code> — one-call overview of all graph metrics</li>
+                    <li><code>degree_distribution()</code> — node degree histogram</li>
+                    <li><code>clustering_coefficient()</code> — average local clustering coefficient</li>
+                    <li><code>connected_components()</code> — list of components</li>
+                    <li><code>diameter()</code> — graph diameter via BFS</li>
+                    <li><code>betweenness_centrality()</code> — Brandes algorithm, top-K</li>
+                    <li><code>pagerank()</code> — power iteration with dangling node handling</li>
+                </ul>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Graph Preprocessing Module (<code>pycleora.preprocess</code>)</strong></p>
+                <ul>
+                    <li><code>clean_graph()</code> — remove self-loops, deduplicate edges, filter by degree</li>
+                    <li><code>largest_connected_component()</code> — extract LCC as new SparseMatrix</li>
+                    <li><code>filter_by_degree()</code> — degree-based edge filtering</li>
+                </ul>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>ANN Search Module (<code>pycleora.search</code>)</strong></p>
+                <p><code>ANNIndex</code> class for approximate nearest neighbor queries. HNSW backend via optional hnswlib, ball-tree fallback without dependencies. Same result format as <code>find_most_similar</code>. <code>query()</code> and <code>query_vector()</code> methods.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Embedding Compression Module (<code>pycleora.compress</code>)</strong></p>
+                <ul>
+                    <li><code>pca_compress()</code> — PCA-based dimensionality reduction</li>
+                    <li><code>random_projection()</code> — fast random projection (Johnson-Lindenstrauss)</li>
+                    <li><code>product_quantize()</code> → <code>PQIndex</code> with <code>reconstruct()</code> and <code>search()</code></li>
+                </ul>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Embedding Alignment Module (<code>pycleora.align</code>)</strong></p>
+                <ul>
+                    <li><code>procrustes()</code> — orthogonal Procrustes alignment via SVD</li>
+                    <li><code>cca_align()</code> — Canonical Correlation Analysis into shared space</li>
+                    <li><code>alignment_score()</code> — mean cosine similarity after Procrustes</li>
+                </ul>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Ensemble Embeddings Module (<code>pycleora.ensemble</code>)</strong></p>
+                <p><code>combine()</code> — merge multiple embedding matrices via concat, mean, weighted average, or SVD reduction.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Extended I/O: Pandas, SciPy, NumPy, Edge Lists</strong></p>
+                <ul>
+                    <li><code>from_pandas(df, source_col, target_col)</code> — build graph from DataFrame</li>
+                    <li><code>from_scipy_sparse(matrix)</code> — from scipy sparse adjacency</li>
+                    <li><code>from_numpy(adjacency_matrix)</code> — from dense numpy array</li>
+                    <li><code>from_edge_list(edges)</code> — from list of (source, target) tuples</li>
+                </ul>
+
+                <p><span class="changelog-tag tag-improved">Improved</span> <strong>Rust Core: Double-Buffered Propagation</strong></p>
+                <p>Instead of allocating a new embedding matrix on every iteration, two pre-allocated buffers are swapped. Reduces GC pressure and memory allocator overhead.</p>
+
+                <p><span class="changelog-tag tag-improved">Improved</span> <strong>Rust Core: Faster Initialization Hashing</strong></p>
+                <p>Replaced SipHash (<code>DefaultHasher</code>) with FxHash in <code>init_value()</code>. FxHash runs at ~0.3 cycles/byte vs SipHash's ~4 cycles/byte — 10× faster initialization for large graphs.</p>
+
+                <p><span class="changelog-tag tag-improved">Improved</span> <strong>Rust Core: GIL Release During Embedding</strong></p>
+                <p><code>py.allow_threads()</code> releases Python's GIL during the entire Rust embedding computation, enabling true multi-threaded parallelism.</p>
+
+                <p><span class="changelog-tag tag-improved">Improved</span> <strong>Rust Core: Vectorization-Friendly Inner Loop</strong></p>
+                <p>SpMM kernel rewritten with direct slice access instead of ndarray iterators, enabling better auto-vectorization by LLVM.</p>
+            </div>
+
+            <!-- v3.1.0 -->
             <div class="changelog-entry" id="v3-1-0">
                 <h3>v3.1.0</h3>
                 <div class="changelog-date">March 2026</div>
 
-                <p><span class="changelog-tag tag-new">New</span> <strong>Scikit-learn Compatible API (CleoraEmbedder)</strong></p>
-                <p>New <code>CleoraEmbedder</code> class with <code>fit()</code>, <code>transform()</code>, <code>fit_transform()</code>, <code>get_params()</code>, and <code>set_params()</code> methods. Drop-in compatible with scikit-learn pipelines and grid search workflows.</p>
+                <p><span class="changelog-tag tag-new">New</span> <strong>Scikit-learn Compatible API (<code>CleoraEmbedder</code>)</strong></p>
+                <p>New <code>CleoraEmbedder</code> class with <code>fit()</code>, <code>transform()</code>, <code>fit_transform()</code>, <code>get_params()</code>, and <code>set_params()</code> methods. Drop-in compatible with scikit-learn pipelines and grid search workflows. Transform preserves entity order.</p>
 
                 <p><span class="changelog-tag tag-new">New</span> <strong>Use Cases & Tutorials Page</strong></p>
-                <p>6 documented use cases with working code examples: recommendation systems, fraud detection, social network analysis, knowledge graphs, entity resolution, and drug discovery. 3 step-by-step tutorials: building a RecSys, community detection with visualization, and scikit-learn pipeline integration.</p>
+                <p>6 documented use cases with working code: recommendations, fraud detection, social networks, knowledge graphs, entity resolution, drug discovery. 3 step-by-step tutorials.</p>
 
                 <p><span class="changelog-tag tag-new">New</span> <strong>Architecture Deep-Dive Page</strong></p>
-                <p>Technical documentation of Cleora's internals: Markov propagation types, convergence properties, Rust/PyO3 architecture, memory model analysis, and comparison with random walk approaches.</p>
-
-                <p><span class="changelog-tag tag-improved">Improved</span> <strong>Website Navigation</strong></p>
-                <p>Added Use Cases and Architecture pages to the main navigation. Updated footer with direct links to all sections.</p>
+                <p>Technical documentation: Markov propagation types, convergence properties, Rust/PyO3 architecture, memory model, vs random walk comparison.</p>
 
                 <p><span class="changelog-tag tag-improved">Improved</span> <strong>Interactive Benchmark Visualizations</strong></p>
-                <p>Chart.js-powered interactive charts on the benchmarks page: accuracy bars, speed comparison, memory usage, accuracy vs speed scatter, and cross-validation with error bars. Chart/Table toggle for each visualization.</p>
+                <p>Chart.js-powered charts: accuracy bars, speed comparison, memory usage, scatter, cross-validation with error bars. Chart/table toggle.</p>
             </div>
 
+            <!-- v3.0.0 -->
             <div class="changelog-entry" id="v3-0-0">
                 <h3>v3.0.0</h3>
                 <div class="changelog-date">March 2026 — Major Release</div>
 
                 <p><span class="changelog-tag tag-new">New</span> <strong>Mini-GNN (GCN) Classifier</strong></p>
-                <p>Pure numpy/scipy 2-layer Graph Convolutional Network. No PyTorch or TensorFlow required. Symmetric normalization (D^{-1/2} A_hat D^{-1/2}), dropout, multi-layer support. 100% accuracy on Karate Club dataset.</p>
+                <p>Pure numpy/scipy 2-layer Graph Convolutional Network. No PyTorch required. Symmetric normalization (D⁻¹/² Â D⁻¹/²), dropout, multi-layer support.</p>
 
-                <p><span class="changelog-tag tag-new">New</span> <strong>Graph Sampling Module</strong></p>
-                <p>6 sampling methods: neighborhood sampling (k-hop), subgraph sampling, GraphSAINT mini-batching, negative sampling, train/test edge splits, and BFS-based sampling. Enables scalable training on large graphs.</p>
-
-                <p><span class="changelog-tag tag-new">New</span> <strong>Negative Sampling</strong></p>
-                <p>Efficient negative edge generation for link prediction. Configurable negative-to-positive ratio. Integrates with train/test splits.</p>
+                <p><span class="changelog-tag tag-new">New</span> <strong>Graph Sampling Module (<code>pycleora.sampling</code>)</strong></p>
+                <p>7 methods: <code>sample_nodes</code>, <code>sample_edges</code>, <code>sample_neighborhood</code> (k-hop), <code>sample_subgraph</code>, <code>graphsaint_sample</code> (mini-batching), <code>negative_sampling</code>, <code>train_test_split_edges</code>.</p>
 
                 <p><span class="changelog-tag tag-new">New</span> <strong>Cross-Validation</strong></p>
-                <p>k-fold cross-validation for node classification. Reports per-fold accuracy and macro F1 with mean and standard deviation. Handles edge cases with small labeled sets.</p>
+                <p>k-fold cross-validation for node classification. Per-fold accuracy/F1 with mean±std.</p>
 
                 <p><span class="changelog-tag tag-new">New</span> <strong>Enhanced Evaluation Metrics</strong></p>
                 <ul>
-                    <li>MAP@K (Mean Average Precision at K)</li>
-                    <li>nDCG@K (Normalized Discounted Cumulative Gain)</li>
-                    <li>ARI (Adjusted Rand Index)</li>
-                    <li>Silhouette Score</li>
+                    <li><code>map_at_k()</code> — Mean Average Precision at K</li>
+                    <li><code>ndcg_at_k()</code> — Normalized Discounted Cumulative Gain at K</li>
+                    <li><code>adjusted_rand_index()</code></li>
+                    <li><code>silhouette_score()</code></li>
                 </ul>
 
-                <p><span class="changelog-tag tag-new">New</span> <strong>Hyperparameter Tuning</strong></p>
-                <p>Grid search and random search with automatic evaluation. Accepts custom parameter grids and scoring functions. Returns best parameters, score, and full results history.</p>
+                <p><span class="changelog-tag tag-new">New</span> <strong>Hyperparameter Tuning (<code>pycleora.tuning</code>)</strong></p>
+                <p><code>grid_search()</code> and <code>random_search()</code> with automatic evaluation. Custom param grids and scoring functions.</p>
 
-                <p><span class="changelog-tag tag-new">New</span> <strong>CLI Tool</strong></p>
-                <p>Full command-line interface: <code>pycleora embed|info|benchmark|similar</code>. Supports all algorithms, output formats (npz/txt), and dataset operations. Entry points configured for pip install.</p>
+                <p><span class="changelog-tag tag-new">New</span> <strong>CLI Tool (<code>pycleora</code>)</strong></p>
+                <p>Command-line interface: <code>pycleora embed|info|benchmark|similar</code>. Supports all algorithms, output formats (npz/txt), dataset operations.</p>
 
-                <p><span class="changelog-tag tag-new">New</span> <strong>Benchmarking Suite</strong></p>
-                <p>Automated comparison of 9 algorithms across 6+ datasets. Measures accuracy, macro F1, time, memory, silhouette score, and modularity. Produces formatted comparison tables.</p>
+                <p><span class="changelog-tag tag-new">New</span> <strong>Benchmarking Suite (<code>pycleora.benchmark</code>)</strong></p>
+                <p>Automated comparison of 9 algorithms across 6+ datasets. Formatted comparison tables.</p>
 
-                <p><span class="changelog-tag tag-new">New</span> <strong>Graph Generators</strong></p>
-                <p>5 graph models: Erdos-Renyi, Barabasi-Albert, Stochastic Block Model, Planted Partition, Watts-Strogatz. Returns edge lists compatible with SparseMatrix.</p>
-
-                <p><span class="changelog-tag tag-new">New</span> <strong>Edge Feature Embedding</strong></p>
-                <p>Multi-dimensional features per edge. Three combination modes: concat, mean, edge_only. Integrates edge attributes into the embedding process.</p>
-
-                <p><span class="changelog-tag tag-improved">Improved</span> <strong>pip install</strong></p>
-                <p>Both setup.py and pyproject.toml configured for maturin builds. CLI entry points auto-installed. Version synced to 3.0.0.</p>
+                <p><span class="changelog-tag tag-new">New</span> <strong>Graph Generators (<code>pycleora.generators</code>)</strong></p>
+                <p>5 models: Erdos-Renyi, Barabasi-Albert, Stochastic Block Model, Planted Partition, Watts-Strogatz.</p>
 
                 <p><span class="changelog-tag tag-improved">Improved</span> <strong>Test Suite</strong></p>
-                <p>81 tests (up from 54) covering all new modules. Full suite runs in under 4 seconds.</p>
+                <p>81 tests covering all modules. Full suite runs in under 4 seconds.</p>
 
-                <p><span class="changelog-tag tag-fixed">Fixed</span> <strong>Cross-validate crash with small labeled sets</strong></p>
-                <p>Now gracefully handles graphs with fewer labeled nodes than requested folds.</p>
-
-                <p><span class="changelog-tag tag-fixed">Fixed</span> <strong>Barabasi-Albert crash for small graphs</strong></p>
-                <p>Fixed edge case where m >= num_nodes caused errors.</p>
-
-                <p><span class="changelog-tag tag-fixed">Fixed</span> <strong>nDCG edge alignment</strong></p>
-                <p>Fixed filtering logic to align with MAP@K for consistent evaluation.</p>
+                <p><span class="changelog-tag tag-fixed">Fixed</span> <strong>Cross-validate with small labeled sets</strong></p>
+                <p><span class="changelog-tag tag-fixed">Fixed</span> <strong>Barabasi-Albert crash for m >= num_nodes</strong></p>
+                <p><span class="changelog-tag tag-fixed">Fixed</span> <strong>nDCG edge alignment with MAP@K</strong></p>
             </div>
 
+            <!-- v2.1.0 -->
             <div class="changelog-entry" id="v2-1-0">
                 <h3>v2.1.0</h3>
                 <div class="changelog-date">January 2026</div>
 
-                <p><span class="changelog-tag tag-new">New</span> <strong>Heterogeneous Graph Support</strong></p>
-                <p>Multi-type node and edge support. Per-relation embedding, metapath-based embedding, and homogeneous graph export.</p>
+                <p><span class="changelog-tag tag-new">New</span> <strong>Heterogeneous Graph Support (<code>pycleora.hetero</code>)</strong></p>
+                <p><code>HeteroGraph</code> class with <code>add_node_type()</code>, <code>add_edge_type()</code>, <code>embed_per_relation()</code>, <code>embed_metapath()</code>. Multi-type nodes and edges.</p>
 
-                <p><span class="changelog-tag tag-new">New</span> <strong>Attention-Weighted Embedding</strong></p>
-                <p>Embedding with learned attention weights using temperature-based softmax normalization.</p>
+                <p><span class="changelog-tag tag-new">New</span> <strong>Attention-Weighted Embedding (<code>embed_with_attention</code>)</strong></p>
+                <p>Temperature-based softmax attention weighting during propagation. Learns neighbor importance from embedding similarity.</p>
 
                 <p><span class="changelog-tag tag-improved">Improved</span> <strong>Visualization Module</strong></p>
-                <p>Community-colored t-SNE plots. Custom colormaps. Save to PNG/SVG.</p>
+                <p>Community-colored t-SNE/UMAP/PCA plots. Custom colormaps. PNG/SVG export.</p>
             </div>
 
+            <!-- v2.0.0 -->
             <div class="changelog-entry" id="v2-0-0">
                 <h3>v2.0.0</h3>
                 <div class="changelog-date">October 2025</div>
 
                 <p><span class="changelog-tag tag-breaking">Breaking</span> <strong>New Algorithm API</strong></p>
-                <p>All alternative algorithms moved to <code>pycleora.algorithms</code> module. Unified parameter naming.</p>
+                <p>All alternative algorithms moved to <code>pycleora.algorithms</code>. Unified parameter naming across all embedding functions.</p>
 
-                <p><span class="changelog-tag tag-new">New</span> <strong>DeepWalk and Node2Vec</strong></p>
-                <p>Random walk-based embeddings with configurable walk length, number of walks, and BFS/DFS bias parameters.</p>
+                <p><span class="changelog-tag tag-new">New</span> <strong>7 Embedding Algorithms</strong></p>
+                <ul>
+                    <li><code>embed_deepwalk()</code> — random walks + SVD</li>
+                    <li><code>embed_node2vec()</code> — biased walks with p/q parameters</li>
+                    <li><code>embed_netmf()</code> — Network Matrix Factorization</li>
+                    <li><code>embed_prone()</code> — Procrustean Network Embedding with spectral propagation</li>
+                    <li><code>embed_randne()</code> — Random projection with power iteration</li>
+                    <li><code>embed_grarep()</code> — Multi-scale transition matrix factorization</li>
+                    <li><code>embed_hope()</code> — Higher-Order Proximity (Katz similarity)</li>
+                </ul>
 
-                <p><span class="changelog-tag tag-new">New</span> <strong>GraRep, HOPE, NetMF, ProNE, RandNE</strong></p>
-                <p>5 spectral and matrix factorization algorithms added. Each optimized for different graph properties.</p>
-
-                <p><span class="changelog-tag tag-new">New</span> <strong>Node Classification</strong></p>
-                <p>Built-in nearest centroid, KNN, MLP classifiers. Accuracy, macro/weighted F1 scoring.</p>
+                <p><span class="changelog-tag tag-new">New</span> <strong>Node Classification (<code>pycleora.classify</code>)</strong></p>
+                <p><code>mlp_classify()</code>, <code>label_propagation()</code>, <code>label_propagation_predict()</code>. Accuracy and macro/weighted F1.</p>
 
                 <p><span class="changelog-tag tag-new">New</span> <strong>Link Prediction Metrics</strong></p>
-                <p>AUC, MRR, Hits@K scoring for link prediction tasks.</p>
+                <p>AUC, MRR, Hits@K scoring via <code>link_prediction_scores()</code>.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Community Detection</strong></p>
+                <p><code>detect_communities_kmeans()</code>, <code>detect_communities_spectral()</code>, <code>detect_communities_louvain()</code>, <code>modularity()</code>.</p>
 
                 <p><span class="changelog-tag tag-improved">Improved</span> <strong>Louvain Community Detection</strong></p>
-                <p>Binary adjacency matrix fixes. Proper self-loop removal. Correct modularity computation.</p>
+                <p>Binary adjacency fixes, proper self-loop removal, correct modularity computation.</p>
             </div>
 
+            <!-- v1.2.0 -->
             <div class="changelog-entry" id="v1-2-0">
                 <h3>v1.2.0</h3>
                 <div class="changelog-date">August 2025</div>
 
-                <p><span class="changelog-tag tag-new">New</span> <strong>Multi-Scale Embedding</strong></p>
-                <p>Concatenation of embeddings at different propagation scales. Captures local and global structure.</p>
+                <p><span class="changelog-tag tag-new">New</span> <strong>Multi-Scale Embedding (<code>embed_multiscale</code>)</strong></p>
+                <p>Concatenation of embeddings at different propagation depths (e.g. scales=[1,2,4,8]). Captures both local and global graph structure in one vector.</p>
 
-                <p><span class="changelog-tag tag-new">New</span> <strong>Node Feature Integration</strong></p>
-                <p>Weighted combination of structural and attribute-based embeddings.</p>
+                <p><span class="changelog-tag tag-new">New</span> <strong>Node Feature Integration (<code>embed_with_node_features</code>)</strong></p>
+                <p>Weighted combination of structural Cleora embeddings with external node attributes.</p>
 
-                <p><span class="changelog-tag tag-improved">Improved</span> <strong>I/O Module</strong></p>
-                <p>NPZ save/load, NetworkX/PyG/DGL export support.</p>
+                <p><span class="changelog-tag tag-new">New</span> <strong>Edge Feature Embedding (<code>embed_edge_features</code>)</strong></p>
+                <p>Multi-dimensional features per edge with concat/mean/edge_only combination modes.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>I/O Module (<code>pycleora.io_utils</code>)</strong></p>
+                <p>NetworkX/PyG/DGL export (<code>to_networkx</code>, <code>to_pyg_data</code>, <code>to_dgl_graph</code>). Save/load in NPZ, CSV, TSV, Parquet formats. Edge list export.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Visualization Module (<code>pycleora.viz</code>)</strong></p>
+                <p><code>reduce_dimensions()</code> (t-SNE/UMAP/PCA), <code>plot_embeddings()</code>, <code>visualize()</code>.</p>
             </div>
 
+            <!-- v1.1.0 -->
             <div class="changelog-entry" id="v1-1-0">
                 <h3>v1.1.0</h3>
                 <div class="changelog-date">June 2025</div>
 
                 <p><span class="changelog-tag tag-new">New</span> <strong>Dynamic Graph Updates</strong></p>
-                <p>Add and remove edges from existing graphs. Streaming batch embedding.</p>
+                <p><code>update_graph()</code> — add new edges to an existing graph. <code>remove_edges()</code> — remove edges. Both rebuild the SparseMatrix with updated connectivity.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Inductive Embedding (<code>embed_inductive</code>)</strong></p>
+                <p>Embed new nodes that weren't in the training graph by propagating from existing trained embeddings.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Streaming Embedding (<code>embed_streaming</code>)</strong></p>
+                <p>Process edge batches incrementally with per-batch callbacks. For graphs that arrive in chunks.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Weighted Edges (<code>embed_weighted</code>)</strong></p>
+                <p>Build and embed graphs with explicit edge weights.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Directed Graphs (<code>embed_directed</code>)</strong></p>
+                <p>Embedding for directed edge relationships.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Supervised Refinement (<code>supervised_refine</code>)</strong></p>
+                <p>Fine-tune embeddings using labeled positive/negative entity pairs with margin-based loss.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>Link Prediction (<code>predict_links</code>)</strong></p>
+                <p>Predict top-K most likely missing edges based on embedding similarity.</p>
 
                 <p><span class="changelog-tag tag-improved">Improved</span> <strong>Normalization Options</strong></p>
-                <p>L1, L2, spectral, and no-normalization modes.</p>
+                <p>L1, L2, spectral, and <code>"none"</code> normalization modes for all embedding functions.</p>
             </div>
 
+            <!-- v1.0.0 -->
             <div class="changelog-entry" id="v1-0-0">
                 <h3>v1.0.0</h3>
-                <div class="changelog-date">March 2025 — Initial Release</div>
+                <div class="changelog-date">March 2025 — Initial pycleora Release</div>
 
-                <p><span class="changelog-tag tag-new">New</span> <strong>Core Cleora Implementation</strong></p>
-                <p>Rust-powered sparse matrix operations with PyO3 bindings. Markov propagation-based graph embedding. Entity embedding with configurable dimensions and iterations.</p>
+                <p><span class="changelog-tag tag-new">New</span> <strong>Python API over Rust Core</strong></p>
+                <p>First full Python package wrapping the Cleora Rust engine via PyO3. <code>embed()</code> function with configurable dimensions, iterations, propagation type, normalization, seed, and worker count.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>SparseMatrix Class</strong></p>
+                <p>Core graph representation with <code>from_iterator()</code>, <code>from_files()</code>, entity lookup, neighbor access, CSR export, serialization (pickle). Properties: <code>entity_ids</code>, <code>entity_degrees</code>, <code>num_entities</code>, <code>num_edges</code>.</p>
 
                 <p><span class="changelog-tag tag-new">New</span> <strong>Similarity Search</strong></p>
-                <p>Cosine similarity-based nearest neighbor search. Top-K entity retrieval.</p>
+                <p><code>cosine_similarity()</code> and <code>find_most_similar()</code> for top-K entity retrieval.</p>
 
                 <p><span class="changelog-tag tag-new">New</span> <strong>Column Definition System</strong></p>
-                <p>Flexible entity type configuration. Complex, transient, and reflexive modifiers.</p>
+                <p>Flexible column configuration: <code>complex</code> (multi-entity), <code>reflexive</code> (self-relations), <code>transient</code> (intermediate only). Example: <code>"complex::reflexive::user product"</code>.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>14 Built-in Datasets (<code>pycleora.datasets</code>)</strong></p>
+                <p>From Karate Club (34 nodes) to com-Friendster (65M nodes). SNAP datasets auto-downloaded and cached.</p>
+
+                <p><span class="changelog-tag tag-new">New</span> <strong>GPU Propagation (<code>propagate_gpu</code>)</strong></p>
+                <p>Optional PyTorch-based GPU acceleration for the propagation step.</p>
+            </div>
+
+            <!-- v0.1.0 — Original Cleora -->
+            <div class="changelog-entry" id="v0-1-0" style="border-left: 3px solid rgba(255,255,255,0.15); padding-left: 24px;">
+                <h3>v0.1.0 — Original Cleora</h3>
+                <div class="changelog-date">2021 — Synerise/Cleora (github.com/synerise/cleora)</div>
+
+                <p>The original Cleora repository by Synerise. A pure Rust CLI tool for graph embedding via Markov propagation on hypergraph structures.</p>
+
+                <p><strong>What the original repo provided:</strong></p>
+                <ul>
+                    <li>Rust binary (<code>cleora</code>) — command-line only, no Python API</li>
+                    <li><code>SparseMatrix</code> struct with left and symmetric Markov propagation</li>
+                    <li>Deterministic hash-based initialization</li>
+                    <li>File-based input only (TSV/CSV) via <code>from_files()</code></li>
+                    <li>Column definition system (complex, reflexive, transient)</li>
+                    <li>Parallel graph building via Crossbeam channels + Rayon</li>
+                    <li>Output: NPY embedding files</li>
+                    <li>L2 normalization only</li>
+                    <li>No Python bindings, no pip install, no evaluation metrics, no algorithms</li>
+                </ul>
+
+                <p><strong>Rust crates used:</strong> rayon, ndarray, crossbeam, dashmap, smallvec, twox-hash, rustc-hash, itertools</p>
+            </div>
+
+            <!-- vs Original comparison -->
+            <div class="changelog-entry" id="vs-original" style="margin-top: 48px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 48px;">
+                <h3>pycleora vs Original Cleora — Full Comparison</h3>
+                <div class="changelog-date">What changed from the original Synerise repository</div>
+
+                <table class="benchmark-table" style="margin-top: 24px;">
+                    <thead>
+                        <tr>
+                            <th>Capability</th>
+                            <th>Original Cleora</th>
+                            <th>pycleora 3.2</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Language</td><td>Rust CLI only</td><td>Python API + Rust core</td></tr>
+                        <tr><td>Install</td><td>Compile from source</td><td><code>pip install pycleora</code></td></tr>
+                        <tr><td>Input formats</td><td>TSV/CSV files</td><td>Files, iterators, pandas, scipy, numpy, NetworkX, edge lists</td></tr>
+                        <tr><td>Output formats</td><td>NPY files</td><td>NPZ, CSV, TSV, Parquet, NetworkX, PyG, DGL</td></tr>
+                        <tr><td>Embedding methods</td><td>1 (Cleora)</td><td>9 (+ Cleora variants: multiscale, attention, weighted, directed, inductive, streaming)</td></tr>
+                        <tr><td>Normalization</td><td>L2 only</td><td>L2, L1, spectral, none</td></tr>
+                        <tr><td>Propagation types</td><td>Left, symmetric</td><td>Left, symmetric + residual connections</td></tr>
+                        <tr><td>Post-processing</td><td>None</td><td>Whitening, PCA compression, random projection, product quantization</td></tr>
+                        <tr><td>Evaluation</td><td>None</td><td>12 metrics (accuracy, F1, AUC, MRR, Hits@K, MAP@K, nDCG, ARI, silhouette, modularity, cross-validation)</td></tr>
+                        <tr><td>Classification</td><td>None</td><td>GCN, MLP, label propagation</td></tr>
+                        <tr><td>Community detection</td><td>None</td><td>K-means, spectral, Louvain + modularity</td></tr>
+                        <tr><td>Graph analysis</td><td>None</td><td>Degree distribution, clustering coefficient, diameter, PageRank, betweenness centrality, connected components</td></tr>
+                        <tr><td>Preprocessing</td><td>None</td><td>Self-loop removal, deduplication, degree filtering, LCC extraction</td></tr>
+                        <tr><td>Similarity search</td><td>None</td><td>Brute force + ANN (HNSW/ball tree)</td></tr>
+                        <tr><td>Alignment</td><td>None</td><td>Procrustes, CCA, alignment scoring</td></tr>
+                        <tr><td>Ensemble</td><td>None</td><td>Concat, mean, weighted, SVD combination</td></tr>
+                        <tr><td>Visualization</td><td>None</td><td>t-SNE, UMAP, PCA with matplotlib</td></tr>
+                        <tr><td>Sampling</td><td>None</td><td>7 methods (neighborhood, subgraph, GraphSAINT, negative, train/test split)</td></tr>
+                        <tr><td>Graph generators</td><td>None</td><td>5 models (ER, BA, SBM, planted partition, Watts-Strogatz)</td></tr>
+                        <tr><td>Datasets</td><td>None (BYO files)</td><td>14 built-in (34 to 65M nodes, auto-download)</td></tr>
+                        <tr><td>Tuning</td><td>None</td><td>Grid search, random search</td></tr>
+                        <tr><td>Benchmarking</td><td>None</td><td>Automated multi-algorithm multi-dataset benchmarks</td></tr>
+                        <tr><td>Heterogeneous graphs</td><td>None</td><td>HeteroGraph class with per-relation and metapath embedding</td></tr>
+                        <tr><td>Dynamic graphs</td><td>None</td><td>Add/remove edges, inductive embedding, streaming</td></tr>
+                        <tr><td>Sklearn integration</td><td>None</td><td>CleoraEmbedder with fit/transform/get_params</td></tr>
+                        <tr><td>GPU support</td><td>None</td><td>Optional PyTorch-based propagation</td></tr>
+                        <tr><td>Serialization</td><td>None</td><td>Full pickle support for SparseMatrix</td></tr>
+                        <tr><td>CLI</td><td>Rust binary</td><td>Python CLI (<code>pycleora embed|info|benchmark|similar</code>)</td></tr>
+                        <tr><td>Performance (roadNet 2M)</td><td>~16s (Rust CLI)</td><td>4.3s (3.7× faster via optimized Rust loop)</td></tr>
+                        <tr><td>Public functions</td><td>~5</td><td>100+</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

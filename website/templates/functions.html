@@ -1,0 +1,757 @@
+{% extends "base.html" %}
+{% set active = "functions" %}
+{% block title %}All Functions{% endblock %}
+
+{% block content %}
+<div class="docs-layout">
+    <aside class="docs-sidebar">
+        <h4>Core</h4>
+        <a href="#SparseMatrix">SparseMatrix</a>
+        <a href="#embed">embed()</a>
+        <a href="#whiten_embeddings">whiten_embeddings()</a>
+        <a href="#CleoraEmbedder">CleoraEmbedder</a>
+
+        <h4>Embedding Variants</h4>
+        <a href="#embed_multiscale">embed_multiscale()</a>
+        <a href="#embed_with_node_features">embed_with_node_features()</a>
+        <a href="#embed_with_attention">embed_with_attention()</a>
+        <a href="#embed_edge_features">embed_edge_features()</a>
+        <a href="#embed_weighted">embed_weighted()</a>
+        <a href="#embed_directed">embed_directed()</a>
+        <a href="#embed_inductive">embed_inductive()</a>
+        <a href="#embed_streaming">embed_streaming()</a>
+
+        <h4>Algorithms</h4>
+        <a href="#embed_deepwalk">embed_deepwalk()</a>
+        <a href="#embed_node2vec">embed_node2vec()</a>
+        <a href="#embed_netmf">embed_netmf()</a>
+        <a href="#embed_prone">embed_prone()</a>
+        <a href="#embed_randne">embed_randne()</a>
+        <a href="#embed_grarep">embed_grarep()</a>
+        <a href="#embed_hope">embed_hope()</a>
+
+        <h4>Similarity & Links</h4>
+        <a href="#find_most_similar">find_most_similar()</a>
+        <a href="#cosine_similarity">cosine_similarity()</a>
+        <a href="#predict_links">predict_links()</a>
+
+        <h4>Graph Ops</h4>
+        <a href="#update_graph">update_graph()</a>
+        <a href="#remove_edges">remove_edges()</a>
+        <a href="#supervised_refine">supervised_refine()</a>
+
+        <h4>Classification</h4>
+        <a href="#gcn_classify">gcn_classify()</a>
+        <a href="#mlp_classify">mlp_classify()</a>
+        <a href="#label_propagation">label_propagation()</a>
+
+        <h4>Community</h4>
+        <a href="#detect_communities_louvain">louvain()</a>
+        <a href="#detect_communities_kmeans">kmeans()</a>
+        <a href="#detect_communities_spectral">spectral()</a>
+        <a href="#modularity">modularity()</a>
+
+        <h4>Metrics</h4>
+        <a href="#node_classification_scores">node_classification_scores()</a>
+        <a href="#link_prediction_scores">link_prediction_scores()</a>
+        <a href="#clustering_scores">clustering_scores()</a>
+        <a href="#map_at_k">map_at_k()</a>
+        <a href="#ndcg_at_k">ndcg_at_k()</a>
+        <a href="#cross_validate">cross_validate()</a>
+
+        <h4>Sampling</h4>
+        <a href="#sample_nodes">sample_nodes()</a>
+        <a href="#sample_edges">sample_edges()</a>
+        <a href="#sample_neighborhood">sample_neighborhood()</a>
+        <a href="#sample_subgraph">sample_subgraph()</a>
+        <a href="#graphsaint_sample">graphsaint_sample()</a>
+        <a href="#negative_sampling">negative_sampling()</a>
+        <a href="#train_test_split_edges">train_test_split_edges()</a>
+
+        <h4>Stats</h4>
+        <a href="#graph_summary">graph_summary()</a>
+        <a href="#degree_distribution">degree_distribution()</a>
+        <a href="#pagerank">pagerank()</a>
+        <a href="#betweenness_centrality">betweenness()</a>
+        <a href="#clustering_coefficient">clustering_coeff()</a>
+        <a href="#connected_components">components()</a>
+        <a href="#diameter">diameter()</a>
+
+        <h4>Preprocessing</h4>
+        <a href="#clean_graph">clean_graph()</a>
+        <a href="#largest_connected_component">largest_cc()</a>
+        <a href="#filter_by_degree">filter_by_degree()</a>
+
+        <h4>Search</h4>
+        <a href="#ANNIndex">ANNIndex</a>
+
+        <h4>Compress</h4>
+        <a href="#pca_compress">pca_compress()</a>
+        <a href="#random_projection">random_projection()</a>
+        <a href="#product_quantize">product_quantize()</a>
+
+        <h4>Align & Ensemble</h4>
+        <a href="#procrustes">procrustes()</a>
+        <a href="#cca_align">cca_align()</a>
+        <a href="#alignment_score">alignment_score()</a>
+        <a href="#combine">combine()</a>
+
+        <h4>I/O</h4>
+        <a href="#from_pandas">from_pandas()</a>
+        <a href="#from_scipy_sparse">from_scipy_sparse()</a>
+        <a href="#from_numpy">from_numpy()</a>
+        <a href="#from_edge_list">from_edge_list()</a>
+        <a href="#from_networkx">from_networkx()</a>
+        <a href="#to_networkx">to_networkx()</a>
+        <a href="#save_embeddings">save_embeddings()</a>
+        <a href="#load_embeddings">load_embeddings()</a>
+
+        <h4>Hetero</h4>
+        <a href="#HeteroGraph">HeteroGraph</a>
+
+        <h4>Generators</h4>
+        <a href="#erdos_renyi">erdos_renyi()</a>
+        <a href="#barabasi_albert">barabasi_albert()</a>
+        <a href="#stochastic_block_model">sbm()</a>
+        <a href="#planted_partition">planted_partition()</a>
+        <a href="#watts_strogatz">watts_strogatz()</a>
+
+        <h4>Tuning & Benchmark</h4>
+        <a href="#grid_search">grid_search()</a>
+        <a href="#random_search">random_search()</a>
+        <a href="#benchmark_algorithms">benchmark_algorithms()</a>
+        <a href="#benchmark_datasets">benchmark_datasets()</a>
+
+        <h4>Visualization</h4>
+        <a href="#reduce_dimensions">reduce_dimensions()</a>
+        <a href="#plot_embeddings">plot_embeddings()</a>
+        <a href="#visualize">visualize()</a>
+
+        <h4>Datasets</h4>
+        <a href="#load_dataset">load_dataset()</a>
+        <a href="#list_datasets">list_datasets()</a>
+    </aside>
+
+    <div class="docs-content">
+        <h1>All Functions</h1>
+        <p>Complete reference for pycleora 3.2 — all public functions, classes, and methods across 19 modules.</p>
+
+        <!-- ═══════════════════ CORE ═══════════════════ -->
+        <h2 id="SparseMatrix">pycleora.SparseMatrix</h2>
+        <p class="api-module-tag">Rust core — PyO3 binding</p>
+
+        <div class="api-method">
+            <h3>SparseMatrix.from_iterator(edge_iter, columns, hyperedge_trim_n=16, num_workers=None)</h3>
+            <p>Build a graph from an iterator of tab/space-separated edge strings.</p>
+            <div class="api-params">
+                <p><code>edge_iter</code> : <em>Iterator[str]</em> — Edge strings, e.g. <code>"alice bob"</code></p>
+                <p><code>columns</code> : <em>str</em> — Column definition, e.g. <code>"complex::reflexive::node"</code></p>
+                <p><code>hyperedge_trim_n</code> : <em>int</em> — Max entities per hyperedge side (default: 16)</p>
+                <p><code>num_workers</code> : <em>int | None</em> — Thread count (default: all CPUs)</p>
+                <p><strong>Returns:</strong> <code>SparseMatrix</code></p>
+            </div>
+        </div>
+        <div class="api-method">
+            <h3>SparseMatrix.from_files(filepaths, columns, hyperedge_trim_n=16, num_workers=None)</h3>
+            <p>Build a graph from TSV/CSV/TXT files.</p>
+            <div class="api-params">
+                <p><code>filepaths</code> : <em>List[str]</em> — Paths to input files</p>
+                <p><strong>Returns:</strong> <code>SparseMatrix</code></p>
+            </div>
+        </div>
+        <div class="api-method">
+            <h3>SparseMatrix.embed_fast(feature_dim, num_iterations, propagation="left", seed=0, residual_weight=0.0, num_workers=None)</h3>
+            <p>Full embedding in a single Rust call. Init → propagate → normalize × N iterations with zero Python overhead per iteration.</p>
+            <div class="api-params">
+                <p><code>residual_weight</code> : <em>float</em> — Mix ratio with previous iteration (0 = disabled)</p>
+                <p><strong>Returns:</strong> <code>np.ndarray</code> — Shape (n_entities, feature_dim)</p>
+            </div>
+        </div>
+        <div class="api-method">
+            <h3>SparseMatrix.embed_fast_convergence(feature_dim, max_iterations, propagation="left", seed=0, residual_weight=0.0, convergence_threshold=0.0, num_workers=None)</h3>
+            <p>Embedding with automatic early stopping when RMSE between iterations drops below threshold.</p>
+            <div class="api-params">
+                <p><code>convergence_threshold</code> : <em>float</em> — Stop when RMSE &lt; this value</p>
+                <p><strong>Returns:</strong> <code>(np.ndarray, int)</code> — Embeddings and actual iteration count</p>
+            </div>
+        </div>
+        <div class="api-method">
+            <h3>Properties & Methods</h3>
+            <div class="api-params">
+                <p><code>.entity_ids</code> : <em>List[str]</em> — All entity ID strings</p>
+                <p><code>.entity_degrees</code> : <em>np.ndarray[float32]</em> — Row sums (degree proxy)</p>
+                <p><code>.num_entities</code> : <em>int</em> — Node count</p>
+                <p><code>.num_edges</code> : <em>int</em> — Edge count</p>
+                <p><code>.get_entity_index(entity_id)</code> → <em>int</em></p>
+                <p><code>.get_entity_indices(entity_ids)</code> → <em>List[int]</em></p>
+                <p><code>.get_neighbors(entity_id)</code> → <em>List[(str, float)]</em></p>
+                <p><code>.to_sparse_csr(markov_type="left")</code> → <em>(rows, cols, vals, n, n)</em></p>
+                <p><code>.get_entity_column_mask(column_name)</code> → <em>np.ndarray[bool]</em></p>
+                <p><code>.initialize_deterministically(feature_dim, seed=0)</code> → <em>np.ndarray</em></p>
+                <p><code>.left_markov_propagate(x, num_workers=None)</code> → <em>np.ndarray</em></p>
+                <p><code>.symmetric_markov_propagate(x, num_workers=None)</code> → <em>np.ndarray</em></p>
+            </div>
+        </div>
+
+        <h2 id="embed">pycleora.embed()</h2>
+        <div class="api-method">
+            <h3>embed(graph, feature_dim=128, num_iterations=4, propagation="left", normalization="l2", seed=0, initial_embeddings=None, num_workers=None, callback=None, residual_weight=0.0, convergence_threshold=0.0, whiten=False)</h3>
+            <p>Main embedding function. Automatically uses fast Rust path when possible (no callback, L2 norm, no custom init).</p>
+            <div class="api-params">
+                <p><code>graph</code> : <em>SparseMatrix</em></p>
+                <p><code>feature_dim</code> : <em>int</em> — Embedding dimensionality (default: 128)</p>
+                <p><code>num_iterations</code> : <em>int</em> — Propagation iterations (default: 4)</p>
+                <p><code>propagation</code> : <em>str</em> — <code>"left"</code> or <code>"symmetric"</code></p>
+                <p><code>normalization</code> : <em>str</em> — <code>"l2"</code>, <code>"l1"</code>, <code>"spectral"</code>, <code>"none"</code></p>
+                <p><code>seed</code> : <em>int</em> — Deterministic initialization seed</p>
+                <p><code>initial_embeddings</code> : <em>np.ndarray | None</em> — Custom initial vectors</p>
+                <p><code>num_workers</code> : <em>int | None</em> — Thread count</p>
+                <p><code>callback</code> : <em>Callable[[int, np.ndarray], None] | None</em> — Per-iteration callback</p>
+                <p><code>residual_weight</code> : <em>float</em> — Mix with previous iteration (0 = off). <span class="changelog-tag tag-new" style="font-size: 0.7rem;">v3.2</span></p>
+                <p><code>convergence_threshold</code> : <em>float</em> — Early stopping RMSE threshold (0 = off). <span class="changelog-tag tag-new" style="font-size: 0.7rem;">v3.2</span></p>
+                <p><code>whiten</code> : <em>bool</em> — Apply whitening post-processing. <span class="changelog-tag tag-new" style="font-size: 0.7rem;">v3.2</span></p>
+                <p><strong>Returns:</strong> <code>np.ndarray</code> — Shape (n_entities, feature_dim)</p>
+            </div>
+        </div>
+
+        <h2 id="whiten_embeddings">pycleora.whiten_embeddings()</h2>
+        <div class="api-method">
+            <h3>whiten_embeddings(embeddings, n_components=None)</h3>
+            <p>Mean-center and decorrelate embedding dimensions via eigendecomposition. Can boost classification accuracy by 2-3×.</p>
+            <div class="api-params">
+                <p><code>embeddings</code> : <em>np.ndarray</em></p>
+                <p><code>n_components</code> : <em>int | None</em> — Keep top N components (None = all)</p>
+                <p><strong>Returns:</strong> <code>np.ndarray</code></p>
+            </div>
+        </div>
+
+        <h2 id="CleoraEmbedder">pycleora.CleoraEmbedder</h2>
+        <div class="api-method">
+            <h3>CleoraEmbedder(feature_dim=128, num_iterations=4, propagation="left", normalization="l2", seed=0, columns="complex::reflexive::node")</h3>
+            <p>Scikit-learn compatible estimator. Works with sklearn pipelines and grid search.</p>
+            <div class="api-params">
+                <p><code>.fit(edges)</code> — Build graph from edge list</p>
+                <p><code>.transform(edges=None)</code> — Get embeddings (optionally re-embed with new edges)</p>
+                <p><code>.fit_transform(edges)</code> — Build and embed in one call</p>
+                <p><code>.get_params(deep=True)</code> → <em>Dict</em></p>
+                <p><code>.set_params(**params)</code> → <em>self</em></p>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ EMBEDDING VARIANTS ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">Embedding Variants</h2>
+
+        <div class="api-method" id="embed_multiscale">
+            <h3>embed_multiscale(graph, feature_dim=128, scales=[1,2,4,8], propagation="left", normalization="l2", seed=0, num_workers=None)</h3>
+            <p>Concatenate embeddings at different propagation depths. Output dim = feature_dim × len(scales).</p>
+        </div>
+        <div class="api-method" id="embed_with_node_features">
+            <h3>embed_with_node_features(graph, node_features, num_iterations=4, propagation="left", normalization="l2", feature_weight=0.5, num_workers=None)</h3>
+            <p>Blend structural embeddings with external node attributes. <code>node_features</code>: Dict[str, np.ndarray].</p>
+        </div>
+        <div class="api-method" id="embed_with_attention">
+            <h3>embed_with_attention(graph, feature_dim=128, num_iterations=4, propagation="left", normalization="l2", attention_temperature=1.0, seed=0, num_workers=None, callback=None)</h3>
+            <p>Attention-weighted propagation. Lower temperature = sharper neighbor focus.</p>
+        </div>
+        <div class="api-method" id="embed_edge_features">
+            <h3>embed_edge_features(graph, edge_features, feature_dim=128, num_iterations=4, propagation="left", normalization="l2", combine="concat", num_workers=None)</h3>
+            <p>Edge feature integration. Combine modes: <code>"concat"</code>, <code>"mean"</code>, <code>"edge_only"</code>.</p>
+        </div>
+        <div class="api-method" id="embed_weighted">
+            <h3>embed_weighted(edges_with_weights, columns, feature_dim=128, num_iterations=4, propagation="left", normalization="l2", seed=0, hyperedge_trim_n=16, num_workers=None)</h3>
+            <p>Build and embed a weighted graph. Returns <code>(SparseMatrix, np.ndarray)</code>.</p>
+        </div>
+        <div class="api-method" id="embed_directed">
+            <h3>embed_directed(edges, columns, feature_dim=128, num_iterations=4, normalization="l2", seed=0, hyperedge_trim_n=16, num_workers=None)</h3>
+            <p>Embedding for directed edge relationships. Returns <code>(SparseMatrix, np.ndarray)</code>.</p>
+        </div>
+        <div class="api-method" id="embed_inductive">
+            <h3>embed_inductive(trained_graph, trained_embeddings, existing_edges, new_edges, columns, num_iterations=4, propagation="left", normalization="l2", hyperedge_trim_n=16, num_workers=None)</h3>
+            <p>Embed new unseen nodes by propagating from trained embeddings. Returns <code>(SparseMatrix, np.ndarray)</code>.</p>
+        </div>
+        <div class="api-method" id="embed_streaming">
+            <h3>embed_streaming(edge_batches, columns, feature_dim=128, num_iterations=4, propagation="left", normalization="l2", hyperedge_trim_n=16, num_workers=None, batch_callback=None)</h3>
+            <p>Process edge batches incrementally. Callback receives <code>(batch_idx, graph, embeddings)</code>.</p>
+        </div>
+
+        <!-- ═══════════════════ ALGORITHMS ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">pycleora.algorithms</h2>
+
+        <div class="api-method" id="embed_deepwalk">
+            <h3>embed_deepwalk(graph, feature_dim=128, num_walks=10, walk_length=80, window_size=5, seed=0)</h3>
+            <p>DeepWalk: uniform random walks + SVD of co-occurrence matrix.</p>
+        </div>
+        <div class="api-method" id="embed_node2vec">
+            <h3>embed_node2vec(graph, feature_dim=128, num_walks=10, walk_length=80, window_size=5, p=1.0, q=1.0, seed=0)</h3>
+            <p>Node2Vec: biased random walks. <code>p</code> = return (BFS), <code>q</code> = in-out (DFS).</p>
+        </div>
+        <div class="api-method" id="embed_netmf">
+            <h3>embed_netmf(graph, feature_dim=128, window_size=5, negative_samples=1.0)</h3>
+            <p>NetMF: closed-form matrix factorization equivalent to DeepWalk.</p>
+        </div>
+        <div class="api-method" id="embed_prone">
+            <h3>embed_prone(graph, feature_dim=128, mu=0.2, theta=0.5, seed=0)</h3>
+            <p>ProNE: spectral propagation with band-pass filtering.</p>
+        </div>
+        <div class="api-method" id="embed_randne">
+            <h3>embed_randne(graph, feature_dim=128, num_iterations=3, weights=None, seed=0)</h3>
+            <p>RandNE: Gaussian random projection + power iteration. Ultra-fast.</p>
+        </div>
+        <div class="api-method" id="embed_grarep">
+            <h3>embed_grarep(graph, feature_dim=128, max_step=4)</h3>
+            <p>GraRep: multi-scale transition matrix factorization.</p>
+        </div>
+        <div class="api-method" id="embed_hope">
+            <h3>embed_hope(graph, feature_dim=128, beta=0.1)</h3>
+            <p>HOPE: Higher-Order Proximity via Katz similarity.</p>
+        </div>
+        <div class="api-method">
+            <h3>list_algorithms()</h3>
+            <p>Returns a list of all available algorithm names and descriptions.</p>
+        </div>
+
+        <!-- ═══════════════════ SIMILARITY & LINKS ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">Similarity & Link Prediction</h2>
+
+        <div class="api-method" id="find_most_similar">
+            <h3>find_most_similar(graph, embeddings, query_entity, top_k=10, exclude_self=True)</h3>
+            <p>Brute-force top-K cosine similarity search. Returns <code>List[Dict]</code> with <code>entity_id</code>, <code>index</code>, <code>similarity</code>.</p>
+        </div>
+        <div class="api-method" id="cosine_similarity">
+            <h3>cosine_similarity(a, b)</h3>
+            <p>Cosine similarity between two vectors. Returns <code>float</code>.</p>
+        </div>
+        <div class="api-method" id="predict_links">
+            <h3>predict_links(graph, embeddings, top_k=10, exclude_existing=True, source_entities=None)</h3>
+            <p>Predict most likely missing edges. Returns <code>List[Dict]</code> with source, target, score.</p>
+        </div>
+
+        <!-- ═══════════════════ GRAPH OPS ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">Graph Operations</h2>
+
+        <div class="api-method" id="update_graph">
+            <h3>update_graph(existing_edges, new_edges, columns, hyperedge_trim_n=16, num_workers=None)</h3>
+            <p>Add new edges to an existing edge set and rebuild. Returns <code>SparseMatrix</code>.</p>
+        </div>
+        <div class="api-method" id="remove_edges">
+            <h3>remove_edges(existing_edges, edges_to_remove, columns, hyperedge_trim_n=16, num_workers=None)</h3>
+            <p>Remove edges and rebuild. Returns <code>SparseMatrix</code>.</p>
+        </div>
+        <div class="api-method" id="supervised_refine">
+            <h3>supervised_refine(graph, embeddings, positive_pairs, negative_pairs=None, learning_rate=0.01, num_epochs=50, margin=0.5, num_negatives_per_positive=5, callback=None)</h3>
+            <p>Fine-tune embeddings with labeled positive/negative pairs using margin loss.</p>
+        </div>
+
+        <!-- ═══════════════════ CLASSIFICATION ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">pycleora.classify</h2>
+
+        <div class="api-method" id="gcn_classify">
+            <h3>gcn_classify(graph, embeddings, labels, hidden_dim=64, learning_rate=0.01, num_epochs=200, train_ratio=0.8, seed=42, l2_reg=1e-4, num_layers=2, dropout=0.5)</h3>
+            <p>GCN classifier (pure numpy/scipy). Returns <code>Dict</code> with <code>accuracy</code>, <code>macro_f1</code>.</p>
+        </div>
+        <div class="api-method" id="mlp_classify">
+            <h3>mlp_classify(graph, embeddings, labels, hidden_dim=64, learning_rate=0.01, num_epochs=200, train_ratio=0.8, seed=42, l2_reg=1e-4)</h3>
+            <p>MLP classifier on embedding vectors.</p>
+        </div>
+        <div class="api-method" id="label_propagation">
+            <h3>label_propagation(graph, labels, num_iterations=30, alpha=0.5)</h3>
+            <p>Semi-supervised label propagation. Returns <code>Dict[str, int]</code> — predicted labels for all entities.</p>
+        </div>
+
+        <!-- ═══════════════════ COMMUNITY ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">pycleora.community</h2>
+
+        <div class="api-method" id="detect_communities_louvain">
+            <h3>detect_communities_louvain(graph, resolution=1.0)</h3>
+            <p>Louvain community detection. Returns <code>Dict[str, int]</code> — entity to community mapping.</p>
+        </div>
+        <div class="api-method" id="detect_communities_kmeans">
+            <h3>detect_communities_kmeans(graph, embeddings, k, max_iterations=100, seed=42)</h3>
+            <p>K-means clustering on embeddings.</p>
+        </div>
+        <div class="api-method" id="detect_communities_spectral">
+            <h3>detect_communities_spectral(graph, embeddings, k, seed=42)</h3>
+            <p>Spectral clustering on embeddings.</p>
+        </div>
+        <div class="api-method" id="modularity">
+            <h3>modularity(graph, communities)</h3>
+            <p>Modularity score for community assignment. Returns <code>float</code>.</p>
+        </div>
+
+        <!-- ═══════════════════ METRICS ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">pycleora.metrics</h2>
+
+        <div class="api-method" id="node_classification_scores">
+            <h3>node_classification_scores(graph, embeddings, labels, train_ratio=0.8, seed=42)</h3>
+            <p>Evaluate node classification. Returns <code>Dict</code>: <code>accuracy</code>, <code>macro_f1</code>, <code>weighted_f1</code>, <code>num_classes</code>.</p>
+        </div>
+        <div class="api-method" id="link_prediction_scores">
+            <h3>link_prediction_scores(graph, embeddings, test_edges, negative_edges=None, num_negatives_per_positive=50)</h3>
+            <p>Link prediction scoring. Returns <code>Dict</code>: <code>auc</code>, <code>mrr</code>, <code>hits_at_1</code>, <code>hits_at_3</code>, <code>hits_at_10</code>, <code>hits_at_50</code>.</p>
+        </div>
+        <div class="api-method" id="clustering_scores">
+            <h3>clustering_scores(embeddings, labels)</h3>
+            <p>Clustering evaluation. Returns <code>Dict</code>: <code>silhouette</code>, <code>ari</code>.</p>
+        </div>
+        <div class="api-method" id="map_at_k">
+            <h3>map_at_k(graph, embeddings, test_edges, k=10)</h3>
+            <p>Mean Average Precision at K. Returns <code>float</code>.</p>
+        </div>
+        <div class="api-method" id="ndcg_at_k">
+            <h3>ndcg_at_k(graph, embeddings, test_edges, k=10)</h3>
+            <p>Normalized Discounted Cumulative Gain at K. Returns <code>float</code>.</p>
+        </div>
+        <div class="api-method" id="cross_validate">
+            <h3>cross_validate(graph, embeddings, labels, k_folds=5, eval_fn=None, seed=42)</h3>
+            <p>K-fold cross-validation. Returns <code>Dict</code>: <code>mean_accuracy</code>, <code>std_accuracy</code>, <code>mean_macro_f1</code>, <code>fold_accuracies</code>.</p>
+        </div>
+        <div class="api-method">
+            <h3>adjusted_rand_index(labels_true, labels_pred)</h3>
+            <p>ARI between two label arrays. Returns <code>float</code>.</p>
+        </div>
+        <div class="api-method">
+            <h3>silhouette_score(embeddings, labels)</h3>
+            <p>Silhouette score for clustering quality. Returns <code>float</code>.</p>
+        </div>
+
+        <!-- ═══════════════════ SAMPLING ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">pycleora.sampling</h2>
+
+        <div class="api-method" id="sample_nodes">
+            <h3>sample_nodes(graph, num_nodes, seed=42)</h3>
+            <p>Uniform random node sampling. Returns <code>List[str]</code>.</p>
+        </div>
+        <div class="api-method" id="sample_edges">
+            <h3>sample_edges(graph, num_edges, seed=42)</h3>
+            <p>Uniform random edge sampling. Returns <code>List[Tuple[str, str]]</code>.</p>
+        </div>
+        <div class="api-method" id="sample_neighborhood">
+            <h3>sample_neighborhood(graph, seed_nodes, num_hops=2, max_neighbors_per_hop=None, seed=42)</h3>
+            <p>K-hop neighborhood expansion. Returns <code>Dict</code> with <code>sampled_nodes</code>, <code>edges</code>.</p>
+        </div>
+        <div class="api-method" id="sample_subgraph">
+            <h3>sample_subgraph(graph, num_nodes, method="random_walk", walk_length=100, seed=42)</h3>
+            <p>Subgraph sampling via random walk. Returns <code>Dict</code>.</p>
+        </div>
+        <div class="api-method" id="graphsaint_sample">
+            <h3>graphsaint_sample(graph, batch_size=512, walk_length=4, num_batches=5, seed=42)</h3>
+            <p>GraphSAINT mini-batch sampling. Returns <code>List[Dict]</code>.</p>
+        </div>
+        <div class="api-method" id="negative_sampling">
+            <h3>negative_sampling(graph, num_negatives=1000, seed=42)</h3>
+            <p>Generate non-existing edges. Returns <code>List[Tuple[str, str]]</code>.</p>
+        </div>
+        <div class="api-method" id="train_test_split_edges">
+            <h3>train_test_split_edges(graph, test_ratio=0.2, seed=42)</h3>
+            <p>Split edges into train/test sets. Returns <code>Dict</code> with <code>train_edges</code>, <code>test_edges</code>.</p>
+        </div>
+
+        <!-- ═══════════════════ STATS ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">pycleora.stats <span class="changelog-tag tag-new" style="font-size: 0.7rem;">v3.2</span></h2>
+
+        <div class="api-method" id="graph_summary">
+            <h3>graph_summary(graph, top_k=10)</h3>
+            <p>One-call overview: nodes, edges, density, avg degree, clustering coefficient, components, diameter, top PageRank, top betweenness centrality.</p>
+        </div>
+        <div class="api-method" id="degree_distribution">
+            <h3>degree_distribution(graph)</h3>
+            <p>Histogram of node degrees. Returns list of (degree, count) pairs.</p>
+        </div>
+        <div class="api-method" id="pagerank">
+            <h3>pagerank(graph, top_k=10, damping=0.85, max_iter=100, tol=1e-6)</h3>
+            <p>PageRank scores with dangling node redistribution. Returns <code>Dict[str, float]</code> (top-K).</p>
+        </div>
+        <div class="api-method" id="betweenness_centrality">
+            <h3>betweenness_centrality(graph, top_k=10)</h3>
+            <p>Brandes algorithm for betweenness centrality. Returns <code>Dict[str, float]</code> (top-K).</p>
+        </div>
+        <div class="api-method" id="clustering_coefficient">
+            <h3>clustering_coefficient(graph)</h3>
+            <p>Average local clustering coefficient. Returns <code>float</code>.</p>
+        </div>
+        <div class="api-method" id="connected_components">
+            <h3>connected_components(graph)</h3>
+            <p>List of connected components (each a list of node indices).</p>
+        </div>
+        <div class="api-method" id="diameter">
+            <h3>diameter(graph)</h3>
+            <p>Diameter of the largest connected component via BFS. Returns <code>int</code>.</p>
+        </div>
+
+        <!-- ═══════════════════ PREPROCESSING ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">pycleora.preprocess <span class="changelog-tag tag-new" style="font-size: 0.7rem;">v3.2</span></h2>
+
+        <div class="api-method" id="clean_graph">
+            <h3>clean_graph(edges, remove_self_loops=True, deduplicate=True, min_degree=None, max_degree=None)</h3>
+            <p>Clean raw edge list: remove self-loops, deduplicate, filter by node degree. Returns cleaned <code>List[str]</code>.</p>
+        </div>
+        <div class="api-method" id="largest_connected_component">
+            <h3>largest_connected_component(graph, columns="complex::reflexive::node", hyperedge_trim_n=16, num_workers=None)</h3>
+            <p>Extract the largest connected component as a new <code>SparseMatrix</code>.</p>
+        </div>
+        <div class="api-method" id="filter_by_degree">
+            <h3>filter_by_degree(graph, min_degree=None, max_degree=None)</h3>
+            <p>Filter graph edges by node degree thresholds. Returns <code>List[str]</code>.</p>
+        </div>
+
+        <!-- ═══════════════════ SEARCH ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">pycleora.search <span class="changelog-tag tag-new" style="font-size: 0.7rem;">v3.2</span></h2>
+
+        <div class="api-method" id="ANNIndex">
+            <h3>ANNIndex(graph, embeddings, method="hnsw")</h3>
+            <p>Approximate Nearest Neighbor index. Methods: <code>"hnsw"</code> (hnswlib, fast), <code>"brute"</code> (exact). Falls back to ball tree if hnswlib not installed.</p>
+            <div class="api-params">
+                <p><code>.query(entity_id, top_k=10, exclude_self=True)</code> → <code>List[Dict]</code> with <code>entity_id</code>, <code>index</code>, <code>similarity</code></p>
+                <p><code>.query_vector(vector, top_k=10)</code> → <code>List[Dict]</code></p>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ COMPRESS ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">pycleora.compress <span class="changelog-tag tag-new" style="font-size: 0.7rem;">v3.2</span></h2>
+
+        <div class="api-method" id="pca_compress">
+            <h3>pca_compress(embeddings, target_dim)</h3>
+            <p>PCA-based dimensionality reduction via SVD. Returns <code>np.ndarray</code>.</p>
+        </div>
+        <div class="api-method" id="random_projection">
+            <h3>random_projection(embeddings, target_dim, seed=None)</h3>
+            <p>Johnson-Lindenstrauss random projection. Faster than PCA. Returns <code>np.ndarray</code>.</p>
+        </div>
+        <div class="api-method" id="product_quantize">
+            <h3>product_quantize(embeddings, num_subspaces=8, num_centroids=256, max_iter=20, seed=None)</h3>
+            <p>Product Quantization for compressed storage. Returns <code>PQIndex</code>.</p>
+            <div class="api-params">
+                <p><code>PQIndex.reconstruct(indices=None)</code> → <code>np.ndarray</code> — Approximate reconstruction</p>
+                <p><code>PQIndex.search(query, top_k=10)</code> → <code>Dict</code> — Asymmetric distance search</p>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ ALIGN & ENSEMBLE ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">pycleora.align <span class="changelog-tag tag-new" style="font-size: 0.7rem;">v3.2</span></h2>
+
+        <div class="api-method" id="procrustes">
+            <h3>procrustes(emb_source, emb_target)</h3>
+            <p>Orthogonal Procrustes alignment via SVD. Returns <code>(aligned_emb, transform_matrix)</code>.</p>
+        </div>
+        <div class="api-method" id="cca_align">
+            <h3>cca_align(emb_a, emb_b, n_components=None)</h3>
+            <p>CCA projection into shared space. Returns <code>(aligned_a, aligned_b)</code>.</p>
+        </div>
+        <div class="api-method" id="alignment_score">
+            <h3>alignment_score(emb_a, emb_b)</h3>
+            <p>Mean cosine similarity after Procrustes alignment. Returns <code>float</code>.</p>
+        </div>
+
+        <h2 style="margin-top: 32px;">pycleora.ensemble <span class="changelog-tag tag-new" style="font-size: 0.7rem;">v3.2</span></h2>
+
+        <div class="api-method" id="combine">
+            <h3>combine(embeddings_list, method="concat", weights=None, target_dim=None)</h3>
+            <p>Combine multiple embedding matrices. Methods: <code>"concat"</code>, <code>"mean"</code>, <code>"weighted"</code>, <code>"svd"</code>.</p>
+            <div class="api-params">
+                <p><code>weights</code> : <em>List[float] | None</em> — For <code>"weighted"</code> method</p>
+                <p><code>target_dim</code> : <em>int | None</em> — For <code>"svd"</code> method (reduced output dim)</p>
+                <p><strong>Returns:</strong> <code>np.ndarray</code></p>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ I/O ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">pycleora.io_utils</h2>
+
+        <div class="api-method" id="from_pandas">
+            <h3>from_pandas(df, source_col, target_col, weight_col=None, columns="complex::reflexive::node", hyperedge_trim_n=16, num_workers=None) <span class="changelog-tag tag-new" style="font-size: 0.7rem;">v3.2</span></h3>
+            <p>Build SparseMatrix from a pandas DataFrame.</p>
+        </div>
+        <div class="api-method" id="from_scipy_sparse">
+            <h3>from_scipy_sparse(matrix, entity_ids=None, columns="complex::reflexive::node", hyperedge_trim_n=16, num_workers=None) <span class="changelog-tag tag-new" style="font-size: 0.7rem;">v3.2</span></h3>
+            <p>Build SparseMatrix from scipy sparse adjacency matrix.</p>
+        </div>
+        <div class="api-method" id="from_numpy">
+            <h3>from_numpy(adjacency_matrix, entity_ids=None, columns="complex::reflexive::node", hyperedge_trim_n=16, num_workers=None) <span class="changelog-tag tag-new" style="font-size: 0.7rem;">v3.2</span></h3>
+            <p>Build SparseMatrix from dense numpy adjacency matrix.</p>
+        </div>
+        <div class="api-method" id="from_edge_list">
+            <h3>from_edge_list(edges, columns="complex::reflexive::node", hyperedge_trim_n=16, num_workers=None) <span class="changelog-tag tag-new" style="font-size: 0.7rem;">v3.2</span></h3>
+            <p>Build from list of (source, target) or (source, target, weight) tuples.</p>
+        </div>
+        <div class="api-method" id="from_networkx">
+            <h3>from_networkx(G, columns="complex::reflexive::node", hyperedge_trim_n=16, num_workers=None)</h3>
+            <p>Build SparseMatrix from a NetworkX graph.</p>
+        </div>
+        <div class="api-method" id="to_networkx">
+            <h3>to_networkx(graph, embeddings=None)</h3>
+            <p>Convert to NetworkX graph. Optionally attach embeddings as node attributes.</p>
+        </div>
+        <div class="api-method">
+            <h3>to_pyg_data(graph, embeddings)</h3>
+            <p>Convert to PyTorch Geometric <code>Data</code> object.</p>
+        </div>
+        <div class="api-method">
+            <h3>to_dgl_graph(graph, embeddings)</h3>
+            <p>Convert to DGL <code>DGLGraph</code>.</p>
+        </div>
+        <div class="api-method">
+            <h3>to_edge_list(graph)</h3>
+            <p>Export as <code>List[Tuple[str, str, float]]</code> — (source, target, weight).</p>
+        </div>
+        <div class="api-method" id="save_embeddings">
+            <h3>save_embeddings(graph, embeddings, filepath, format="npz")</h3>
+            <p>Save embeddings to file. Formats: <code>"npz"</code>, <code>"csv"</code>, <code>"tsv"</code>, <code>"parquet"</code>.</p>
+        </div>
+        <div class="api-method" id="load_embeddings">
+            <h3>load_embeddings(filepath, format="npz")</h3>
+            <p>Load saved embeddings. Returns <code>(np.ndarray, List[str])</code> — embeddings and entity IDs.</p>
+        </div>
+
+        <!-- ═══════════════════ HETERO ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);" id="HeteroGraph">pycleora.hetero.HeteroGraph</h2>
+
+        <div class="api-method">
+            <h3>HeteroGraph()</h3>
+            <p>Multi-type graph for heterogeneous networks.</p>
+            <div class="api-params">
+                <p><code>.add_node_type(name, features=None)</code></p>
+                <p><code>.add_edge_type(name, source_type, target_type, edges, weights=None)</code></p>
+                <p><code>.node_types</code> → <em>List[str]</em></p>
+                <p><code>.edge_types</code> → <em>List[str]</em></p>
+                <p><code>.num_nodes(node_type=None)</code> → <em>int</em></p>
+                <p><code>.num_edges(edge_type=None)</code> → <em>int</em></p>
+                <p><code>.get_edges(edge_type)</code> → <em>List[Tuple[str, str]]</em></p>
+                <p><code>.to_homogeneous_edges()</code> → <em>List[str]</em></p>
+                <p><code>.embed_per_relation(feature_dim=128, ...)</code> → per-relation embeddings</p>
+                <p><code>.embed_metapath(metapath, feature_dim=128, ...)</code> → metapath-based embedding</p>
+                <p><code>.summary()</code> → <em>str</em></p>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ GENERATORS ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">pycleora.generators</h2>
+
+        <div class="api-method" id="erdos_renyi">
+            <h3>erdos_renyi(num_nodes, p=0.1, seed=42, directed=False)</h3>
+            <p>G(n, p) random graph. Returns <code>Dict</code> with <code>edges</code>, <code>num_nodes</code>, <code>num_edges</code>.</p>
+        </div>
+        <div class="api-method" id="barabasi_albert">
+            <h3>barabasi_albert(num_nodes, m=3, seed=42)</h3>
+            <p>Preferential attachment graph.</p>
+        </div>
+        <div class="api-method" id="stochastic_block_model">
+            <h3>stochastic_block_model(block_sizes, p_within=0.3, p_between=0.01, seed=42)</h3>
+            <p>SBM with community structure.</p>
+        </div>
+        <div class="api-method" id="planted_partition">
+            <h3>planted_partition(num_communities=4, community_size=25, p_in=0.3, p_out=0.01, seed=42)</h3>
+            <p>Equal-size community graph.</p>
+        </div>
+        <div class="api-method" id="watts_strogatz">
+            <h3>watts_strogatz(num_nodes, k=6, beta=0.3, seed=42)</h3>
+            <p>Small-world graph.</p>
+        </div>
+
+        <!-- ═══════════════════ TUNING & BENCHMARK ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">pycleora.tuning & pycleora.benchmark</h2>
+
+        <div class="api-method" id="grid_search">
+            <h3>grid_search(graph, labels, embed_fn, param_grid, eval_fn=None, metric="accuracy", seed=42, verbose=False)</h3>
+            <p>Exhaustive grid search. Returns <code>Dict</code>: <code>best_params</code>, <code>best_score</code>, <code>all_results</code>.</p>
+        </div>
+        <div class="api-method" id="random_search">
+            <h3>random_search(graph, labels, embed_fn, param_distributions, n_iter=20, eval_fn=None, metric="accuracy", seed=42, verbose=False)</h3>
+            <p>Random search over parameter space.</p>
+        </div>
+        <div class="api-method" id="benchmark_algorithms">
+            <h3>benchmark_algorithms(graph, labels, algorithms, metrics_fn=None, num_runs=1, seed=42)</h3>
+            <p>Compare multiple algorithms on one graph. Returns per-algorithm metrics.</p>
+        </div>
+        <div class="api-method" id="benchmark_datasets">
+            <h3>benchmark_datasets(dataset_names, embed_fn, feature_dim=128, seed=42)</h3>
+            <p>Run one algorithm across multiple datasets.</p>
+        </div>
+        <div class="api-method">
+            <h3>format_benchmark_table(results, metric="accuracy")</h3>
+            <p>Pretty-print algorithm comparison table.</p>
+        </div>
+        <div class="api-method">
+            <h3>format_dataset_table(results, metric="accuracy")</h3>
+            <p>Pretty-print dataset comparison table.</p>
+        </div>
+
+        <!-- ═══════════════════ VIZ ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">pycleora.viz</h2>
+
+        <div class="api-method" id="reduce_dimensions">
+            <h3>reduce_dimensions(embeddings, method="tsne", n_components=2, seed=42)</h3>
+            <p>Dimensionality reduction for plotting. Methods: <code>"tsne"</code>, <code>"umap"</code>, <code>"pca"</code>.</p>
+        </div>
+        <div class="api-method" id="plot_embeddings">
+            <h3>plot_embeddings(embeddings_2d, labels=None, entity_ids=None, title="Graph Embeddings", figsize=(10,8), save_path=None, show_labels=False, point_size=50, colormap="tab10")</h3>
+            <p>Plot 2D embeddings with optional labels and entity ID annotations.</p>
+        </div>
+        <div class="api-method" id="visualize">
+            <h3>visualize(graph, embeddings, labels=None, method="tsne", title="Graph Embeddings", save_path=None, show_labels=True, figsize=(12,10))</h3>
+            <p>One-call: reduce dimensions + plot. Entity names from graph.</p>
+        </div>
+
+        <!-- ═══════════════════ GPU ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">GPU Acceleration</h2>
+
+        <div class="api-method">
+            <h3>propagate_gpu(graph, embeddings, num_iterations=4, propagation="left", normalization="l2", device="cuda", callback=None)</h3>
+            <p>GPU-accelerated propagation via PyTorch. Requires <code>torch</code> installed. Returns <code>np.ndarray</code>.</p>
+        </div>
+
+        <!-- ═══════════════════ DATASETS ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);" id="datasets">pycleora.datasets</h2>
+
+        <div class="api-method" id="load_dataset">
+            <h3>load_dataset(name)</h3>
+            <p>Load any built-in dataset by name. Returns <code>Dict</code> with <code>edges</code>, <code>labels</code> (if available), <code>num_nodes</code>, <code>num_edges</code>.</p>
+        </div>
+        <div class="api-method" id="list_datasets">
+            <h3>list_datasets()</h3>
+            <p>List all available datasets with names, sizes, and descriptions. Returns <code>List[Dict]</code>.</p>
+        </div>
+        <div class="api-method">
+            <h3>Individual loaders</h3>
+            <div class="api-params">
+                <p><code>load_karate_club()</code> — 34 nodes, 78 edges (Zachary)</p>
+                <p><code>load_dolphins()</code> — 62 nodes (dolphin social network)</p>
+                <p><code>load_les_miserables()</code> — 77 nodes (character co-occurrence)</p>
+                <p><code>load_football()</code> — 115 nodes (college football)</p>
+                <p><code>load_cora()</code> — 2,708 nodes, 7 classes (citation network)</p>
+                <p><code>load_citeseer()</code> — 3,312 nodes, 6 classes (citation network)</p>
+                <p><code>load_pubmed()</code> — 19,717 nodes, 3 classes (citation network)</p>
+                <p><code>load_facebook()</code> — 4,039 nodes (social circles)</p>
+                <p><code>load_ppi()</code> — 3,890 nodes (protein interactions)</p>
+                <p><code>load_dblp()</code> — 317,080 nodes (co-authorship)</p>
+                <p><code>load_amazon_computers()</code> — 13,752 nodes (co-purchase)</p>
+                <p><code>load_amazon_photo()</code> — 7,650 nodes (co-purchase)</p>
+                <p><code>load_reddit()</code> — 232,965 nodes (post interactions)</p>
+                <p><code>load_roadnet()</code> — 1.97M nodes (road network)</p>
+                <p><code>load_livejournal()</code> — 4.8M nodes (social network)</p>
+                <p><code>load_com_orkut()</code> — 3.1M nodes (social network)</p>
+                <p><code>load_com_friendster()</code> — 65.6M nodes (social network)</p>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ ADDITIONAL ═══════════════════ -->
+        <h2 style="margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06);">Additional Functions</h2>
+
+        <div class="api-method">
+            <h3>embed_using_baseline_cleora(graph, feature_dim, iter)</h3>
+            <p>Run the original Cleora embedding algorithm (Python loop, no optimizations). Useful for benchmarking against v3.2 fast path.</p>
+        </div>
+        <div class="api-method">
+            <h3>classify.label_propagation_predict(graph, embeddings, labels, num_iterations=30, alpha=0.5, train_ratio=0.8, seed=42)</h3>
+            <p>Label propagation with train/test split and accuracy evaluation. Returns <code>Dict[str, float]</code>.</p>
+        </div>
+        <div class="api-method">
+            <h3>preprocess.filter_by_degree_edges(edges, min_degree=None, max_degree=None)</h3>
+            <p>Filter raw edge strings by computed node degree. Returns <code>List[str]</code>.</p>
+        </div>
+
+        <div style="margin-top: 48px; padding: 24px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+            <p style="color: rgba(255,255,255,0.5); margin: 0;">19 modules. All backward compatible with v1.0 API.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
