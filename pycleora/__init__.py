@@ -45,26 +45,83 @@ def embed(
     initial_embeddings: Optional[np.ndarray] = None,
     num_workers: Optional[int] = None,
     callback: Optional[Callable[[int, np.ndarray], None]] = None,
+    residual_weight: float = 0.0,
+    convergence_threshold: float = 0.0,
+    whiten: bool = False,
 ) -> np.ndarray:
-    propagate_fn = _get_propagate_fn(graph, propagation)
+    use_fast_path = (
+        initial_embeddings is None
+        and callback is None
+        and normalization == "l2"
+    )
 
-    if initial_embeddings is not None:
-        embeddings = initial_embeddings.astype(np.float32)
-        if embeddings.shape[0] != graph.num_entities:
-            raise ValueError(
-                f"initial_embeddings has {embeddings.shape[0]} rows but graph has {graph.num_entities} entities"
+    if use_fast_path:
+        if convergence_threshold > 0:
+            embeddings, actual_iters = graph.embed_fast_convergence(
+                feature_dim,
+                num_iterations,
+                propagation=propagation,
+                seed=seed,
+                residual_weight=residual_weight,
+                convergence_threshold=convergence_threshold,
+                num_workers=num_workers,
+            )
+        else:
+            embeddings = graph.embed_fast(
+                feature_dim,
+                num_iterations,
+                propagation=propagation,
+                seed=seed,
+                residual_weight=residual_weight,
+                num_workers=num_workers,
             )
     else:
-        embeddings = graph.initialize_deterministically(feature_dim, seed)
+        propagate_fn = _get_propagate_fn(graph, propagation)
 
-    for i in range(num_iterations):
-        embeddings = propagate_fn(embeddings, num_workers=num_workers)
-        embeddings = _normalize(embeddings, normalization)
+        if initial_embeddings is not None:
+            embeddings = initial_embeddings.astype(np.float32)
+            if embeddings.shape[0] != graph.num_entities:
+                raise ValueError(
+                    f"initial_embeddings has {embeddings.shape[0]} rows but graph has {graph.num_entities} entities"
+                )
+        else:
+            embeddings = graph.initialize_deterministically(feature_dim, seed)
 
-        if callback is not None:
-            callback(i, embeddings)
+        for i in range(num_iterations):
+            prev = embeddings if residual_weight > 0 else None
+            embeddings = propagate_fn(embeddings, num_workers=num_workers)
+
+            if residual_weight > 0 and prev is not None:
+                embeddings = (1 - residual_weight) * embeddings + residual_weight * prev
+
+            embeddings = _normalize(embeddings, normalization)
+
+            if callback is not None:
+                callback(i, embeddings)
+
+    if whiten:
+        embeddings = whiten_embeddings(embeddings)
 
     return embeddings
+
+
+def whiten_embeddings(embeddings: np.ndarray, n_components: Optional[int] = None) -> np.ndarray:
+    mean = embeddings.mean(axis=0)
+    centered = embeddings - mean
+    cov = np.cov(centered, rowvar=False)
+    eigenvalues, eigenvectors = np.linalg.eigh(cov)
+
+    idx = np.argsort(eigenvalues)[::-1]
+    eigenvalues = eigenvalues[idx]
+    eigenvectors = eigenvectors[:, idx]
+
+    if n_components is not None:
+        eigenvalues = eigenvalues[:n_components]
+        eigenvectors = eigenvectors[:, :n_components]
+
+    inv_sqrt = np.diag(1.0 / np.sqrt(np.maximum(eigenvalues, 1e-10)))
+    whitened = centered @ eigenvectors @ inv_sqrt
+    return whitened.astype(np.float32)
 
 
 def embed_with_node_features(

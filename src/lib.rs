@@ -1,6 +1,6 @@
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::Hasher;
+use rustc_hash::FxHasher;
 
 use bincode::{deserialize, serialize};
 use ndarray::{Array1, Array2, ArrayViewMut2, Axis, Ix1, Ix2};
@@ -315,6 +315,96 @@ impl SparseMatrix {
         Ok(neighbors)
     }
 
+    #[pyo3(signature = (feature_dim, num_iterations, propagation = "left", seed = 0, residual_weight = 0.0, num_workers = None))]
+    fn embed_fast<'py>(
+        &self,
+        py: Python<'py>,
+        feature_dim: usize,
+        num_iterations: usize,
+        propagation: &str,
+        seed: i64,
+        residual_weight: f32,
+        num_workers: Option<usize>,
+    ) -> PyResult<&'py PyArray<f32, Ix2>> {
+        let markov_type = match propagation {
+            "left" => MarkovType::Left,
+            "symmetric" => MarkovType::Symmetric,
+            _ => return Err(PyValueError::new_err(format!(
+                "Unknown propagation '{}'. Use 'left' or 'symmetric'.", propagation
+            ))),
+        };
+
+        let mut vectors = Array2::zeros([self.entity_ids.len(), feature_dim]);
+        self.initialize_deterministically_rust(vectors.view_mut(), seed);
+
+        let workers = num_workers.unwrap_or_else(num_cpus::get).max(1);
+
+        let result = py.allow_threads(|| {
+            let pool = rayon::ThreadPoolBuilder::new()
+                .num_threads(workers)
+                .build()
+                .unwrap();
+            pool.install(|| {
+                NdArrayMatrix::embed_full(self, vectors, markov_type, num_iterations, residual_weight)
+            })
+        });
+
+        Ok(result.to_pyarray(py))
+    }
+
+    #[pyo3(signature = (feature_dim, max_iterations, propagation = "left", seed = 0, residual_weight = 0.0, convergence_threshold = 0.0, num_workers = None))]
+    fn embed_fast_convergence<'py>(
+        &self,
+        py: Python<'py>,
+        feature_dim: usize,
+        max_iterations: usize,
+        propagation: &str,
+        seed: i64,
+        residual_weight: f32,
+        convergence_threshold: f32,
+        num_workers: Option<usize>,
+    ) -> PyResult<(&'py PyArray<f32, Ix2>, usize)> {
+        let markov_type = match propagation {
+            "left" => MarkovType::Left,
+            "symmetric" => MarkovType::Symmetric,
+            _ => return Err(PyValueError::new_err(format!(
+                "Unknown propagation '{}'. Use 'left' or 'symmetric'.", propagation
+            ))),
+        };
+
+        let mut vectors = Array2::zeros([self.entity_ids.len(), feature_dim]);
+        self.initialize_deterministically_rust(vectors.view_mut(), seed);
+
+        let workers = num_workers.unwrap_or_else(num_cpus::get).max(1);
+
+        let (result, iters) = py.allow_threads(|| {
+            let pool = rayon::ThreadPoolBuilder::new()
+                .num_threads(workers)
+                .build()
+                .unwrap();
+            pool.install(|| {
+                NdArrayMatrix::embed_full_with_convergence(
+                    self, vectors, markov_type, max_iterations,
+                    residual_weight, convergence_threshold,
+                )
+            })
+        });
+
+        Ok((result.to_pyarray(py), iters))
+    }
+
+    #[pyo3(signature = (x, num_workers = None))]
+    fn l2_normalize<'py>(
+        &self,
+        x: &'py PyArray2<f32>,
+        num_workers: Option<usize>,
+    ) -> PyResult<&'py PyArray<f32, Ix2>> {
+        let array = unsafe { x.as_array() }.to_owned();
+        let mut result = array;
+        NdArrayMatrix::l2_normalize_inplace(&mut result);
+        Ok(result.to_pyarray(x.py()))
+    }
+
     fn __repr__(&self) -> String {
         format!(
             "SparseMatrix(entities={}, edges={}, columns=('{}', '{}'))",
@@ -369,7 +459,7 @@ impl SparseMatrix {
 
 fn init_value(col: usize, hsh: u64, fixed_random_value: i64) -> f32 {
     let hash = |num: i64| {
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = FxHasher::default();
         hasher.write_i64(num);
         hasher.finish() as i64
     };
