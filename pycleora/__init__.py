@@ -2,6 +2,8 @@ import numpy as np
 from typing import Optional, List, Dict, Callable, Tuple, Union
 
 from .pycleora import SparseMatrix
+from . import stats
+from . import preprocess
 
 
 def embed_using_baseline_cleora(graph, feature_dim: int, iter: int):
