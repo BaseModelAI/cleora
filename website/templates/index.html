@@ -534,15 +534,24 @@
             <h3>ego-Facebook <span class="bench-meta">4K nodes &middot; 88K edges &middot; Accuracy</span></h3>
             <div class="bench-bars">
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
+                    <span class="bench-bar-label">Cleora</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill bench-bar-best" data-width="96.4" style="width: 0%">
+                            <span class="bench-bar-value">0.964</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">0.74s</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="50">
                     <span class="bench-bar-label">NetMF</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill" data-width="94.4" style="width: 0%">
                             <span class="bench-bar-value">0.944</span>
                         </div>
                     </div>
-                    <span class="bench-bar-time">18.9s</span>
+                    <span class="bench-bar-time">17.9s</span>
                 </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="50">
+                <div class="bench-bar-row scroll-reveal" data-delay="100">
                     <span class="bench-bar-label">Node2Vec</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill" data-width="91.8" style="width: 0%">
@@ -551,26 +560,17 @@
                     </div>
                     <span class="bench-bar-time">111.4s</span>
                 </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="100">
+                <div class="bench-bar-row scroll-reveal" data-delay="150">
                     <span class="bench-bar-label">DeepWalk</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill" data-width="91.2" style="width: 0%">
                             <span class="bench-bar-value">0.912</span>
                         </div>
                     </div>
-                    <span class="bench-bar-time">35.5s</span>
-                </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="150">
-                    <span class="bench-bar-label">Cleora</span>
-                    <div class="bench-bar-track">
-                        <div class="bench-bar-fill bench-bar-best" data-width="35.5" style="width: 0%">
-                            <span class="bench-bar-value">0.355</span>
-                        </div>
-                    </div>
-                    <span class="bench-bar-time">0.12s</span>
+                    <span class="bench-bar-time">32.4s</span>
                 </div>
             </div>
-            <div class="bench-insight">159x faster than NetMF &mdash; 16 MB vs 1.1 GB memory</div>
+            <div class="bench-insight">Highest accuracy <em>and</em> 24x faster than NetMF &mdash; 119 MB vs 1.1 GB</div>
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="50">

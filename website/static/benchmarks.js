@@ -27,7 +27,7 @@ const DATASETS = ['ego-Facebook', 'PPI-large', 'Flickr', 'ogbn-arxiv', 'Yelp'];
 const ALGORITHMS = ['Cleora', 'Cleora-sym', 'ProNE', 'RandNE', 'NetMF', 'DeepWalk', 'Node2Vec'];
 
 const SUMMARY_DATA = {
-    'Cleora':     [0.355, 0.026, 0.158, 0.038, 0.013],
+    'Cleora':     [0.964, 0.026, 0.158, 0.038, 0.013],
     'Cleora-sym': [0.293, 0.026, 0.158, 0.038, null],
     'ProNE':      [0.021, 0.008, 0.139, 0.026, null],
     'RandNE':     [0.318, 0.011, 0.146, 0.030, null],
@@ -38,7 +38,7 @@ const SUMMARY_DATA = {
 
 const SPEED_DATA = {
     algorithms: ['Cleora', 'Cleora-sym', 'RandNE', 'ProNE', 'NetMF', 'DeepWalk', 'Node2Vec'],
-    facebook:   [0.119,    0.131,        0.228,   1.396,    18.908,  35.492,      111.426],
+    facebook:   [0.109,    0.103,        0.232,   1.429,    17.920,  32.352,      111.426],
     ppi_large:  [0.330,    0.251,        1.072,   8.338,    null,    null,         null],
     flickr:     [0.475,    0.436,        1.332,   5.569,    null,    null,         null],
     ogbn_arxiv: [0.747,    0.752,        2.046,   8.333,    null,    null,         null],
@@ -58,13 +58,13 @@ const MEMORY_DATA = {
 
 const SCATTER_DATA = {
     'ego-Facebook': {
-        'NetMF':      { acc: 0.944, time: 18.908 },
+        'Cleora':     { acc: 0.964, time: 0.740 },
+        'NetMF':      { acc: 0.944, time: 17.920 },
         'Node2Vec':   { acc: 0.918, time: 111.426 },
-        'DeepWalk':   { acc: 0.912, time: 35.492 },
-        'Cleora':     { acc: 0.355, time: 0.119 },
-        'RandNE':     { acc: 0.318, time: 0.228 },
-        'Cleora-sym': { acc: 0.293, time: 0.131 },
-        'ProNE':      { acc: 0.021, time: 1.396 },
+        'DeepWalk':   { acc: 0.912, time: 32.352 },
+        'RandNE':     { acc: 0.318, time: 0.232 },
+        'Cleora-sym': { acc: 0.293, time: 0.103 },
+        'ProNE':      { acc: 0.021, time: 1.429 },
     },
     'ogbn-arxiv': {
         'Cleora':     { acc: 0.038, time: 0.747 },

@@ -129,6 +129,11 @@ cp ~/.pythonlibs/lib/python3.12/site-packages/pycleora/pycleora.cpython-312-x86_
 - `pycleora benchmark` - Run benchmarks
 - `pycleora similar` - Find similar entities
 
+### High-Dimension Optimization
+- `embed(..., whiten=True)` — PCA whitening post-processing. Critical for high dims (512+). At 1024d on ego-Facebook: 0.964 acc (vs 0.355 without).
+- `embed(..., num_iterations="auto")` — Auto-selects iterations: 4 for dim≤256, 8 for dim≤512, 16 for dim>512.
+- `embed_multiscale(..., whiten=True)` — Each scale whitened before concatenation. 2×512 [8,16] whiten → 0.942 acc.
+
 ## Architecture Notes
 
 - **Louvain**: Uses binary adjacency (w=1.0 per edge, no self-loops), NOT Markov transition values. Same for modularity().

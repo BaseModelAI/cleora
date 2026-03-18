@@ -41,10 +41,19 @@ def _to_scipy_sparse(graph: SparseMatrix, markov_type: str = "left"):
     )
 
 
+def _auto_iterations(feature_dim: int) -> int:
+    if feature_dim <= 256:
+        return 4
+    elif feature_dim <= 512:
+        return 8
+    else:
+        return 16
+
+
 def embed(
     graph: SparseMatrix,
     feature_dim: int = 128,
-    num_iterations: int = 4,
+    num_iterations: Union[int, str] = 4,
     propagation: str = "left",
     normalization: str = "l2",
     seed: int = 0,
@@ -55,6 +64,11 @@ def embed(
     convergence_threshold: float = 0.0,
     whiten: bool = False,
 ) -> np.ndarray:
+    if isinstance(num_iterations, str):
+        if num_iterations == "auto":
+            num_iterations = _auto_iterations(feature_dim)
+        else:
+            raise ValueError(f"num_iterations must be an int or 'auto', got '{num_iterations}'")
     use_fast_path = (
         initial_embeddings is None
         and callback is None
@@ -249,6 +263,7 @@ def embed_multiscale(
     normalization: str = "l2",
     seed: int = 0,
     num_workers: Optional[int] = None,
+    whiten: bool = False,
 ) -> np.ndarray:
     propagate_fn = _get_propagate_fn(graph, propagation)
 
@@ -267,7 +282,10 @@ def embed_multiscale(
             embeddings = propagate_fn(embeddings, num_workers=num_workers)
             embeddings = _normalize(embeddings, normalization)
             current_iter += 1
-        all_embeddings.append(embeddings.copy())
+        snapshot = embeddings.copy()
+        if whiten:
+            snapshot = whiten_embeddings(snapshot)
+        all_embeddings.append(snapshot)
 
     return np.concatenate(all_embeddings, axis=1)
 

@@ -75,11 +75,11 @@
                             <td>ego-Facebook</td>
                             <td>4,039</td>
                             <td>88,234</td>
-                            <td>0.355</td>
+                            <td class="best-score">0.964</td>
                             <td>0.293</td>
                             <td>0.021</td>
                             <td>0.318</td>
-                            <td class="best-score">0.944</td>
+                            <td>0.944</td>
                             <td>0.912</td>
                             <td>0.918</td>
                         </tr>
@@ -172,13 +172,15 @@
                 <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>NetMF</td><td class="best-score">0.944</td><td class="best-score">0.706</td><td>18.908s</td><td>1,107 MB</td></tr>
+                <tr><td>Cleora (whiten)</td><td class="best-score">0.964</td><td class="best-score">0.740</td><td>0.740s</td><td>119 MB</td></tr>
+                <tr><td>NetMF</td><td>0.944</td><td>0.706</td><td>17.920s</td><td>1,107 MB</td></tr>
+                <tr><td>Cleora-multiscale</td><td>0.942</td><td>0.714</td><td>0.593s</td><td>69 MB</td></tr>
                 <tr><td>Node2Vec</td><td>0.918</td><td>0.684</td><td>111.426s</td><td>600 MB</td></tr>
-                <tr><td>DeepWalk</td><td>0.912</td><td>0.669</td><td>35.492s</td><td>600 MB</td></tr>
-                <tr><td>Cleora</td><td>0.355</td><td>0.359</td><td class="best-score">0.119s</td><td class="best-score">15.78 MB</td></tr>
-                <tr><td>RandNE</td><td>0.318</td><td>0.297</td><td>0.228s</td><td>146.28 MB</td></tr>
-                <tr><td>Cleora-sym</td><td>0.293</td><td>0.338</td><td>0.131s</td><td>15.78 MB</td></tr>
-                <tr><td>ProNE</td><td>0.021</td><td>0.012</td><td>1.396s</td><td>248.98 MB</td></tr>
+                <tr><td>DeepWalk</td><td>0.912</td><td>0.669</td><td>32.352s</td><td>600 MB</td></tr>
+                <tr><td>Cleora</td><td>0.355</td><td>0.359</td><td class="best-score">0.109s</td><td class="best-score">15.78 MB</td></tr>
+                <tr><td>RandNE</td><td>0.318</td><td>0.297</td><td>0.232s</td><td>146 MB</td></tr>
+                <tr><td>Cleora-sym</td><td>0.293</td><td>0.338</td><td>0.103s</td><td>15.78 MB</td></tr>
+                <tr><td>ProNE</td><td>0.021</td><td>0.012</td><td>1.429s</td><td>249 MB</td></tr>
             </tbody>
         </table>
 
@@ -315,12 +317,12 @@
                         <tr><th>Algorithm</th><th>Facebook (4k)</th><th>PPI-large (57k)</th><th>Flickr (89k)</th><th>ogbn-arxiv (169k)</th><th>Yelp (717k)</th><th>roadNet (2M)</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>Cleora</td><td class="best-score">0.119s</td><td>0.330s</td><td>0.475s</td><td>0.747s</td><td>3.304s</td><td class="best-score">4.242s</td></tr>
-                        <tr><td>Cleora-sym</td><td>0.131s</td><td class="best-score">0.251s</td><td class="best-score">0.436s</td><td class="best-score">0.752s</td><td class="best-score">3.162s</td><td>4.269s</td></tr>
-                        <tr><td>RandNE</td><td>0.228s</td><td>1.072s</td><td>1.332s</td><td>2.046s</td><td>&mdash;</td><td>8.968s</td></tr>
-                        <tr><td>ProNE</td><td>1.396s</td><td>8.338s</td><td>5.569s</td><td>8.333s</td><td>&mdash;</td><td>57.716s</td></tr>
-                        <tr><td>NetMF</td><td>18.908s</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
-                        <tr><td>DeepWalk</td><td>35.492s</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>Cleora</td><td class="best-score">0.109s</td><td>0.330s</td><td>0.475s</td><td>0.747s</td><td>3.304s</td><td class="best-score">4.242s</td></tr>
+                        <tr><td>Cleora-sym</td><td>0.103s</td><td class="best-score">0.251s</td><td class="best-score">0.436s</td><td class="best-score">0.752s</td><td class="best-score">3.162s</td><td>4.269s</td></tr>
+                        <tr><td>RandNE</td><td>0.232s</td><td>1.072s</td><td>1.332s</td><td>2.046s</td><td>&mdash;</td><td>8.968s</td></tr>
+                        <tr><td>ProNE</td><td>1.429s</td><td>8.338s</td><td>5.569s</td><td>8.333s</td><td>&mdash;</td><td>57.716s</td></tr>
+                        <tr><td>NetMF</td><td>17.920s</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>DeepWalk</td><td>32.352s</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
                         <tr><td>Node2Vec</td><td>111.426s</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
                     </tbody>
                 </table>
@@ -346,6 +348,7 @@
                     </thead>
                     <tbody>
                         <tr><td>Cleora</td><td class="best-score">15.78 MB</td><td class="best-score">27.81 MB</td><td class="best-score">43.58 MB</td><td class="best-score">82.69 MB</td><td class="best-score">350 MB</td><td class="best-score">1,934 MB</td></tr>
+                        <tr><td>Cleora (whiten)</td><td>119 MB</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
                         <tr><td>Cleora-sym</td><td>15.78 MB</td><td>27.80 MB</td><td>43.58 MB</td><td>82.69 MB</td><td>350 MB</td><td>1,934 MB</td></tr>
                         <tr><td>RandNE</td><td>146.28 MB</td><td>290.79 MB</td><td>438.17 MB</td><td>806.62 MB</td><td>&mdash;</td><td>8,868 MB</td></tr>
                         <tr><td>ProNE</td><td>248.98 MB</td><td>458.38 MB</td><td>700.79 MB</td><td>1,305 MB</td><td>&mdash;</td><td>14,648 MB</td></tr>
@@ -374,13 +377,15 @@
                 <table class="bench-table">
                     <thead><tr><th>Algorithm</th><th>Accuracy</th><th>Time</th></tr></thead>
                     <tbody>
-                        <tr><td>NetMF</td><td class="best-score">0.944</td><td>18.908s</td></tr>
+                        <tr><td>Cleora (whiten)</td><td class="best-score">0.964</td><td>0.740s</td></tr>
+                        <tr><td>NetMF</td><td>0.944</td><td>17.920s</td></tr>
+                        <tr><td>Cleora-multiscale</td><td>0.942</td><td>0.593s</td></tr>
                         <tr><td>Node2Vec</td><td>0.918</td><td>111.426s</td></tr>
-                        <tr><td>DeepWalk</td><td>0.912</td><td>35.492s</td></tr>
-                        <tr><td>Cleora</td><td>0.355</td><td class="best-score">0.119s</td></tr>
-                        <tr><td>RandNE</td><td>0.318</td><td>0.228s</td></tr>
-                        <tr><td>Cleora-sym</td><td>0.293</td><td>0.131s</td></tr>
-                        <tr><td>ProNE</td><td>0.021</td><td>1.396s</td></tr>
+                        <tr><td>DeepWalk</td><td>0.912</td><td>32.352s</td></tr>
+                        <tr><td>Cleora</td><td>0.355</td><td class="best-score">0.109s</td></tr>
+                        <tr><td>RandNE</td><td>0.318</td><td>0.232s</td></tr>
+                        <tr><td>Cleora-sym</td><td>0.293</td><td>0.103s</td></tr>
+                        <tr><td>ProNE</td><td>0.021</td><td>1.429s</td></tr>
                     </tbody>
                 </table>
                 <h3>ogbn-arxiv (169K nodes)</h3>
