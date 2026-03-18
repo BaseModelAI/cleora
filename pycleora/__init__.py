@@ -6,6 +6,8 @@ from . import stats
 from . import preprocess
 from . import align
 from . import ensemble
+from . import search
+from . import compress
 
 
 def embed_using_baseline_cleora(graph, feature_dim: int, iter: int):
