@@ -1,0 +1,378 @@
+{% extends "base.html" %}
+{% set active = "sync" %}
+{% block title %}Benchmark Sync{% endblock %}
+
+{% block content %}
+<div class="docs-layout">
+    <aside class="docs-sidebar">
+        <h4>Sync</h4>
+        <a href="#controls">Controls</a>
+        <a href="#progress">Progress</a>
+        <a href="#log">Activity Log</a>
+    </aside>
+
+    <div class="docs-content">
+        <h1>Benchmark Sync</h1>
+        <p>Run benchmark calculations on all graph datasets and update the results displayed on the Benchmarks page. Datasets with more than 3M nodes are automatically skipped.</p>
+
+        <div class="callout callout-info" style="margin-bottom: 2rem">
+            <strong>Background job:</strong> Benchmarking runs as a server-side background job. You can safely refresh or close this page &mdash; the job will continue running. Come back anytime to check the progress.
+        </div>
+
+        <div id="controls" class="sync-controls">
+            <button id="btn-start" class="btn-sync-start" disabled onclick="startSync()">Start Sync</button>
+            <span id="sync-status-badge" class="sync-badge sync-badge-loading">Loading...</span>
+        </div>
+
+        <div id="progress" class="sync-progress-section" style="margin-top: 2rem">
+            <h2>Progress</h2>
+            <div class="sync-progress-bar-container">
+                <div class="sync-progress-bar" id="progress-bar" style="width: 0%"></div>
+            </div>
+            <div class="sync-progress-info">
+                <span id="progress-percent">0%</span>
+                <span id="progress-detail"></span>
+            </div>
+
+            <div id="skipped-section" style="display: none; margin-top: 1rem;">
+                <h3>Skipped Datasets</h3>
+                <ul id="skipped-list" class="sync-skipped-list"></ul>
+            </div>
+
+            <div id="errors-section" style="display: none; margin-top: 1rem;">
+                <h3>Errors</h3>
+                <ul id="errors-list" class="sync-errors-list"></ul>
+            </div>
+        </div>
+
+        <div id="log" style="margin-top: 2rem">
+            <h2>Activity Log</h2>
+            <div class="sync-log" id="sync-log"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .sync-controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .btn-sync-start {
+        padding: 0.75rem 2rem;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 0.2s, opacity 0.2s;
+    }
+
+    .btn-sync-start:hover:not(:disabled) {
+        background: var(--accent-bright);
+    }
+
+    .btn-sync-start:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .sync-badge {
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .sync-badge-loading {
+        background: var(--border);
+        color: var(--text-dim);
+    }
+
+    .sync-badge-idle {
+        background: var(--border);
+        color: var(--text-muted);
+    }
+
+    .sync-badge-running {
+        background: rgba(108, 99, 255, 0.2);
+        color: var(--accent-bright);
+        animation: pulse-badge 2s ease-in-out infinite;
+    }
+
+    .sync-badge-done {
+        background: rgba(52, 211, 153, 0.2);
+        color: #34d399;
+    }
+
+    .sync-badge-error {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+    }
+
+    @keyframes pulse-badge {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+    }
+
+    .sync-progress-bar-container {
+        width: 100%;
+        height: 12px;
+        background: var(--bg-card);
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+    }
+
+    .sync-progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), var(--accent-bright));
+        border-radius: 6px;
+        transition: width 0.5s ease;
+    }
+
+    .sync-progress-info {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+        color: var(--text-muted);
+    }
+
+    .sync-skipped-list,
+    .sync-errors-list {
+        list-style: none;
+        padding: 0;
+        margin: 0.5rem 0;
+    }
+
+    .sync-skipped-list li {
+        padding: 0.4rem 0.75rem;
+        margin-bottom: 0.25rem;
+        background: rgba(245, 158, 11, 0.1);
+        border-left: 3px solid #f59e0b;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
+
+    .sync-errors-list li {
+        padding: 0.4rem 0.75rem;
+        margin-bottom: 0.25rem;
+        background: rgba(239, 68, 68, 0.1);
+        border-left: 3px solid #ef4444;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        color: #ef4444;
+    }
+
+    .sync-log {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        max-height: 400px;
+        overflow-y: auto;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.8rem;
+        line-height: 1.6;
+        color: var(--text-muted);
+    }
+
+    .sync-log .log-entry {
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+
+    .sync-log .log-entry:last-child {
+        color: var(--text);
+    }
+
+    .sync-log:empty::before {
+        content: 'No activity yet. Click "Start Sync" to begin.';
+        color: var(--text-dim);
+    }
+
+    .sync-reconnect-notice {
+        display: inline-block;
+        margin-left: 0.75rem;
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        font-style: italic;
+    }
+
+    .sync-started-info {
+        margin-top: 0.5rem;
+        font-size: 0.8rem;
+        color: var(--text-dim);
+    }
+</style>
+
+<script>
+    let polling = null;
+    let lastLogCount = 0;
+    let initialized = false;
+
+    function startSync() {
+        var btn = document.getElementById('btn-start');
+        btn.disabled = true;
+
+        lastLogCount = 0;
+        document.getElementById('sync-log').innerHTML = '';
+        document.getElementById('skipped-section').style.display = 'none';
+        document.getElementById('skipped-list').innerHTML = '';
+        document.getElementById('errors-section').style.display = 'none';
+        document.getElementById('errors-list').innerHTML = '';
+        document.getElementById('progress-bar').style.width = '0%';
+        document.getElementById('progress-percent').textContent = '0%';
+        document.getElementById('progress-detail').textContent = '';
+
+        fetch('/api/sync/start', { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.status === 'started') {
+                    startPolling();
+                } else {
+                    alert(data.message || 'Sync could not be started');
+                    btn.disabled = false;
+                }
+            })
+            .catch(function(err) {
+                alert('Failed to start sync: ' + err.message);
+                btn.disabled = false;
+            });
+    }
+
+    function startPolling() {
+        if (polling) clearInterval(polling);
+        polling = setInterval(pollStatus, 2000);
+    }
+
+    function pollStatus() {
+        fetch('/api/sync/status')
+            .then(function(r) { return r.json(); })
+            .then(updateUI)
+            .catch(function() {});
+    }
+
+    function updateUI(status) {
+        var btn = document.getElementById('btn-start');
+        var badge = document.getElementById('sync-status-badge');
+        var bar = document.getElementById('progress-bar');
+        var pctLabel = document.getElementById('progress-percent');
+        var detail = document.getElementById('progress-detail');
+        var logEl = document.getElementById('sync-log');
+        var skippedSection = document.getElementById('skipped-section');
+        var skippedList = document.getElementById('skipped-list');
+        var errorsSection = document.getElementById('errors-section');
+        var errorsList = document.getElementById('errors-list');
+
+        bar.style.width = status.percent + '%';
+        pctLabel.textContent = status.percent + '%';
+
+        if (status.running) {
+            btn.disabled = true;
+            badge.className = 'sync-badge sync-badge-running';
+            badge.textContent = 'Running';
+            var detailText = '';
+            if (status.current_dataset) {
+                detailText = status.current_dataset;
+                if (status.current_algorithm) {
+                    detailText += ' \u2014 ' + status.current_algorithm;
+                }
+            }
+            detailText += ' (' + status.datasets_done + '/' + status.datasets_total + ' datasets)';
+            detail.textContent = detailText;
+        } else if (status.finished_at) {
+            btn.disabled = false;
+            if (status.errors && status.errors.length > 0) {
+                badge.className = 'sync-badge sync-badge-error';
+                badge.textContent = 'Done (with errors)';
+            } else {
+                badge.className = 'sync-badge sync-badge-done';
+                badge.textContent = 'Complete';
+            }
+            detail.textContent = 'Finished at ' + new Date(status.finished_at).toLocaleTimeString();
+            if (polling) {
+                clearInterval(polling);
+                polling = null;
+            }
+        } else {
+            btn.disabled = false;
+            badge.className = 'sync-badge sync-badge-idle';
+            badge.textContent = 'Idle';
+            detail.textContent = '';
+        }
+
+        if (status.started_at) {
+            var infoEl = document.getElementById('sync-started-info');
+            if (!infoEl) {
+                infoEl = document.createElement('div');
+                infoEl.id = 'sync-started-info';
+                infoEl.className = 'sync-started-info';
+                document.getElementById('controls').appendChild(infoEl);
+            }
+            infoEl.textContent = 'Started: ' + new Date(status.started_at).toLocaleString();
+            if (status.finished_at) {
+                var startTime = new Date(status.started_at).getTime();
+                var endTime = new Date(status.finished_at).getTime();
+                var durationSec = Math.round((endTime - startTime) / 1000);
+                var mins = Math.floor(durationSec / 60);
+                var secs = durationSec % 60;
+                infoEl.textContent += ' \u2014 Duration: ' + (mins > 0 ? mins + 'm ' : '') + secs + 's';
+            }
+        }
+
+        if (status.logs && status.logs.length > lastLogCount) {
+            var newLogs = status.logs.slice(lastLogCount);
+            for (var i = 0; i < newLogs.length; i++) {
+                var div = document.createElement('div');
+                div.className = 'log-entry';
+                div.textContent = newLogs[i];
+                logEl.appendChild(div);
+            }
+            lastLogCount = status.logs.length;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        if (status.skipped && status.skipped.length > 0) {
+            skippedSection.style.display = '';
+            skippedList.innerHTML = status.skipped
+                .map(function(s) { return '<li><strong>' + s.dataset + '</strong>: ' + s.reason + '</li>'; })
+                .join('');
+        }
+
+        if (status.errors && status.errors.length > 0) {
+            errorsSection.style.display = '';
+            errorsList.innerHTML = status.errors
+                .map(function(e) { return '<li>' + e + '</li>'; })
+                .join('');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('/api/sync/status')
+            .then(function(r) { return r.json(); })
+            .then(function(status) {
+                initialized = true;
+                updateUI(status);
+                if (status.running) {
+                    startPolling();
+                }
+            })
+            .catch(function() {
+                var btn = document.getElementById('btn-start');
+                var badge = document.getElementById('sync-status-badge');
+                btn.disabled = false;
+                badge.className = 'sync-badge sync-badge-idle';
+                badge.textContent = 'Idle';
+            });
+    });
+</script>
+{% endblock %}

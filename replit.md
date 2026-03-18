@@ -40,14 +40,16 @@ pyproject.toml          maturin build config (primary)
 run.py                  Full feature demo (81 tests)
 benchmark_report.py     7-algorithm x 3-SNAP-dataset benchmark comparison
 website/                Marketing website (Flask)
-  app.py                Flask server (port 5000)
+  app.py                Flask server (port 5000) — includes sync API endpoints
+  sync_worker.py        Background benchmark sync worker (threading-based)
   static/style.css      Dark theme CSS
   templates/
     base.html           Shared layout (nav, footer)
     index.html           Landing page (features, comparison, code examples)
     docs.html            Documentation (installation, all APIs, guides)
     api.html             API Reference (all functions, params, returns)
-    benchmarks.html      Benchmark results with interactive Chart.js visualizations (3 SNAP datasets: ego-Facebook, roadNet-CA, soc-LiveJournal1)
+    benchmarks.html      Benchmark results with interactive Chart.js visualizations
+    sync.html            Benchmark sync UI — start sync, progress bar, activity log
   static/benchmarks.js   Chart.js benchmark charts (accuracy, speed, memory, scatter, cross-validation)
     changelog.html       Version history (v1.0.0 through v3.1.0)
     use-cases.html       Use cases & tutorials (6 use cases, 3 tutorials)
