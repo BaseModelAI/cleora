@@ -73,7 +73,7 @@ graph = SparseMatrix.<span class="code-func">from_iterator</span>(
 )
 
 <span class="code-comment"># 3. Generate embeddings</span>
-embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">128</span>, num_iterations=<span class="code-num">4</span>)
+embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">1024</span>, num_iterations=<span class="code-num">4</span>)
 
 <span class="code-comment"># 4. Query similarity</span>
 results = <span class="code-func">find_most_similar</span>(graph, embeddings, <span class="code-string">"user_alice"</span>, top_k=<span class="code-num">5</span>)
@@ -99,7 +99,7 @@ results = <span class="code-func">find_most_similar</span>(graph, embeddings, <s
             <strong>Why does <code>"left"</code> usually outperform <code>"symmetric"</code>?</strong>
             <p style="margin-top: 8px;">Left Markov normalizes only on the source side — it divides each row by the source node's degree. This means high-degree nodes (hubs) retain their full influence over their neighbors. In social and interaction graphs, hubs are often community leaders or connectors between groups, so preserving their signal is critical for downstream tasks like community detection and node classification.</p>
             <p style="margin-top: 8px;">Symmetric normalization divides by the square root of the degree on both sides of every edge. This dampens the influence of hubs, making embeddings more uniform across the graph. The effect is that community boundaries become less sharp — the very signal that classification relies on gets smoothed away.</p>
-            <p style="margin-top: 8px;">In benchmarks, this difference is measurable: on ego-Facebook, left propagation achieves 0.877 accuracy vs 0.827 for symmetric. On roadNet-CA, the gap is wider: 0.598 vs 0.431.</p>
+            <p style="margin-top: 8px;">In benchmarks, this difference is measurable: on ego-Facebook, left propagation achieves 0.355 accuracy vs 0.293 for symmetric (dim=1024). On roadNet-CA, the gap is wider: 0.598 vs 0.431.</p>
             <p style="margin-top: 8px;"><strong>When to use symmetric:</strong> On regular graphs where node degrees are roughly uniform (lattices, road networks, mesh topologies), both normalization types perform similarly, but symmetric can be slightly faster computationally. Symmetric is also the standard choice when feeding embeddings into spectral methods or GCN-style architectures that expect D⁻¹/²AD⁻¹/² as input.</p>
             <p style="margin-top: 8px;"><strong>Recommendation:</strong> Use <code>"left"</code> (default) unless you specifically need symmetric normalization for downstream compatibility or are working with very regular graphs.</p>
         </div>
@@ -116,10 +116,10 @@ results = <span class="code-func">find_most_similar</span>(graph, embeddings, <s
         <pre><code><span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> embed, embed_multiscale
 
 <span class="code-comment"># Standard embedding</span>
-emb = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">128</span>, num_iterations=<span class="code-num">4</span>)
+emb = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">1024</span>, num_iterations=<span class="code-num">4</span>)
 
 <span class="code-comment"># Symmetric propagation</span>
-emb_sym = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">128</span>, propagation=<span class="code-string">"symmetric"</span>)
+emb_sym = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">1024</span>, propagation=<span class="code-string">"symmetric"</span>)
 
 <span class="code-comment"># Multi-scale (captures different neighborhood sizes)</span>
 emb_multi = <span class="code-func">embed_multiscale</span>(graph, feature_dim=<span class="code-num">64</span>, scales=[<span class="code-num">1</span>, <span class="code-num">2</span>, <span class="code-num">4</span>, <span class="code-num">8</span>])
@@ -133,16 +133,16 @@ emb_multi = <span class="code-func">embed_multiscale</span>(graph, feature_dim=<
 )
 
 <span class="code-comment"># DeepWalk — random walks + SVD</span>
-emb = <span class="code-func">embed_deepwalk</span>(graph, feature_dim=<span class="code-num">128</span>, num_walks=<span class="code-num">20</span>, walk_length=<span class="code-num">40</span>)
+emb = <span class="code-func">embed_deepwalk</span>(graph, feature_dim=<span class="code-num">1024</span>, num_walks=<span class="code-num">20</span>, walk_length=<span class="code-num">40</span>)
 
 <span class="code-comment"># Node2Vec — biased walks (p controls BFS, q controls DFS)</span>
-emb = <span class="code-func">embed_node2vec</span>(graph, feature_dim=<span class="code-num">128</span>, p=<span class="code-num">0.5</span>, q=<span class="code-num">2.0</span>)
+emb = <span class="code-func">embed_node2vec</span>(graph, feature_dim=<span class="code-num">1024</span>, p=<span class="code-num">0.5</span>, q=<span class="code-num">2.0</span>)
 
 <span class="code-comment"># RandNE — ultra-fast random projection</span>
-emb = <span class="code-func">embed_randne</span>(graph, feature_dim=<span class="code-num">128</span>)
+emb = <span class="code-func">embed_randne</span>(graph, feature_dim=<span class="code-num">1024</span>)
 
 <span class="code-comment"># NetMF — theoretically grounded matrix factorization</span>
-emb = <span class="code-func">embed_netmf</span>(graph, feature_dim=<span class="code-num">128</span>, negative_samples=<span class="code-num">1.0</span>)</code></pre>
+emb = <span class="code-func">embed_netmf</span>(graph, feature_dim=<span class="code-num">1024</span>, negative_samples=<span class="code-num">1.0</span>)</code></pre>
 
         <h2 id="node-features">Node Features</h2>
         <pre><code><span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> embed_with_node_features
@@ -161,7 +161,7 @@ emb = <span class="code-func">embed_edge_features</span>(graph, edge_feats, feat
         <h2 id="attention">Attention-Weighted Embedding</h2>
         <pre><code><span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> embed_with_attention
 
-emb = <span class="code-func">embed_with_attention</span>(graph, feature_dim=<span class="code-num">128</span>, attention_temperature=<span class="code-num">0.5</span>)</code></pre>
+emb = <span class="code-func">embed_with_attention</span>(graph, feature_dim=<span class="code-num">1024</span>, attention_temperature=<span class="code-num">0.5</span>)</code></pre>
 
         <h2 id="building-graphs">Building Graphs</h2>
         <pre><code><span class="code-comment"># From edge list</span>
@@ -261,14 +261,14 @@ cv = <span class="code-func">cross_validate</span>(graph, emb, labels, k_folds=<
 
 result = <span class="code-func">grid_search</span>(
     graph, labels,
-    embed_fn=<span class="code-keyword">lambda</span> g, feature_dim=<span class="code-num">128</span>, num_iterations=<span class="code-num">4</span>: <span class="code-func">embed</span>(g, feature_dim, num_iterations),
-    param_grid={<span class="code-string">"feature_dim"</span>: [<span class="code-num">64</span>, <span class="code-num">128</span>, <span class="code-num">256</span>], <span class="code-string">"num_iterations"</span>: [<span class="code-num">2</span>, <span class="code-num">4</span>, <span class="code-num">8</span>]},
+    embed_fn=<span class="code-keyword">lambda</span> g, feature_dim=<span class="code-num">1024</span>, num_iterations=<span class="code-num">4</span>: <span class="code-func">embed</span>(g, feature_dim, num_iterations),
+    param_grid={<span class="code-string">"feature_dim"</span>: [<span class="code-num">128</span>, <span class="code-num">512</span>, <span class="code-num">1024</span>], <span class="code-string">"num_iterations"</span>: [<span class="code-num">2</span>, <span class="code-num">4</span>, <span class="code-num">8</span>]},
 )
 <span class="code-func">print</span>(<span class="code-string">f"Best: </span>{result[<span class="code-string">'best_params'</span>]} -> {result[<span class="code-string">'best_score'</span>]:.4f}<span class="code-string">"</span>)</code></pre>
 
         <h2 id="cli">CLI Tool</h2>
         <pre><code><span class="code-comment"># Generate embeddings</span>
-$ pycleora embed --input edges.tsv --dim 128 --output emb.npz
+$ pycleora embed --input edges.tsv --dim 1024 --output emb.npz
 
 <span class="code-comment"># With algorithm choice</span>
 $ pycleora embed -i graph.tsv -d 256 -a deepwalk -o emb.npz

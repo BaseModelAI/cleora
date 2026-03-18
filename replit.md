@@ -38,7 +38,7 @@ src/                    Rust source code
 setup.py                setuptools-rust install path
 pyproject.toml          maturin build config (primary)
 run.py                  Full feature demo (81 tests)
-benchmark_report.py     7-algorithm x 3-SNAP-dataset benchmark comparison
+benchmark_report.py     7-algorithm x 7-dataset benchmark comparison (dim=1024)
 website/                Marketing website (Flask)
   app.py                Flask server (port 5000) — includes sync API endpoints
   sync_worker.py        Background benchmark sync worker (threading-based)

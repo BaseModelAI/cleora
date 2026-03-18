@@ -202,9 +202,9 @@ output = E<sub>k</sub></code>
         <div class="use-case-card">
             <ul>
                 <li><strong>Sparse matrix</strong> — O(edges) memory. CSR format stores only non-zero values. A graph with 5M edges uses ~60 MB for the matrix.</li>
-                <li><strong>Embedding matrix</strong> — O(nodes &times; dim) memory. 2M nodes &times; 128 dims &times; 4 bytes = ~1 GB.</li>
+                <li><strong>Embedding matrix</strong> — O(nodes &times; dim) memory. 2M nodes &times; 1024 dims &times; 4 bytes = ~8 GB.</li>
             </ul>
-            <p>Total for roadNet-CA (2M nodes, 5.5M edges, dim=128): <strong>1.9 GB</strong>. Compare: NetMF requires O(nodes&sup2;) for the dense log matrix — 2M&sup2; &times; 8 bytes = 32 TB. This is why NetMF crashes on large graphs.</p>
+            <p>Total for roadNet-CA (2M nodes, 5.5M edges, dim=1024): <strong>~9 GB</strong>. Compare: NetMF requires O(nodes&sup2;) for the dense log matrix — 2M&sup2; &times; 8 bytes = 32 TB. This is why NetMF crashes on large graphs.</p>
         </div>
 
         <div class="section-divider" id="vs-random-walks"></div>

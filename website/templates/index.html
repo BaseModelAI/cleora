@@ -517,7 +517,7 @@
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
             </div>
             <h3>CLI Tool</h3>
-            <p><code>pycleora embed --input graph.tsv --dim 128</code> for scripting and CI/CD pipelines. Embed graphs without writing Python.</p>
+            <p><code>pycleora embed --input graph.tsv --dim 1024</code> for scripting and CI/CD pipelines. Embed graphs without writing Python.</p>
         </div>
     </div>
 </section>
@@ -534,43 +534,43 @@
             <h3>ego-Facebook <span class="bench-meta">4K nodes &middot; 88K edges &middot; Accuracy</span></h3>
             <div class="bench-bars">
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
-                    <span class="bench-bar-label">Cleora</span>
-                    <div class="bench-bar-track">
-                        <div class="bench-bar-fill bench-bar-best" data-width="87.7" style="width: 0%">
-                            <span class="bench-bar-value">0.877</span>
-                        </div>
-                    </div>
-                    <span class="bench-bar-time">0.22s</span>
-                </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="50">
                     <span class="bench-bar-label">NetMF</span>
                     <div class="bench-bar-track">
-                        <div class="bench-bar-fill" data-width="86.8" style="width: 0%">
-                            <span class="bench-bar-value">0.868</span>
+                        <div class="bench-bar-fill" data-width="94.4" style="width: 0%">
+                            <span class="bench-bar-value">0.944</span>
                         </div>
                     </div>
-                    <span class="bench-bar-time">23.6s</span>
+                    <span class="bench-bar-time">18.9s</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="50">
+                    <span class="bench-bar-label">Node2Vec</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill" data-width="91.8" style="width: 0%">
+                            <span class="bench-bar-value">0.918</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">111.4s</span>
                 </div>
                 <div class="bench-bar-row scroll-reveal" data-delay="100">
                     <span class="bench-bar-label">DeepWalk</span>
                     <div class="bench-bar-track">
-                        <div class="bench-bar-fill" data-width="86.8" style="width: 0%">
-                            <span class="bench-bar-value">0.868</span>
+                        <div class="bench-bar-fill" data-width="91.2" style="width: 0%">
+                            <span class="bench-bar-value">0.912</span>
                         </div>
                     </div>
-                    <span class="bench-bar-time">37.6s</span>
+                    <span class="bench-bar-time">35.5s</span>
                 </div>
                 <div class="bench-bar-row scroll-reveal" data-delay="150">
-                    <span class="bench-bar-label">Node2Vec</span>
+                    <span class="bench-bar-label">Cleora</span>
                     <div class="bench-bar-track">
-                        <div class="bench-bar-fill" data-width="86.5" style="width: 0%">
-                            <span class="bench-bar-value">0.865</span>
+                        <div class="bench-bar-fill bench-bar-best" data-width="35.5" style="width: 0%">
+                            <span class="bench-bar-value">0.355</span>
                         </div>
                     </div>
-                    <span class="bench-bar-time">51.4s</span>
+                    <span class="bench-bar-time">0.12s</span>
                 </div>
             </div>
-            <div class="bench-insight">Highest accuracy <em>and</em> 170x faster than Node2Vec</div>
+            <div class="bench-insight">159x faster than NetMF &mdash; 16 MB vs 1.1 GB memory</div>
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="50">
@@ -1043,8 +1043,8 @@
 edges = [<span class="code-string">"alice item_laptop"</span>, <span class="code-string">"alice item_mouse"</span>, <span class="code-string">"bob item_keyboard"</span>]
 graph = SparseMatrix.<span class="code-func">from_iterator</span>(<span class="code-func">iter</span>(edges), <span class="code-string">"complex::reflexive::product"</span>)
 
-<span class="code-comment"># Generate 128-dimensional embeddings</span>
-embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">128</span>, num_iterations=<span class="code-num">4</span>)
+<span class="code-comment"># Generate 1024-dimensional embeddings</span>
+embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">1024</span>, num_iterations=<span class="code-num">4</span>)
 
 <span class="code-comment"># Find similar entities</span>
 similar = <span class="code-func">find_most_similar</span>(graph, embeddings, <span class="code-string">"alice"</span>, top_k=<span class="code-num">5</span>)

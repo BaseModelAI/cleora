@@ -27,18 +27,18 @@ const DATASETS = ['ego-Facebook', 'PPI-large', 'Flickr', 'ogbn-arxiv', 'Yelp'];
 const ALGORITHMS = ['Cleora', 'Cleora-sym', 'ProNE', 'RandNE', 'NetMF', 'DeepWalk', 'Node2Vec'];
 
 const SUMMARY_DATA = {
-    'Cleora':     [0.877, 0.026, 0.158, 0.038, 0.013],
-    'Cleora-sym': [0.827, 0.026, 0.158, 0.038, null],
-    'ProNE':      [0.011, 0.008, 0.139, 0.026, null],
-    'RandNE':     [0.095, 0.011, 0.146, 0.030, null],
-    'NetMF':      [0.868, null,  null,  null,  null],
-    'DeepWalk':   [0.868, null,  null,  null,  null],
-    'Node2Vec':   [0.865, null,  null,  null,  null],
+    'Cleora':     [0.355, 0.026, 0.158, 0.038, 0.013],
+    'Cleora-sym': [0.293, 0.026, 0.158, 0.038, null],
+    'ProNE':      [0.021, 0.008, 0.139, 0.026, null],
+    'RandNE':     [0.318, 0.011, 0.146, 0.030, null],
+    'NetMF':      [0.944, null,  null,  null,  null],
+    'DeepWalk':   [0.912, null,  null,  null,  null],
+    'Node2Vec':   [0.918, null,  null,  null,  null],
 };
 
 const SPEED_DATA = {
     algorithms: ['Cleora', 'Cleora-sym', 'RandNE', 'ProNE', 'NetMF', 'DeepWalk', 'Node2Vec'],
-    facebook:   [0.222,    0.137,        0.046,   0.192,    23.602,  37.617,      51.412],
+    facebook:   [0.119,    0.131,        0.228,   1.396,    18.908,  35.492,      111.426],
     ppi_large:  [0.330,    0.251,        1.072,   8.338,    null,    null,         null],
     flickr:     [0.475,    0.436,        1.332,   5.569,    null,    null,         null],
     ogbn_arxiv: [0.747,    0.752,        2.046,   8.333,    null,    null,         null],
@@ -48,7 +48,7 @@ const SPEED_DATA = {
 
 const MEMORY_DATA = {
     algorithms: ['Cleora', 'Cleora-sym', 'RandNE', 'ProNE', 'Node2Vec', 'DeepWalk', 'NetMF'],
-    facebook:   [3.99,     3.99,         22.01,    34.04,   524.21,     530.97,      1037.55],
+    facebook:   [15.78,    15.78,        146.28,   248.98,  600,        600,         1107],
     ppi_large:  [27.81,    27.80,        290.79,   458.38,  null,       null,         null],
     flickr:     [43.58,    43.58,        438.17,   700.79,  null,       null,         null],
     ogbn_arxiv: [82.69,    82.69,        806.62,   1305,    null,       null,         null],
@@ -58,13 +58,13 @@ const MEMORY_DATA = {
 
 const SCATTER_DATA = {
     'ego-Facebook': {
-        'Cleora':     { acc: 0.877, time: 0.222 },
-        'NetMF':      { acc: 0.868, time: 23.602 },
-        'DeepWalk':   { acc: 0.868, time: 37.617 },
-        'Node2Vec':   { acc: 0.865, time: 51.412 },
-        'Cleora-sym': { acc: 0.827, time: 0.137 },
-        'RandNE':     { acc: 0.095, time: 0.046 },
-        'ProNE':      { acc: 0.011, time: 0.192 },
+        'NetMF':      { acc: 0.944, time: 18.908 },
+        'Node2Vec':   { acc: 0.918, time: 111.426 },
+        'DeepWalk':   { acc: 0.912, time: 35.492 },
+        'Cleora':     { acc: 0.355, time: 0.119 },
+        'RandNE':     { acc: 0.318, time: 0.228 },
+        'Cleora-sym': { acc: 0.293, time: 0.131 },
+        'ProNE':      { acc: 0.021, time: 1.396 },
     },
     'ogbn-arxiv': {
         'Cleora':     { acc: 0.038, time: 0.747 },
@@ -360,7 +360,7 @@ function buildCVChart() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                title: { display: true, text: 'Cross-Validation: Cleora on ego-Facebook (128 dim, 4 iter)', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Cross-Validation: Cleora on ego-Facebook (1024 dim, 4 iter)', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
                     callbacks: {
                         label: ctx => {

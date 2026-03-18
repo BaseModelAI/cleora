@@ -85,11 +85,11 @@
 
         <h2 id="embed">pycleora.embed()</h2>
         <div class="api-method">
-            <h3>embed(graph, feature_dim=128, num_iterations=4, propagation="left", normalization="l2")</h3>
+            <h3>embed(graph, feature_dim=1024, num_iterations=4, propagation="left", normalization="l2")</h3>
             <p>Generate Cleora embeddings via Markov propagation.</p>
             <div class="api-params">
                 <p><code>graph</code> : <em>SparseMatrix</em> — Input graph</p>
-                <p><code>feature_dim</code> : <em>int</em> — Embedding dimensionality (default: 128)</p>
+                <p><code>feature_dim</code> : <em>int</em> — Embedding dimensionality (default: 1024)</p>
                 <p><code>num_iterations</code> : <em>int</em> — Propagation iterations (default: 4)</p>
                 <p><code>propagation</code> : <em>str</em> — <code>"left"</code> or <code>"symmetric"</code> (default: "left")</p>
                 <p><code>normalization</code> : <em>str</em> — <code>"l2"</code>, <code>"l1"</code>, <code>"spectral"</code>, or <code>"none"</code></p>
@@ -122,7 +122,7 @@
 
         <h2 id="embed-node-features">pycleora.embed_with_node_features()</h2>
         <div class="api-method">
-            <h3>embed_with_node_features(graph, node_features, feature_weight=0.5, feature_dim=128)</h3>
+            <h3>embed_with_node_features(graph, node_features, feature_weight=0.5, feature_dim=1024)</h3>
             <p>Combine structural embeddings with external node feature vectors.</p>
             <div class="api-params">
                 <p><code>node_features</code> : <em>Dict[str, np.ndarray]</em> — Feature vectors per entity</p>
@@ -144,7 +144,7 @@
 
         <h2 id="embed-attention">pycleora.embed_with_attention()</h2>
         <div class="api-method">
-            <h3>embed_with_attention(graph, feature_dim=128, attention_temperature=1.0)</h3>
+            <h3>embed_with_attention(graph, feature_dim=1024, attention_temperature=1.0)</h3>
             <p>Embedding with attention-weighted propagation using temperature-based softmax.</p>
             <div class="api-params">
                 <p><code>attention_temperature</code> : <em>float</em> — Lower = sharper attention (default: 1.0)</p>
@@ -154,7 +154,7 @@
 
         <h2 id="deepwalk">algorithms.embed_deepwalk()</h2>
         <div class="api-method">
-            <h3>embed_deepwalk(graph, feature_dim=128, num_walks=20, walk_length=40, window_size=5)</h3>
+            <h3>embed_deepwalk(graph, feature_dim=1024, num_walks=20, walk_length=40, window_size=5)</h3>
             <p>DeepWalk: uniform random walks + SVD factorization of co-occurrence matrix.</p>
             <div class="api-params">
                 <p><code>num_walks</code> : <em>int</em> — Walks per node (default: 20)</p>
@@ -166,7 +166,7 @@
 
         <h2 id="node2vec">algorithms.embed_node2vec()</h2>
         <div class="api-method">
-            <h3>embed_node2vec(graph, feature_dim=128, p=1.0, q=1.0, num_walks=20, walk_length=40)</h3>
+            <h3>embed_node2vec(graph, feature_dim=1024, p=1.0, q=1.0, num_walks=20, walk_length=40)</h3>
             <p>Node2Vec: biased random walks. p controls return parameter (BFS), q controls in-out parameter (DFS).</p>
             <div class="api-params">
                 <p><code>p</code> : <em>float</em> — Return parameter. Low p = BFS-like (default: 1.0)</p>
@@ -177,7 +177,7 @@
 
         <h2 id="netmf">algorithms.embed_netmf()</h2>
         <div class="api-method">
-            <h3>embed_netmf(graph, feature_dim=128, window_size=5, negative_samples=1.0)</h3>
+            <h3>embed_netmf(graph, feature_dim=1024, window_size=5, negative_samples=1.0)</h3>
             <p>NetMF: Network Matrix Factorization. Theoretically equivalent to DeepWalk but computed directly.</p>
             <div class="api-params">
                 <p><code>window_size</code> : <em>int</em> — Context window (default: 5)</p>
@@ -188,13 +188,13 @@
 
         <h2 id="prone">algorithms.embed_prone()</h2>
         <div class="api-method">
-            <h3>embed_prone(graph, feature_dim=128)</h3>
+            <h3>embed_prone(graph, feature_dim=1024)</h3>
             <p>ProNE: Procrustean Network Embedding. Spectral propagation with band-pass filter.</p>
         </div>
 
         <h2 id="randne">algorithms.embed_randne()</h2>
         <div class="api-method">
-            <h3>embed_randne(graph, feature_dim=128, num_iterations=3, weights=None, seed=0)</h3>
+            <h3>embed_randne(graph, feature_dim=1024, num_iterations=3, weights=None, seed=0)</h3>
             <p>RandNE: Random Projection-based Network Embedding. Ultra-fast Gaussian projection with iterative power refinement.</p>
             <div class="api-params">
                 <p><code>num_iterations</code> : <em>int</em> — Number of power iterations (default: 3)</p>
@@ -204,7 +204,7 @@
 
         <h2 id="grarep">algorithms.embed_grarep()</h2>
         <div class="api-method">
-            <h3>embed_grarep(graph, feature_dim=128, max_step=4)</h3>
+            <h3>embed_grarep(graph, feature_dim=1024, max_step=4)</h3>
             <p>GraRep: Multi-scale transition matrix factorization. Captures k-step neighborhood patterns.</p>
             <div class="api-params">
                 <p><code>max_step</code> : <em>int</em> — Max transition steps (default: 4)</p>
@@ -213,7 +213,7 @@
 
         <h2 id="hope">algorithms.embed_hope()</h2>
         <div class="api-method">
-            <h3>embed_hope(graph, feature_dim=128, beta=0.01)</h3>
+            <h3>embed_hope(graph, feature_dim=1024, beta=0.01)</h3>
             <p>HOPE: Higher-Order Proximity Embedding. Preserves asymmetric relationships in directed graphs.</p>
             <div class="api-params">
                 <p><code>beta</code> : <em>float</em> — Decay factor for Katz similarity (default: 0.01)</p>

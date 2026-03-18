@@ -133,7 +133,7 @@ data = <span class="code-func">load_dataset</span>(<span class="code-string">"fa
 graph = SparseMatrix.<span class="code-func">from_iterator</span>(
     <span class="code-func">iter</span>(data[<span class="code-string">"edges"</span>]), <span class="code-string">"complex::reflexive::user"</span>
 )
-embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">128</span>, num_iterations=<span class="code-num">4</span>)
+embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">1024</span>, num_iterations=<span class="code-num">4</span>)
 
 <span class="code-comment"># Discover communities</span>
 communities = <span class="code-func">detect_communities_louvain</span>(graph)
@@ -703,7 +703,7 @@ similar = <span class="code-func">find_most_similar</span>(graph, embeddings, <s
 graph = SparseMatrix.<span class="code-func">from_iterator</span>(
     <span class="code-func">iter</span>(edges), <span class="code-string">"complex::reflexive::product"</span>
 )
-embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">128</span>, num_iterations=<span class="code-num">4</span>)
+embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">1024</span>, num_iterations=<span class="code-num">4</span>)
 
 <span class="code-comment"># Step 3: Generate recommendations for a user</span>
 recs = <span class="code-func">find_most_similar</span>(graph, embeddings, <span class="code-string">"user_42"</span>, top_k=<span class="code-num">20</span>)
@@ -725,7 +725,7 @@ item_recs = [r <span class="code-keyword">for</span> r <span class="code-keyword
 <span class="code-comment"># Load and embed</span>
 data = <span class="code-func">load_dataset</span>(<span class="code-string">"facebook"</span>)
 graph = SparseMatrix.<span class="code-func">from_iterator</span>(<span class="code-func">iter</span>(data[<span class="code-string">"edges"</span>]), <span class="code-string">"complex::reflexive::user"</span>)
-embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">128</span>)
+embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">1024</span>)
 
 <span class="code-comment"># Detect communities</span>
 communities = <span class="code-func">detect_communities_louvain</span>(graph)
@@ -743,7 +743,7 @@ communities = <span class="code-func">detect_communities_louvain</span>(graph)
 
 <span class="code-comment"># Scikit-learn compatible interface</span>
 embedder = <span class="code-func">CleoraEmbedder</span>(
-    feature_dim=<span class="code-num">128</span>,
+    feature_dim=<span class="code-num">1024</span>,
     num_iterations=<span class="code-num">4</span>,
     columns=<span class="code-string">"complex::reflexive::product"</span>
 )
