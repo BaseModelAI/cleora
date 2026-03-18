@@ -39,4 +39,5 @@ path = "scripts/post-merge.sh"
 timeoutMs = 300000
 
 [deployment]
-deploymentTarget = "cloudrun"
+deploymentTarget = "autoscale"
+run = ["python3", "run.py"]
