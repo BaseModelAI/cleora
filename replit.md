@@ -38,7 +38,7 @@ src/                    Rust source code
 setup.py                setuptools-rust install path
 pyproject.toml          maturin build config (primary)
 run.py                  Full feature demo (81 tests)
-benchmark_report.py     9-algorithm x 6-dataset benchmark comparison
+benchmark_report.py     7-algorithm x 3-SNAP-dataset benchmark comparison
 website/                Marketing website (Flask)
   app.py                Flask server (port 5000)
   static/style.css      Dark theme CSS
@@ -47,7 +47,7 @@ website/                Marketing website (Flask)
     index.html           Landing page (features, comparison, code examples)
     docs.html            Documentation (installation, all APIs, guides)
     api.html             API Reference (all functions, params, returns)
-    benchmarks.html      Benchmark results (6 datasets, speed, cross-validation)
+    benchmarks.html      Benchmark results (3 SNAP datasets: ego-Facebook, roadNet-CA, soc-LiveJournal1)
     changelog.html       Version history (v1.0.0 through v3.0.0)
 ```
 
@@ -126,7 +126,7 @@ cp ~/.pythonlibs/lib/python3.12/site-packages/pycleora/pycleora.cpython-312-x86_
 ## Architecture Notes
 
 - **Louvain**: Uses binary adjacency (w=1.0 per edge, no self-loops), NOT Markov transition values. Same for modularity().
-- **Datasets**: Cora, CiteSeer etc. are synthetically generated (community-structured random graphs), cached in `~/.pycleora_datasets/`. SNAP datasets (com-Orkut, com-Friendster) are downloaded from snap.stanford.edu on first use, streamed from .gz, and cached as .npz.
+- **Datasets**: Cora, CiteSeer etc. are synthetically generated (community-structured random graphs), cached in `~/.pycleora_datasets/`. SNAP datasets (ego-Facebook, roadNet-CA, soc-LiveJournal1, com-Orkut, com-Friendster) are downloaded from snap.stanford.edu on first use, streamed from .gz, and cached as .npz. Benchmark uses ego-Facebook, roadNet-CA, and soc-LiveJournal1.
 - **DeepWalk/Node2Vec**: Use `_build_adj_list()` + random walks + PMI SVD.
 - **GCN**: Pure numpy/scipy implementation with symmetric normalization (D^{-1/2} A_hat D^{-1/2}), dropout, multi-layer support.
 - **Edge Feature Embedding**: Aggregates edge features to nodes, propagates through graph structure, combines with structural embedding.

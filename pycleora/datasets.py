@@ -220,6 +220,42 @@ def _load_snap_edge_list(name: str, url: str, display_name: str, description: st
     }
 
 
+def load_facebook() -> Dict:
+    return _load_snap_edge_list(
+        name="facebook",
+        url="https://snap.stanford.edu/data/facebook_combined.txt.gz",
+        display_name="ego-Facebook",
+        description="Facebook ego networks (SNAP). ~4k nodes, ~88k edges.",
+        expected_nodes=4_039,
+        expected_edges=88_234,
+    )
+
+
+def load_roadnet() -> Dict:
+    return _load_snap_edge_list(
+        name="roadnet",
+        url="https://snap.stanford.edu/data/roadNet-CA.txt.gz",
+        display_name="roadNet-CA",
+        description="California road network (SNAP). ~2M nodes, ~2.8M edges.",
+        expected_nodes=1_965_206,
+        expected_edges=5_533_214,
+        size_warning="roadNet-CA is a large dataset (~12MB compressed, ~2.8M edges).",
+    )
+
+
+def load_livejournal() -> Dict:
+    return _load_snap_edge_list(
+        name="livejournal",
+        url="https://snap.stanford.edu/data/soc-LiveJournal1.txt.gz",
+        display_name="soc-LiveJournal1",
+        description="LiveJournal online social network (SNAP). ~4.8M nodes, ~69M edges.",
+        expected_nodes=4_847_571,
+        expected_edges=68_993_773,
+        size_warning="soc-LiveJournal1 is a very large dataset (~250MB compressed, ~69M edges). "
+                     "Download and parsing may take a long time and require significant memory.",
+    )
+
+
 def load_com_orkut() -> Dict:
     return _load_snap_edge_list(
         name="com_orkut",
@@ -892,6 +928,12 @@ def list_datasets() -> List[Dict]:
          "description": "DBLP co-authorship network"},
         {"name": "reddit", "nodes": 10000, "edges": 100000, "classes": 41,
          "description": "Reddit post network"},
+        {"name": "facebook", "nodes": 4039, "edges": 88234, "classes": 0,
+         "description": "Facebook ego networks (SNAP, ~4k nodes, ~88k edges)"},
+        {"name": "roadnet", "nodes": 1965206, "edges": 5533214, "classes": 0,
+         "description": "California road network (SNAP, ~2M nodes, ~5.5M edges)"},
+        {"name": "livejournal", "nodes": 4847571, "edges": 68993773, "classes": 0,
+         "description": "LiveJournal social network (SNAP, ~4.8M nodes, ~69M edges)"},
         {"name": "com_orkut", "nodes": 3072441, "edges": 117185083, "classes": 0,
          "description": "Orkut online social network (SNAP, ~3M nodes, ~117M edges)"},
         {"name": "com_friendster", "nodes": 65608366, "edges": 1806067135, "classes": 0,
@@ -913,6 +955,9 @@ def load_dataset(name: str) -> Dict:
         "ppi": load_ppi,
         "dblp": load_dblp,
         "reddit": load_reddit,
+        "facebook": load_facebook,
+        "roadnet": load_roadnet,
+        "livejournal": load_livejournal,
         "com_orkut": load_com_orkut,
         "com_friendster": load_com_friendster,
     }
