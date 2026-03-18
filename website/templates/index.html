@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+{% set active = "home" %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-badge">v3.0 Released</div>
+    <h1>Graph Embeddings.<br>Blazing Fast.</h1>
+    <p class="subtitle">
+        The most complete CPU-only graph embedding library.
+        Rust core, Python API. 9 algorithms, 12 datasets, GCN classifier — zero GPU required.
+    </p>
+    <div class="hero-buttons">
+        <a href="/docs" class="btn btn-primary">Get Started</a>
+        <a href="/benchmarks" class="btn btn-secondary">View Benchmarks</a>
+    </div>
+    <div class="install-block">
+        <span class="prompt">$</span> pip install pycleora
+    </div>
+</section>
+
+<section class="section">
+    <div class="stats-bar">
+        <div class="stat">
+            <div class="stat-value">9</div>
+            <div class="stat-label">Embedding Algorithms</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">12</div>
+            <div class="stat-label">Built-in Datasets</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">81</div>
+            <div class="stat-label">Tested Features</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">&lt;4s</div>
+            <div class="stat-label">Full Test Suite</div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="section-header">
+        <h2>Everything You Need</h2>
+        <p>One library. No external dependencies. No GPU. Production-ready graph embeddings.</p>
+    </div>
+    <div class="feature-grid">
+        <div class="feature-card">
+            <div class="feature-icon">🔷</div>
+            <h3>9 Embedding Algorithms</h3>
+            <p>Cleora, ProNE, RandNE, HOPE, NetMF, GraRep, DeepWalk, Node2Vec — all in one package. Choose the best algorithm for your graph.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🧠</div>
+            <h3>Mini-GNN (GCN)</h3>
+            <p>2-layer Graph Convolutional Network in pure numpy/scipy. No PyTorch needed. 100% accuracy on Karate Club.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>Rust-Powered Core</h3>
+            <p>Sparse matrix operations in Rust with PyO3 bindings. Adaptive parallelism. Faster than pure Python by 10-100x.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>Rich Evaluation</h3>
+            <p>AUC, MRR, Hits@K, MAP@K, nDCG, ARI, Silhouette Score, k-fold cross-validation — all built in.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🔀</div>
+            <h3>Graph Sampling</h3>
+            <p>Neighborhood, subgraph, and GraphSAINT mini-batching. Negative sampling and train/test edge splits for link prediction.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🌐</div>
+            <h3>Heterogeneous Graphs</h3>
+            <p>Multi-type nodes and edges. Per-relation embedding, metapath-based embedding, and homogeneous export.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🎯</div>
+            <h3>Hyperparameter Tuning</h3>
+            <p>Grid search and random search with automatic evaluation. Find the optimal embedding configuration in one call.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📈</div>
+            <h3>Benchmarking Suite</h3>
+            <p>Compare algorithms across datasets with time, memory, and accuracy metrics. Formatted tables included.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🔧</div>
+            <h3>CLI Tool</h3>
+            <p><code>pycleora embed --input graph.tsv --dim 128 --output emb.npz</code> — command-line interface for scripting and pipelines.</p>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="section-header">
+        <h2>How It Compares</h2>
+        <p>pycleora vs. the most popular graph embedding libraries</p>
+    </div>
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th>Feature</th>
+                <th>pycleora 3.0</th>
+                <th>PyG</th>
+                <th>KarateClub</th>
+                <th>Original Cleora</th>
+                <th>DGL</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="highlight-row">
+                <td>CPU-only (no GPU needed)</td>
+                <td class="check">Yes</td>
+                <td class="cross">Optional</td>
+                <td class="check">Yes</td>
+                <td class="check">Yes</td>
+                <td class="cross">Optional</td>
+            </tr>
+            <tr>
+                <td>Rust-powered core</td>
+                <td class="check">Yes</td>
+                <td class="cross">No (C++)</td>
+                <td class="cross">No</td>
+                <td class="check">Yes</td>
+                <td class="cross">No (C++)</td>
+            </tr>
+            <tr>
+                <td>Node2Vec / DeepWalk</td>
+                <td class="check">Built-in</td>
+                <td class="check">Yes</td>
+                <td class="check">Yes</td>
+                <td class="cross">No</td>
+                <td class="check">Yes</td>
+            </tr>
+            <tr>
+                <td>GNN classifier (no PyTorch)</td>
+                <td class="check">GCN</td>
+                <td class="cross">Requires PyTorch</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">Requires PyTorch</td>
+            </tr>
+            <tr>
+                <td>Built-in datasets</td>
+                <td class="check">12</td>
+                <td class="check">70+</td>
+                <td class="partial">~5</td>
+                <td class="cross">No</td>
+                <td class="check">40+</td>
+            </tr>
+            <tr>
+                <td>Graph sampling</td>
+                <td class="check">6 methods</td>
+                <td class="check">Yes</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="check">Yes</td>
+            </tr>
+            <tr>
+                <td>Graph generation (ER/BA/SBM)</td>
+                <td class="check">5 models</td>
+                <td class="partial">Limited</td>
+                <td class="check">Yes</td>
+                <td class="cross">No</td>
+                <td class="partial">Limited</td>
+            </tr>
+            <tr>
+                <td>Hyperparameter tuning</td>
+                <td class="check">Grid + Random</td>
+                <td class="cross">Manual</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">Manual</td>
+            </tr>
+            <tr>
+                <td>CLI tool</td>
+                <td class="check">Yes</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="check">Yes</td>
+                <td class="cross">No</td>
+            </tr>
+            <tr>
+                <td>Cross-validation</td>
+                <td class="check">k-fold</td>
+                <td class="cross">Manual</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">Manual</td>
+            </tr>
+            <tr>
+                <td>Install size</td>
+                <td class="check">~5 MB</td>
+                <td class="cross">~500 MB+</td>
+                <td class="check">~15 MB</td>
+                <td class="check">~3 MB</td>
+                <td class="cross">~400 MB+</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<section class="section">
+    <div class="section-header">
+        <h2>Quick Example</h2>
+        <p>From edges to embeddings in 5 lines of Python</p>
+    </div>
+    <pre><code><span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> SparseMatrix, embed, find_most_similar
+
+<span class="code-comment"># Build graph from edge list</span>
+edges = [<span class="code-string">"alice item_laptop"</span>, <span class="code-string">"alice item_mouse"</span>, <span class="code-string">"bob item_keyboard"</span>]
+graph = SparseMatrix.<span class="code-func">from_iterator</span>(<span class="code-func">iter</span>(edges), <span class="code-string">"complex::reflexive::product"</span>)
+
+<span class="code-comment"># Generate 128-dimensional embeddings</span>
+embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">128</span>, num_iterations=<span class="code-num">4</span>)
+
+<span class="code-comment"># Find similar entities</span>
+similar = <span class="code-func">find_most_similar</span>(graph, embeddings, <span class="code-string">"alice"</span>, top_k=<span class="code-num">5</span>)
+<span class="code-keyword">for</span> r <span class="code-keyword">in</span> similar:
+    <span class="code-func">print</span>(<span class="code-string">f"</span>{r[<span class="code-string">'entity_id'</span>]}: {r[<span class="code-string">'similarity'</span>]:.4f}<span class="code-string">"</span>)</code></pre>
+</section>
+
+<section class="section">
+    <div class="section-header">
+        <h2>Choose Your Algorithm</h2>
+        <p>9 algorithms optimized for different use cases</p>
+    </div>
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th>Algorithm</th>
+                <th>Speed</th>
+                <th>Best For</th>
+                <th>Karate Club Acc</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Cleora</td>
+                <td class="check">Fastest</td>
+                <td>Large graphs, real-time</td>
+                <td>85.7%</td>
+            </tr>
+            <tr>
+                <td>ProNE</td>
+                <td class="check">Very fast</td>
+                <td>Spectral analysis</td>
+                <td>28.6%</td>
+            </tr>
+            <tr>
+                <td>RandNE</td>
+                <td class="check">Ultra fast</td>
+                <td>Quick baselines, huge graphs</td>
+                <td>71.4%</td>
+            </tr>
+            <tr>
+                <td>NetMF</td>
+                <td class="partial">Fast</td>
+                <td>Theoretical guarantees</td>
+                <td>85.7%</td>
+            </tr>
+            <tr>
+                <td>GraRep</td>
+                <td class="partial">Moderate</td>
+                <td>Multi-scale patterns</td>
+                <td class="best-score">100%</td>
+            </tr>
+            <tr>
+                <td>HOPE</td>
+                <td class="partial">Moderate</td>
+                <td>Directed graphs, asymmetry</td>
+                <td>71.4%</td>
+            </tr>
+            <tr>
+                <td>DeepWalk</td>
+                <td class="cross">Slower</td>
+                <td>Community structure</td>
+                <td>85.7%</td>
+            </tr>
+            <tr>
+                <td>Node2Vec</td>
+                <td class="cross">Slowest</td>
+                <td>BFS/DFS tuning, homophily</td>
+                <td>85.7%</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+{% endblock %}

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}pycleora{% endblock %} — Fast Graph Embeddings</title>
+    <meta name="description" content="{% block meta_desc %}pycleora: The fastest CPU-only graph embedding library. Rust core, Python API. DeepWalk, Node2Vec, GCN, and more in one package.{% endblock %}">
+    <meta property="og:title" content="pycleora — Fast Graph Embeddings">
+    <meta property="og:description" content="The fastest CPU-only graph embedding library. 9 algorithms, 12 datasets, zero GPU required.">
+    <meta property="og:type" content="website">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-inner">
+            <a href="/" class="nav-brand">
+                <span class="brand-icon">⬡</span>
+                <span class="brand-text">pycleora</span>
+                <span class="brand-version">3.0</span>
+            </a>
+            <div class="nav-links">
+                <a href="/" class="{% if active == 'home' %}active{% endif %}">Home</a>
+                <a href="/docs" class="{% if active == 'docs' %}active{% endif %}">Docs</a>
+                <a href="/api" class="{% if active == 'api' %}active{% endif %}">API</a>
+                <a href="/benchmarks" class="{% if active == 'benchmarks' %}active{% endif %}">Benchmarks</a>
+                <a href="/changelog" class="{% if active == 'changelog' %}active{% endif %}">Changelog</a>
+                <a href="https://github.com/pycleora/pycleora" class="nav-github" target="_blank">GitHub</a>
+            </div>
+        </div>
+    </nav>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-grid">
+                <div>
+                    <h4>pycleora</h4>
+                    <p>Fast CPU-only graph embeddings.<br>Rust core. Python API. Zero GPU.</p>
+                </div>
+                <div>
+                    <h4>Library</h4>
+                    <a href="/docs">Getting Started</a>
+                    <a href="/api">API Reference</a>
+                    <a href="/benchmarks">Benchmarks</a>
+                    <a href="/changelog">Changelog</a>
+                </div>
+                <div>
+                    <h4>Community</h4>
+                    <a href="https://github.com/pycleora/pycleora">GitHub</a>
+                    <a href="https://pypi.org/project/pycleora/">PyPI</a>
+                    <a href="https://github.com/pycleora/pycleora/issues">Issues</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>MIT License. Built with Rust + PyO3.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

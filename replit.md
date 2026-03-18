@@ -38,6 +38,17 @@ src/                    Rust source code
 setup.py                setuptools-rust install path
 pyproject.toml          maturin build config (primary)
 run.py                  Full feature demo (81 tests)
+benchmark_report.py     9-algorithm x 6-dataset benchmark comparison
+website/                Marketing website (Flask)
+  app.py                Flask server (port 5000)
+  static/style.css      Dark theme CSS
+  templates/
+    base.html           Shared layout (nav, footer)
+    index.html           Landing page (features, comparison, code examples)
+    docs.html            Documentation (installation, all APIs, guides)
+    api.html             API Reference (all functions, params, returns)
+    benchmarks.html      Benchmark results (6 datasets, speed, cross-validation)
+    changelog.html       Version history (v1.0.0 through v3.0.0)
 ```
 
 ## Build

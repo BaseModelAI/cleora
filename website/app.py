@@ -1,0 +1,28 @@
+from flask import Flask, render_template
+import os
+
+app = Flask(__name__)
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/docs')
+def docs():
+    return render_template('docs.html')
+
+@app.route('/changelog')
+def changelog():
+    return render_template('changelog.html')
+
+@app.route('/benchmarks')
+def benchmarks():
+    return render_template('benchmarks.html')
+
+@app.route('/api')
+def api_ref():
+    return render_template('api.html')
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=False)

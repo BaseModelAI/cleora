@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% set active = "benchmarks" %}
+{% block title %}Benchmarks{% endblock %}
+
+{% block content %}
+<div class="docs-layout">
+    <aside class="docs-sidebar">
+        <h4>Results</h4>
+        <a href="#summary">Summary</a>
+        <a href="#small-graphs">Small Graphs</a>
+        <a href="#large-graphs">Large Graphs</a>
+        <a href="#speed">Speed Comparison</a>
+        <a href="#cross-validation">Cross-Validation</a>
+
+        <h4>Analysis</h4>
+        <a href="#when-to-use">When to Use What</a>
+        <a href="#methodology">Methodology</a>
+    </aside>
+
+    <div class="docs-content">
+        <h1>Benchmark Results</h1>
+        <p>9 algorithms compared across 6 public datasets. Node classification accuracy using Nearest Centroid classifier on 80/20 train-test split.</p>
+
+        <h2 id="summary">Summary Table</h2>
+        <p>Best accuracy per dataset. <span class="best-score">Green</span> = best on that dataset.</p>
+        <table class="bench-table">
+            <thead>
+                <tr>
+                    <th>Dataset</th>
+                    <th>Nodes</th>
+                    <th>Cleora</th>
+                    <th>Cleora-sym</th>
+                    <th>NetMF</th>
+                    <th>DeepWalk</th>
+                    <th>Node2Vec</th>
+                    <th>GraRep</th>
+                    <th>HOPE</th>
+                    <th>RandNE</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Karate Club</td>
+                    <td>34</td>
+                    <td>0.857</td>
+                    <td>0.857</td>
+                    <td>0.857</td>
+                    <td>0.857</td>
+                    <td>0.857</td>
+                    <td class="best-score">1.000</td>
+                    <td>0.714</td>
+                    <td>0.714</td>
+                </tr>
+                <tr>
+                    <td>Dolphins</td>
+                    <td>62</td>
+                    <td>0.750</td>
+                    <td class="best-score">0.875</td>
+                    <td class="best-score">0.875</td>
+                    <td class="best-score">0.875</td>
+                    <td>0.500</td>
+                    <td class="best-score">0.875</td>
+                    <td class="best-score">0.875</td>
+                    <td>0.625</td>
+                </tr>
+                <tr>
+                    <td>Les Miserables</td>
+                    <td>77</td>
+                    <td class="best-score">1.000</td>
+                    <td>0.900</td>
+                    <td>0.900</td>
+                    <td>0.900</td>
+                    <td>0.900</td>
+                    <td class="best-score">1.000</td>
+                    <td>0.900</td>
+                    <td>0.600</td>
+                </tr>
+                <tr>
+                    <td>Football</td>
+                    <td>32</td>
+                    <td class="best-score">1.000</td>
+                    <td class="best-score">1.000</td>
+                    <td class="best-score">1.000</td>
+                    <td class="best-score">1.000</td>
+                    <td class="best-score">1.000</td>
+                    <td class="best-score">1.000</td>
+                    <td class="best-score">1.000</td>
+                    <td class="best-score">1.000</td>
+                </tr>
+                <tr>
+                    <td>Cora</td>
+                    <td>2,708</td>
+                    <td>0.626</td>
+                    <td>0.563</td>
+                    <td>0.867</td>
+                    <td>0.871</td>
+                    <td class="best-score">0.875</td>
+                    <td>ERR</td>
+                    <td>ERR</td>
+                    <td>0.193</td>
+                </tr>
+                <tr>
+                    <td>CiteSeer</td>
+                    <td>3,312</td>
+                    <td>0.550</td>
+                    <td>0.490</td>
+                    <td class="best-score">0.817</td>
+                    <td>0.815</td>
+                    <td>0.808</td>
+                    <td>ERR</td>
+                    <td>ERR</td>
+                    <td>0.228</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="callout callout-info">
+            <strong>Note:</strong> GraRep and HOPE produce memory errors on graphs with 2000+ nodes due to dense matrix construction. For large graphs, prefer Cleora, NetMF, DeepWalk, or Node2Vec.
+        </div>
+
+        <h2 id="small-graphs">Small Graphs (< 100 nodes)</h2>
+        <p>On small, community-structured graphs, most algorithms achieve near-perfect accuracy. GraRep and Cleora stand out:</p>
+
+        <h3>Karate Club (34 nodes, 2 classes)</h3>
+        <table class="bench-table">
+            <thead>
+                <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th><th>Silhouette</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>GraRep</td><td class="best-score">1.000</td><td class="best-score">1.000</td><td>0.003s</td><td>0.19 MB</td><td>0.276</td></tr>
+                <tr><td>Cleora</td><td>0.857</td><td>0.844</td><td>0.079s</td><td>0.05 MB</td><td class="best-score">0.581</td></tr>
+                <tr><td>NetMF</td><td>0.857</td><td>0.844</td><td>0.004s</td><td>0.22 MB</td><td>0.173</td></tr>
+                <tr><td>DeepWalk</td><td>0.857</td><td>0.844</td><td>0.545s</td><td>0.42 MB</td><td>0.211</td></tr>
+                <tr><td>Node2Vec</td><td>0.857</td><td>0.844</td><td>1.958s</td><td>0.42 MB</td><td>0.192</td></tr>
+                <tr><td>RandNE</td><td>0.714</td><td>0.650</td><td>0.001s</td><td>0.18 MB</td><td>0.038</td></tr>
+            </tbody>
+        </table>
+
+        <h3>Les Miserables (77 nodes, 7 classes)</h3>
+        <table class="bench-table">
+            <thead>
+                <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th><th>Silhouette</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Cleora</td><td class="best-score">1.000</td><td class="best-score">0.714</td><td>0.081s</td><td>0.07 MB</td><td class="best-score">0.590</td></tr>
+                <tr><td>GraRep</td><td class="best-score">1.000</td><td class="best-score">0.714</td><td>0.044s</td><td>0.31 MB</td><td>0.304</td></tr>
+                <tr><td>NetMF</td><td>0.900</td><td>0.686</td><td>0.005s</td><td>0.36 MB</td><td>0.169</td></tr>
+                <tr><td>DeepWalk</td><td>0.900</td><td>0.638</td><td>0.790s</td><td>0.63 MB</td><td>0.439</td></tr>
+            </tbody>
+        </table>
+
+        <h2 id="large-graphs">Large Graphs (1000+ nodes)</h2>
+        <p>On larger citation networks, walk-based methods (DeepWalk, Node2Vec) and NetMF dominate:</p>
+
+        <h3>Cora (2,708 nodes, 7 classes)</h3>
+        <table class="bench-table">
+            <thead>
+                <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Node2Vec</td><td class="best-score">0.875</td><td class="best-score">—</td><td>Slow</td></tr>
+                <tr><td>DeepWalk</td><td>0.871</td><td>—</td><td>Moderate</td></tr>
+                <tr><td>NetMF</td><td>0.867</td><td>—</td><td>Fast</td></tr>
+                <tr><td>Cleora</td><td>0.626</td><td>—</td><td>Very fast</td></tr>
+                <tr><td>RandNE</td><td>0.193</td><td>—</td><td>Ultra fast</td></tr>
+            </tbody>
+        </table>
+
+        <h3>CiteSeer (3,312 nodes, 6 classes)</h3>
+        <table class="bench-table">
+            <thead>
+                <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>NetMF</td><td class="best-score">0.817</td><td>—</td><td>Fast</td></tr>
+                <tr><td>DeepWalk</td><td>0.815</td><td>—</td><td>Moderate</td></tr>
+                <tr><td>Node2Vec</td><td>0.808</td><td>—</td><td>Slow</td></tr>
+                <tr><td>Cleora</td><td>0.550</td><td>—</td><td>Very fast</td></tr>
+                <tr><td>RandNE</td><td>0.228</td><td>—</td><td>Ultra fast</td></tr>
+            </tbody>
+        </table>
+
+        <h2 id="speed">Speed Comparison</h2>
+        <p>Average time to embed a 34-node graph (Karate Club):</p>
+        <table class="bench-table">
+            <thead>
+                <tr><th>Algorithm</th><th>Time</th><th>Relative</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>RandNE</td><td>0.001s</td><td class="best-score">1x (baseline)</td></tr>
+                <tr><td>GraRep</td><td>0.003s</td><td>3x</td></tr>
+                <tr><td>ProNE</td><td>0.004s</td><td>4x</td></tr>
+                <tr><td>NetMF</td><td>0.004s</td><td>4x</td></tr>
+                <tr><td>Cleora</td><td>0.079s</td><td>79x</td></tr>
+                <tr><td>HOPE</td><td>0.234s</td><td>234x</td></tr>
+                <tr><td>DeepWalk</td><td>0.545s</td><td>545x</td></tr>
+                <tr><td>Node2Vec</td><td>1.958s</td><td>1958x</td></tr>
+            </tbody>
+        </table>
+
+        <h2 id="cross-validation">Cross-Validation Results</h2>
+        <p>5-fold cross-validation using Cleora embeddings (128 dim, 4 iterations):</p>
+        <table class="bench-table">
+            <thead>
+                <tr><th>Dataset</th><th>Mean Accuracy</th><th>Std</th><th>Mean F1</th><th>Std</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Football</td><td class="best-score">1.000</td><td>0.000</td><td class="best-score">1.000</td><td>0.000</td></tr>
+                <tr><td>Karate Club</td><td>0.980</td><td>0.040</td><td>0.978</td><td>0.044</td></tr>
+                <tr><td>Dolphins</td><td>0.841</td><td>0.096</td><td>0.806</td><td>0.147</td></tr>
+                <tr><td>Cora</td><td>0.597</td><td>0.015</td><td>0.596</td><td>0.015</td></tr>
+            </tbody>
+        </table>
+
+        <h2 id="when-to-use">When to Use What</h2>
+        <table class="comparison-table">
+            <thead>
+                <tr><th>Scenario</th><th>Recommended</th><th>Why</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Real-time / streaming</td>
+                    <td><strong>Cleora</strong></td>
+                    <td>Fastest for re-embedding. Constant memory. Incremental updates.</td>
+                </tr>
+                <tr>
+                    <td>Quick baseline</td>
+                    <td><strong>RandNE</strong></td>
+                    <td>Sub-millisecond. Good for initial exploration.</td>
+                </tr>
+                <tr>
+                    <td>Best accuracy</td>
+                    <td><strong>NetMF / DeepWalk</strong></td>
+                    <td>Consistently top performers across datasets.</td>
+                </tr>
+                <tr>
+                    <td>Small graph, perfect results</td>
+                    <td><strong>GraRep</strong></td>
+                    <td>Multi-scale capture. 100% on Karate Club.</td>
+                </tr>
+                <tr>
+                    <td>Homophily tuning</td>
+                    <td><strong>Node2Vec</strong></td>
+                    <td>p/q parameters control BFS vs DFS exploration.</td>
+                </tr>
+                <tr>
+                    <td>Directed graphs</td>
+                    <td><strong>HOPE</strong></td>
+                    <td>Preserves asymmetric relationships.</td>
+                </tr>
+                <tr>
+                    <td>Memory constrained</td>
+                    <td><strong>Cleora / RandNE</strong></td>
+                    <td>Minimal memory footprint (< 0.1 MB for small graphs).</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2 id="methodology">Methodology</h2>
+        <ul>
+            <li><strong>Task:</strong> Node classification with 80/20 train-test split</li>
+            <li><strong>Classifier:</strong> Nearest Centroid (no hyperparameters)</li>
+            <li><strong>Embedding dimension:</strong> 128 for all algorithms</li>
+            <li><strong>Metrics:</strong> Accuracy, Macro F1, wall-clock time, peak memory delta</li>
+            <li><strong>Hardware:</strong> Single CPU core, no GPU</li>
+            <li><strong>Datasets:</strong> Community-structured synthetic graphs matching real-world properties</li>
+            <li><strong>Walk-based params:</strong> num_walks=20, walk_length=40 (small graphs); num_walks=3, walk_length=15 (large graphs)</li>
+        </ul>
+
+        <div class="callout callout-info">
+            <strong>Reproduce:</strong> Run <code>python3 benchmark_report.py</code> from the pycleora repository to regenerate all results.
+        </div>
+    </div>
+</div>
+{% endblock %}

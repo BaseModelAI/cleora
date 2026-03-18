@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+{% set active = "docs" %}
+{% block title %}Documentation{% endblock %}
+
+{% block content %}
+<div class="docs-layout">
+    <aside class="docs-sidebar">
+        <h4>Getting Started</h4>
+        <a href="#installation">Installation</a>
+        <a href="#quickstart">Quick Start</a>
+        <a href="#concepts">Core Concepts</a>
+
+        <h4>Embedding</h4>
+        <a href="#basic-embedding">Basic Embedding</a>
+        <a href="#algorithms">Algorithms</a>
+        <a href="#node-features">Node Features</a>
+        <a href="#edge-features">Edge Features</a>
+        <a href="#attention">Attention-Weighted</a>
+
+        <h4>Graphs</h4>
+        <a href="#building-graphs">Building Graphs</a>
+        <a href="#heterogeneous">Heterogeneous</a>
+        <a href="#graph-generation">Graph Generation</a>
+        <a href="#sampling">Graph Sampling</a>
+
+        <h4>Evaluation</h4>
+        <a href="#classification">Classification</a>
+        <a href="#metrics">Metrics</a>
+        <a href="#cross-validation">Cross-Validation</a>
+        <a href="#tuning">Hyperparameter Tuning</a>
+
+        <h4>Tools</h4>
+        <a href="#cli">CLI</a>
+        <a href="#io">Import/Export</a>
+        <a href="#visualization">Visualization</a>
+    </aside>
+
+    <div class="docs-content">
+        <h1>Documentation</h1>
+        <p>Complete guide to pycleora 3.0 — the fastest CPU-only graph embedding library.</p>
+
+        <h2 id="installation">Installation</h2>
+        <h3>From PyPI (recommended)</h3>
+        <pre><code>pip install pycleora</code></pre>
+
+        <h3>From source (with Rust compiler)</h3>
+        <pre><code>pip install maturin==1.2.3
+git clone https://github.com/pycleora/pycleora
+cd pycleora
+maturin build --release -i python3
+pip install target/wheels/pycleora-*.whl</code></pre>
+
+        <div class="callout callout-info">
+            <strong>Dependencies:</strong> Only numpy and scipy are required. Matplotlib is optional for visualization.
+        </div>
+
+        <h2 id="quickstart">Quick Start</h2>
+        <pre><code><span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> SparseMatrix, embed, find_most_similar
+
+<span class="code-comment"># 1. Define edges (space-separated entity pairs)</span>
+edges = [
+    <span class="code-string">"user_alice product_laptop"</span>,
+    <span class="code-string">"user_alice product_mouse"</span>,
+    <span class="code-string">"user_bob product_keyboard"</span>,
+    <span class="code-string">"user_bob product_monitor"</span>,
+]
+
+<span class="code-comment"># 2. Build the graph</span>
+graph = SparseMatrix.<span class="code-func">from_iterator</span>(
+    <span class="code-func">iter</span>(edges),
+    <span class="code-string">"complex::reflexive::entity"</span>
+)
+
+<span class="code-comment"># 3. Generate embeddings</span>
+embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">128</span>, num_iterations=<span class="code-num">4</span>)
+
+<span class="code-comment"># 4. Query similarity</span>
+results = <span class="code-func">find_most_similar</span>(graph, embeddings, <span class="code-string">"user_alice"</span>, top_k=<span class="code-num">5</span>)
+<span class="code-keyword">for</span> r <span class="code-keyword">in</span> results:
+    <span class="code-func">print</span>(<span class="code-string">f"</span>{r[<span class="code-string">'entity_id'</span>]}: {r[<span class="code-string">'similarity'</span>]:.4f}<span class="code-string">"</span>)</code></pre>
+
+        <h2 id="concepts">Core Concepts</h2>
+        <h3>Column Definitions</h3>
+        <p>The column string defines how edges are parsed. Common patterns:</p>
+        <ul>
+            <li><code>complex::reflexive::entity</code> — bipartite graph, entities interact with themselves</li>
+            <li><code>complex::reflexive::user complex::reflexive::product</code> — two separate entity types</li>
+            <li><code>transient::reflexive::context</code> — context column, not embedded</li>
+        </ul>
+
+        <h3>Propagation Types</h3>
+        <ul>
+            <li><code>"left"</code> — Left Markov (row-stochastic). Default. Best for most tasks.</li>
+            <li><code>"symmetric"</code> — Symmetric normalization (D^{-1/2} A D^{-1/2}). Better for spectral methods.</li>
+        </ul>
+
+        <h3>Normalization</h3>
+        <ul>
+            <li><code>"l2"</code> — Unit length vectors (default, recommended)</li>
+            <li><code>"l1"</code> — L1 normalization</li>
+            <li><code>"spectral"</code> — SVD-based spectral normalization</li>
+            <li><code>"none"</code> — No normalization</li>
+        </ul>
+
+        <h2 id="basic-embedding">Basic Embedding</h2>
+        <pre><code><span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> embed, embed_multiscale
+
+<span class="code-comment"># Standard embedding</span>
+emb = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">128</span>, num_iterations=<span class="code-num">4</span>)
+
+<span class="code-comment"># Symmetric propagation</span>
+emb_sym = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">128</span>, propagation=<span class="code-string">"symmetric"</span>)
+
+<span class="code-comment"># Multi-scale (captures different neighborhood sizes)</span>
+emb_multi = <span class="code-func">embed_multiscale</span>(graph, feature_dim=<span class="code-num">64</span>, scales=[<span class="code-num">1</span>, <span class="code-num">2</span>, <span class="code-num">4</span>, <span class="code-num">8</span>])
+<span class="code-comment"># Result: (n_entities, 64*4) = (n, 256) dimensions</span></code></pre>
+
+        <h2 id="algorithms">Alternative Algorithms</h2>
+        <pre><code><span class="code-keyword">from</span> pycleora.algorithms <span class="code-keyword">import</span> (
+    embed_deepwalk, embed_node2vec,
+    embed_prone, embed_randne,
+    embed_hope, embed_netmf, embed_grarep
+)
+
+<span class="code-comment"># DeepWalk — random walks + SVD</span>
+emb = <span class="code-func">embed_deepwalk</span>(graph, feature_dim=<span class="code-num">128</span>, num_walks=<span class="code-num">20</span>, walk_length=<span class="code-num">40</span>)
+
+<span class="code-comment"># Node2Vec — biased walks (p controls BFS, q controls DFS)</span>
+emb = <span class="code-func">embed_node2vec</span>(graph, feature_dim=<span class="code-num">128</span>, p=<span class="code-num">0.5</span>, q=<span class="code-num">2.0</span>)
+
+<span class="code-comment"># RandNE — ultra-fast random projection</span>
+emb = <span class="code-func">embed_randne</span>(graph, feature_dim=<span class="code-num">128</span>)
+
+<span class="code-comment"># NetMF — theoretically grounded matrix factorization</span>
+emb = <span class="code-func">embed_netmf</span>(graph, feature_dim=<span class="code-num">128</span>, negative_samples=<span class="code-num">1.0</span>)</code></pre>
+
+        <h2 id="node-features">Node Features</h2>
+        <pre><code><span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> embed_with_node_features
+
+node_features = {<span class="code-string">"alice"</span>: np.array([<span class="code-num">1.0</span>, <span class="code-num">0.5</span>, ...]), ...}
+emb = <span class="code-func">embed_with_node_features</span>(graph, node_features, feature_weight=<span class="code-num">0.7</span>)</code></pre>
+
+        <h2 id="edge-features">Edge Features</h2>
+        <pre><code><span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> embed_edge_features
+
+<span class="code-comment"># Multi-dimensional features per edge</span>
+edge_feats = {<span class="code-string">"alice item_laptop"</span>: np.array([<span class="code-num">1.0</span>, <span class="code-num">0.8</span>, ...]), ...}
+emb = <span class="code-func">embed_edge_features</span>(graph, edge_feats, feature_dim=<span class="code-num">64</span>, combine=<span class="code-string">"concat"</span>)
+<span class="code-comment"># combine: "concat" | "mean" | "edge_only"</span></code></pre>
+
+        <h2 id="attention">Attention-Weighted Embedding</h2>
+        <pre><code><span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> embed_with_attention
+
+emb = <span class="code-func">embed_with_attention</span>(graph, feature_dim=<span class="code-num">128</span>, attention_temperature=<span class="code-num">0.5</span>)</code></pre>
+
+        <h2 id="building-graphs">Building Graphs</h2>
+        <pre><code><span class="code-comment"># From edge list</span>
+graph = SparseMatrix.<span class="code-func">from_iterator</span>(<span class="code-func">iter</span>(edges), columns)
+
+<span class="code-comment"># Dynamic updates</span>
+<span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> update_graph, remove_edges
+graph2 = <span class="code-func">update_graph</span>(edges, new_edges, columns)
+graph3 = <span class="code-func">remove_edges</span>(edges, edges_to_remove, columns)
+
+<span class="code-comment"># Streaming (batch-by-batch)</span>
+<span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> embed_streaming
+graph, emb = <span class="code-func">embed_streaming</span>(batches, columns)</code></pre>
+
+        <h2 id="heterogeneous">Heterogeneous Graphs</h2>
+        <pre><code><span class="code-keyword">from</span> pycleora.hetero <span class="code-keyword">import</span> HeteroGraph
+
+hg = HeteroGraph()
+hg.<span class="code-func">add_node_type</span>(<span class="code-string">"user"</span>)
+hg.<span class="code-func">add_node_type</span>(<span class="code-string">"product"</span>)
+hg.<span class="code-func">add_edge_type</span>(<span class="code-string">"purchased"</span>, <span class="code-string">"user"</span>, <span class="code-string">"product"</span>, [(<span class="code-string">"alice"</span>, <span class="code-string">"laptop"</span>)])
+
+<span class="code-comment"># Per-relation embedding</span>
+graphs, embeddings, combined = hg.<span class="code-func">embed_per_relation</span>(feature_dim=<span class="code-num">64</span>)
+
+<span class="code-comment"># Metapath embedding</span>
+g, emb = hg.<span class="code-func">embed_metapath</span>([<span class="code-string">"purchased"</span>, <span class="code-string">"sold_at"</span>], feature_dim=<span class="code-num">64</span>)</code></pre>
+
+        <h2 id="graph-generation">Graph Generation</h2>
+        <pre><code><span class="code-keyword">from</span> pycleora.generators <span class="code-keyword">import</span> (
+    erdos_renyi, barabasi_albert,
+    stochastic_block_model, watts_strogatz
+)
+
+er = <span class="code-func">erdos_renyi</span>(num_nodes=<span class="code-num">1000</span>, p=<span class="code-num">0.01</span>)
+ba = <span class="code-func">barabasi_albert</span>(num_nodes=<span class="code-num">1000</span>, m=<span class="code-num">3</span>)
+sbm = <span class="code-func">stochastic_block_model</span>([<span class="code-num">100</span>, <span class="code-num">100</span>, <span class="code-num">100</span>], p_within=<span class="code-num">0.1</span>, p_between=<span class="code-num">0.001</span>)</code></pre>
+
+        <h2 id="sampling">Graph Sampling</h2>
+        <pre><code><span class="code-keyword">from</span> pycleora.sampling <span class="code-keyword">import</span> (
+    sample_neighborhood, sample_subgraph,
+    graphsaint_sample, negative_sampling,
+    train_test_split_edges
+)
+
+<span class="code-comment"># K-hop neighborhood</span>
+nbhood = <span class="code-func">sample_neighborhood</span>(graph, [<span class="code-string">"alice"</span>], num_hops=<span class="code-num">2</span>, max_neighbors_per_hop=<span class="code-num">10</span>)
+
+<span class="code-comment"># Mini-batches for large graphs</span>
+batches = <span class="code-func">graphsaint_sample</span>(graph, batch_size=<span class="code-num">512</span>, num_batches=<span class="code-num">10</span>)
+
+<span class="code-comment"># Link prediction data split</span>
+split = <span class="code-func">train_test_split_edges</span>(graph, test_ratio=<span class="code-num">0.2</span>)
+neg_edges = <span class="code-func">negative_sampling</span>(graph, num_negatives=<span class="code-num">1000</span>)</code></pre>
+
+        <h2 id="classification">Classification</h2>
+        <pre><code><span class="code-keyword">from</span> pycleora.classify <span class="code-keyword">import</span> gcn_classify, mlp_classify, label_propagation
+
+<span class="code-comment"># GCN (no PyTorch!)</span>
+result = <span class="code-func">gcn_classify</span>(graph, emb, labels, hidden_dim=<span class="code-num">64</span>, num_layers=<span class="code-num">2</span>)
+<span class="code-func">print</span>(<span class="code-string">f"Accuracy: </span>{result[<span class="code-string">'accuracy'</span>]:.4f}<span class="code-string">"</span>)
+
+<span class="code-comment"># MLP classifier</span>
+result = <span class="code-func">mlp_classify</span>(graph, emb, labels, hidden_dim=<span class="code-num">64</span>)
+
+<span class="code-comment"># Semi-supervised label propagation</span>
+predictions = <span class="code-func">label_propagation</span>(graph, partial_labels)</code></pre>
+
+        <h2 id="metrics">Evaluation Metrics</h2>
+        <pre><code><span class="code-keyword">from</span> pycleora.metrics <span class="code-keyword">import</span> (
+    node_classification_scores, link_prediction_scores,
+    clustering_scores, map_at_k, ndcg_at_k,
+    adjusted_rand_index, silhouette_score
+)
+
+<span class="code-comment"># Node classification</span>
+scores = <span class="code-func">node_classification_scores</span>(graph, emb, labels)
+<span class="code-comment"># Returns: accuracy, macro_f1, weighted_f1</span>
+
+<span class="code-comment"># Link prediction</span>
+lp = <span class="code-func">link_prediction_scores</span>(graph, emb, test_edges)
+<span class="code-comment"># Returns: auc, mrr, hits@1/3/10/50</span>
+
+<span class="code-comment"># Ranking metrics</span>
+<span class="code-func">map_at_k</span>(graph, emb, test_edges, k=<span class="code-num">10</span>)
+<span class="code-func">ndcg_at_k</span>(graph, emb, test_edges, k=<span class="code-num">10</span>)</code></pre>
+
+        <h2 id="cross-validation">Cross-Validation</h2>
+        <pre><code><span class="code-keyword">from</span> pycleora.metrics <span class="code-keyword">import</span> cross_validate
+
+cv = <span class="code-func">cross_validate</span>(graph, emb, labels, k_folds=<span class="code-num">5</span>)
+<span class="code-func">print</span>(<span class="code-string">f"Accuracy: </span>{cv[<span class="code-string">'mean_accuracy'</span>]:.4f} +/- {cv[<span class="code-string">'std_accuracy'</span>]:.4f}<span class="code-string">"</span>)
+<span class="code-func">print</span>(<span class="code-string">f"Macro F1: </span>{cv[<span class="code-string">'mean_macro_f1'</span>]:.4f} +/- {cv[<span class="code-string">'std_macro_f1'</span>]:.4f}<span class="code-string">"</span>)</code></pre>
+
+        <h2 id="tuning">Hyperparameter Tuning</h2>
+        <pre><code><span class="code-keyword">from</span> pycleora.tuning <span class="code-keyword">import</span> grid_search, random_search
+
+result = <span class="code-func">grid_search</span>(
+    graph, labels,
+    embed_fn=<span class="code-keyword">lambda</span> g, feature_dim=<span class="code-num">128</span>, num_iterations=<span class="code-num">4</span>: <span class="code-func">embed</span>(g, feature_dim, num_iterations),
+    param_grid={<span class="code-string">"feature_dim"</span>: [<span class="code-num">64</span>, <span class="code-num">128</span>, <span class="code-num">256</span>], <span class="code-string">"num_iterations"</span>: [<span class="code-num">2</span>, <span class="code-num">4</span>, <span class="code-num">8</span>]},
+)
+<span class="code-func">print</span>(<span class="code-string">f"Best: </span>{result[<span class="code-string">'best_params'</span>]} -> {result[<span class="code-string">'best_score'</span>]:.4f}<span class="code-string">"</span>)</code></pre>
+
+        <h2 id="cli">CLI Tool</h2>
+        <pre><code><span class="code-comment"># Generate embeddings</span>
+$ pycleora embed --input edges.tsv --dim 128 --output emb.npz
+
+<span class="code-comment"># With algorithm choice</span>
+$ pycleora embed -i graph.tsv -d 256 -a deepwalk -o emb.npz
+
+<span class="code-comment"># Graph info</span>
+$ pycleora info --input edges.tsv
+
+<span class="code-comment"># Find similar entities</span>
+$ pycleora similar --input edges.tsv --entity alice --top-k 10
+
+<span class="code-comment"># Run benchmarks</span>
+$ pycleora benchmark --dataset karate_club</code></pre>
+
+        <h2 id="io">Import/Export</h2>
+        <pre><code><span class="code-keyword">from</span> pycleora.io_utils <span class="code-keyword">import</span> save_embeddings, load_embeddings, to_networkx
+
+<span class="code-comment"># Save/load</span>
+<span class="code-func">save_embeddings</span>(graph, emb, <span class="code-string">"embeddings.npz"</span>)
+emb, ids = <span class="code-func">load_embeddings</span>(<span class="code-string">"embeddings.npz"</span>)
+
+<span class="code-comment"># Export to NetworkX, PyG, DGL</span>
+G = <span class="code-func">to_networkx</span>(graph, emb)</code></pre>
+
+        <h2 id="visualization">Visualization</h2>
+        <pre><code><span class="code-keyword">from</span> pycleora.viz <span class="code-keyword">import</span> visualize, reduce_dimensions
+
+<span class="code-comment"># t-SNE / PCA reduction</span>
+emb_2d = <span class="code-func">reduce_dimensions</span>(emb, method=<span class="code-string">"tsne"</span>)
+
+<span class="code-comment"># Full visualization with labels</span>
+<span class="code-func">visualize</span>(graph, emb, labels=labels, save_path=<span class="code-string">"graph.png"</span>)</code></pre>
+    </div>
+</div>
+{% endblock %}
