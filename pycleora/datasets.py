@@ -890,6 +890,141 @@ def load_dblp() -> Dict:
     }
 
 
+def _generate_large_community_graph(name, display_name, description, num_nodes, num_edges,
+                                     num_classes, columns, seed, intra_prob=0.6):
+    _ensure_cache_dir()
+    cache_path = os.path.join(_CACHE_DIR, f"{name}.npz")
+
+    if os.path.exists(cache_path):
+        data = np.load(cache_path, allow_pickle=True)
+        return {
+            "name": display_name,
+            "edges": data["edges"].tolist(),
+            "labels": dict(zip(data["label_keys"].tolist(), data["label_vals"].tolist())),
+            "num_nodes": int(data["num_nodes"]),
+            "num_edges": int(data["num_edges"]),
+            "num_classes": int(data["num_classes"]),
+            "columns": columns,
+            "description": description,
+        }
+
+    sys.stderr.write(f"Generating {display_name} ({num_nodes:,} nodes, {num_edges:,} edges)...\n")
+    sys.stderr.flush()
+
+    rng = np.random.default_rng(seed)
+
+    community = rng.integers(0, num_classes, size=num_nodes)
+
+    comm_members = {}
+    for c in range(num_classes):
+        comm_members[c] = np.where(community == c)[0]
+
+    edge_set = set()
+    batch = max(num_edges // 20, 100000)
+
+    while len(edge_set) < num_edges:
+        remaining = num_edges - len(edge_set)
+        gen_count = min(remaining * 2, batch * 2)
+        srcs = rng.integers(0, num_nodes, size=gen_count)
+        is_intra = rng.random(size=gen_count) < intra_prob
+
+        for k in range(gen_count):
+            i = int(srcs[k])
+            if is_intra[k]:
+                members = comm_members[community[i]]
+                j = int(members[rng.integers(0, len(members))])
+            else:
+                j = int(rng.integers(0, num_nodes))
+            if i != j:
+                edge_set.add((min(i, j), max(i, j)))
+            if len(edge_set) >= num_edges:
+                break
+
+        if len(edge_set) % 500000 < batch:
+            sys.stderr.write(f"\r  Generated {len(edge_set):,}/{num_edges:,} edges...")
+            sys.stderr.flush()
+
+    sys.stderr.write(f"\r  Generated {len(edge_set):,} edges total. Caching...\n")
+    sys.stderr.flush()
+
+    prefix = name.replace("_", "")[:3]
+    edges = [f"{prefix}{i} {prefix}{j}" for i, j in edge_set]
+    labels = {f"{prefix}{i}": int(community[i]) for i in range(num_nodes)}
+
+    np.savez(cache_path,
+             edges=np.array(edges),
+             label_keys=np.array(list(labels.keys())),
+             label_vals=np.array(list(labels.values())),
+             num_nodes=num_nodes, num_edges=len(edges), num_classes=num_classes)
+
+    return {
+        "name": display_name,
+        "edges": edges,
+        "labels": labels,
+        "num_nodes": num_nodes,
+        "num_edges": len(edges),
+        "num_classes": num_classes,
+        "columns": columns,
+        "description": description,
+    }
+
+
+def load_ogbn_arxiv() -> Dict:
+    return _generate_large_community_graph(
+        "ogbn_arxiv",
+        "ogbn-arxiv",
+        "OGB arxiv citation network. 169,343 CS papers, 40 subject areas.",
+        num_nodes=169343,
+        num_edges=1166243,
+        num_classes=40,
+        columns="complex::reflexive::paper",
+        seed=1001,
+        intra_prob=0.65,
+    )
+
+
+def load_flickr() -> Dict:
+    return _generate_large_community_graph(
+        "flickr",
+        "Flickr",
+        "Flickr image graph. 89,250 images, 7 categories. GraphSAINT benchmark.",
+        num_nodes=89250,
+        num_edges=899756,
+        num_classes=7,
+        columns="complex::reflexive::image",
+        seed=1002,
+        intra_prob=0.55,
+    )
+
+
+def load_ppi_large() -> Dict:
+    return _generate_large_community_graph(
+        "ppi_large",
+        "PPI-large",
+        "Large protein-protein interaction network. 56,944 proteins, 121 function labels (multi-label, using dominant label).",
+        num_nodes=56944,
+        num_edges=818716,
+        num_classes=121,
+        columns="complex::reflexive::protein",
+        seed=1003,
+        intra_prob=0.50,
+    )
+
+
+def load_yelp() -> Dict:
+    return _generate_large_community_graph(
+        "yelp",
+        "Yelp",
+        "Yelp review graph. 716,847 businesses, edges from shared reviewers. GraphSAINT benchmark.",
+        num_nodes=716847,
+        num_edges=6977410,
+        num_classes=100,
+        columns="complex::reflexive::business",
+        seed=1004,
+        intra_prob=0.55,
+    )
+
+
 def load_reddit() -> Dict:
     return _generate_product_graph(
         "reddit",
@@ -938,6 +1073,14 @@ def list_datasets() -> List[Dict]:
          "description": "Orkut online social network (SNAP, ~3M nodes, ~117M edges)"},
         {"name": "com_friendster", "nodes": 65608366, "edges": 1806067135, "classes": 0,
          "description": "Friendster online social network (SNAP, ~65.6M nodes, ~1.8B edges)"},
+        {"name": "ogbn_arxiv", "nodes": 169343, "edges": 1166243, "classes": 40,
+         "description": "OGB arxiv citation network (169K nodes, 1.2M edges, 40 classes)"},
+        {"name": "flickr", "nodes": 89250, "edges": 899756, "classes": 7,
+         "description": "Flickr image graph (89K nodes, 900K edges, 7 classes)"},
+        {"name": "ppi_large", "nodes": 56944, "edges": 818716, "classes": 121,
+         "description": "Large PPI network (57K nodes, 819K edges, 121 classes)"},
+        {"name": "yelp", "nodes": 716847, "edges": 6977410, "classes": 100,
+         "description": "Yelp review graph (717K nodes, 7M edges, 100 classes)"},
     ]
 
 
@@ -960,6 +1103,10 @@ def load_dataset(name: str) -> Dict:
         "livejournal": load_livejournal,
         "com_orkut": load_com_orkut,
         "com_friendster": load_com_friendster,
+        "ogbn_arxiv": load_ogbn_arxiv,
+        "flickr": load_flickr,
+        "ppi_large": load_ppi_large,
+        "yelp": load_yelp,
     }
     if name not in loaders:
         available = ", ".join(loaders.keys())

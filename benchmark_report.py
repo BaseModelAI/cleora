@@ -23,6 +23,10 @@ from pycleora.datasets import load_dataset
 
 DATASETS = [
     "facebook",
+    "ppi_large",
+    "flickr",
+    "ogbn_arxiv",
+    "yelp",
     "roadnet",
     "livejournal",
 ]

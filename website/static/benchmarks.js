@@ -23,28 +23,36 @@ const ALGO_COLORS = {
     'Node2Vec':   '#fb923c',
 };
 
-const DATASETS = ['ego-Facebook'];
+const DATASETS = ['ego-Facebook', 'PPI-large', 'Flickr', 'ogbn-arxiv', 'Yelp'];
 const ALGORITHMS = ['Cleora', 'Cleora-sym', 'ProNE', 'RandNE', 'NetMF', 'DeepWalk', 'Node2Vec'];
 
 const SUMMARY_DATA = {
-    'Cleora':     [0.877],
-    'Cleora-sym': [0.827],
-    'ProNE':      [0.011],
-    'RandNE':     [0.095],
-    'NetMF':      [0.868],
-    'DeepWalk':   [0.868],
-    'Node2Vec':   [0.865],
+    'Cleora':     [0.877, 0.026, 0.158, 0.038, 0.013],
+    'Cleora-sym': [0.827, 0.026, 0.158, 0.038, null],
+    'ProNE':      [0.011, 0.008, 0.139, 0.026, null],
+    'RandNE':     [0.095, 0.011, 0.146, 0.030, null],
+    'NetMF':      [0.868, null,  null,  null,  null],
+    'DeepWalk':   [0.868, null,  null,  null,  null],
+    'Node2Vec':   [0.865, null,  null,  null,  null],
 };
 
 const SPEED_DATA = {
-    algorithms: ['RandNE', 'Cleora-sym', 'ProNE', 'Cleora', 'NetMF', 'DeepWalk', 'Node2Vec'],
-    facebook:   [0.046,    0.137,        0.192,   0.222,    23.602,  37.617,      51.412],
-    roadnet:    [8.968,    4.269,        57.716,  4.242,    null,    null,         null],
+    algorithms: ['Cleora', 'Cleora-sym', 'RandNE', 'ProNE', 'NetMF', 'DeepWalk', 'Node2Vec'],
+    facebook:   [0.222,    0.137,        0.046,   0.192,    23.602,  37.617,      51.412],
+    ppi_large:  [0.330,    0.251,        1.072,   8.338,    null,    null,         null],
+    flickr:     [0.475,    0.436,        1.332,   5.569,    null,    null,         null],
+    ogbn_arxiv: [0.747,    0.752,        2.046,   8.333,    null,    null,         null],
+    yelp:       [3.304,    3.162,        null,    null,     null,    null,         null],
+    roadnet:    [4.242,    4.269,        8.968,   57.716,   null,    null,         null],
 };
 
 const MEMORY_DATA = {
     algorithms: ['Cleora', 'Cleora-sym', 'RandNE', 'ProNE', 'Node2Vec', 'DeepWalk', 'NetMF'],
     facebook:   [3.99,     3.99,         22.01,    34.04,   524.21,     530.97,      1037.55],
+    ppi_large:  [27.81,    27.80,        290.79,   458.38,  null,       null,         null],
+    flickr:     [43.58,    43.58,        438.17,   700.79,  null,       null,         null],
+    ogbn_arxiv: [82.69,    82.69,        806.62,   1305,    null,       null,         null],
+    yelp:       [350,      350,          null,     null,    null,       null,         null],
     roadnet:    [1934,     1934,         8868,     14648,   null,       null,         null],
 };
 
@@ -57,6 +65,12 @@ const SCATTER_DATA = {
         'Cleora-sym': { acc: 0.827, time: 0.137 },
         'RandNE':     { acc: 0.095, time: 0.046 },
         'ProNE':      { acc: 0.011, time: 0.192 },
+    },
+    'ogbn-arxiv': {
+        'Cleora':     { acc: 0.038, time: 0.747 },
+        'Cleora-sym': { acc: 0.038, time: 0.752 },
+        'RandNE':     { acc: 0.030, time: 2.046 },
+        'ProNE':      { acc: 0.026, time: 8.333 },
     },
 };
 
@@ -126,24 +140,22 @@ function buildSpeedChart() {
     const ctx = document.getElementById('chart-speed').getContext('2d');
     const algos = SPEED_DATA.algorithms;
 
-    const datasets = [
-        {
-            label: 'ego-Facebook (4k nodes)',
-            data: SPEED_DATA.facebook,
-            backgroundColor: COLORS.accent + 'cc',
-            borderColor: COLORS.accent,
-            borderWidth: 1,
-            borderRadius: 3,
-        },
-        {
-            label: 'roadNet-CA (2M nodes)',
-            data: SPEED_DATA.roadnet,
-            backgroundColor: COLORS.green + 'cc',
-            borderColor: COLORS.green,
-            borderWidth: 1,
-            borderRadius: 3,
-        },
+    const dsConfigs = [
+        { key: 'facebook',   label: 'ego-Facebook (4k)',   color: COLORS.accent },
+        { key: 'ppi_large',  label: 'PPI-large (57k)',     color: '#10b981' },
+        { key: 'flickr',     label: 'Flickr (89k)',        color: COLORS.orange },
+        { key: 'ogbn_arxiv', label: 'ogbn-arxiv (169k)',   color: COLORS.blue },
+        { key: 'yelp',       label: 'Yelp (717k)',         color: '#f472b6' },
+        { key: 'roadnet',    label: 'roadNet-CA (2M)',     color: COLORS.green },
     ];
+    const datasets = dsConfigs.map(d => ({
+        label: d.label,
+        data: SPEED_DATA[d.key],
+        backgroundColor: d.color + 'cc',
+        borderColor: d.color,
+        borderWidth: 1,
+        borderRadius: 3,
+    }));
 
     new Chart(ctx, {
         type: 'bar',
@@ -179,23 +191,20 @@ function buildMemoryChart() {
         data: {
             labels: algos,
             datasets: [
-                {
-                    label: 'ego-Facebook (4k nodes)',
-                    data: MEMORY_DATA.facebook,
-                    backgroundColor: COLORS.accent + 'cc',
-                    borderColor: COLORS.accent,
-                    borderWidth: 1,
-                    borderRadius: 3,
-                },
-                {
-                    label: 'roadNet-CA (2M nodes)',
-                    data: MEMORY_DATA.roadnet,
-                    backgroundColor: COLORS.green + 'cc',
-                    borderColor: COLORS.green,
-                    borderWidth: 1,
-                    borderRadius: 3,
-                },
-            ],
+                { key: 'facebook',   label: 'ego-Facebook (4k)',   color: COLORS.accent },
+                { key: 'ppi_large',  label: 'PPI-large (57k)',     color: '#10b981' },
+                { key: 'flickr',     label: 'Flickr (89k)',        color: COLORS.orange },
+                { key: 'ogbn_arxiv', label: 'ogbn-arxiv (169k)',   color: COLORS.blue },
+                { key: 'yelp',       label: 'Yelp (717k)',         color: '#f472b6' },
+                { key: 'roadnet',    label: 'roadNet-CA (2M)',     color: COLORS.green },
+            ].map(d => ({
+                label: d.label,
+                data: MEMORY_DATA[d.key],
+                backgroundColor: d.color + 'cc',
+                borderColor: d.color,
+                borderWidth: 1,
+                borderRadius: 3,
+            })),
         },
         options: {
             responsive: true,
@@ -222,6 +231,7 @@ function buildScatterChart() {
     const ctx = document.getElementById('chart-scatter').getContext('2d');
     const datasetColors = {
         'ego-Facebook': COLORS.accent,
+        'ogbn-arxiv': COLORS.blue,
     };
 
     const datasets = Object.entries(SCATTER_DATA).map(([dsName, algos]) => ({
@@ -245,7 +255,7 @@ function buildScatterChart() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                title: { display: true, text: 'Accuracy vs Embedding Time — ego-Facebook', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Accuracy vs Embedding Time', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
                     callbacks: {
                         label: ctx => {
