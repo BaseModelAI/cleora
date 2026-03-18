@@ -140,3 +140,4 @@ cp ~/.pythonlibs/lib/python3.12/site-packages/pycleora/pycleora.cpython-312-x86_
 - `to_sparse_csr()` returns row-stochastic (Markov) values; community detection and walk-based algorithms use binary adjacency
 - `num_nodes = len(labels)` for datasets (not from edge count)
 - Build requires maturin 1.2.3; CLI entrypoint configured in both pyproject.toml and setup.py
+- **New real-world dataset loaders** (Task #15): reddit_hyperlink (SNAP TSV, 55K/858K), ogbn_products (OGB zip, 2.4M/62M, 47 classes), ogbl_citation2 (OGB zip, 2.9M/30M), twitter (Network Repository zip, 41.7M/1.47B). Uses `_load_ogb_dataset` helper with streaming gz-in-zip parsing and `_find_zip_member` for flexible path resolution.

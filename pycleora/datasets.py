@@ -1025,6 +1025,475 @@ def load_yelp() -> Dict:
     )
 
 
+def load_reddit_hyperlink() -> Dict:
+    import tempfile
+    import csv
+
+    name = "reddit_hyperlink"
+    display_name = "Reddit Hyperlink Network"
+    description = "Reddit hyperlink network (SNAP). Subreddits as nodes, hyperlinks between posts as edges. ~55K nodes, ~858K edges."
+
+    _ensure_cache_dir()
+    cache_path = os.path.join(_CACHE_DIR, f"{name}.npz")
+
+    if os.path.exists(cache_path):
+        data = np.load(cache_path, allow_pickle=False)
+        src_arr = data["src"]
+        dst_arr = data["dst"]
+        num_nodes = int(data["num_nodes"])
+        num_edges = int(data["num_edges"])
+        return {
+            "name": display_name,
+            "edges": _LazyEdgeList(src_arr, dst_arr),
+            "labels": {},
+            "num_nodes": num_nodes,
+            "num_edges": num_edges,
+            "num_classes": 0,
+            "columns": "complex::reflexive::subreddit",
+            "description": description,
+        }
+
+    url = "https://snap.stanford.edu/data/soc-redditHyperlinks-body.tsv"
+    tsv_path = os.path.join(_CACHE_DIR, f"{name}.tsv")
+    tsv_tmp_path = tsv_path + ".tmp"
+    if not os.path.exists(tsv_path):
+        _download_with_progress(url, tsv_tmp_path, description=f"Downloading {display_name}")
+        os.rename(tsv_tmp_path, tsv_path)
+
+    sys.stderr.write(f"Parsing {display_name} edges from TSV...\n")
+    sys.stderr.flush()
+
+    node_map = {}
+    next_id = 0
+    src_list = []
+    dst_list = []
+
+    with open(tsv_path, "r", encoding="utf-8") as f:
+        reader = csv.reader(f, delimiter="\t")
+        header = next(reader, None)
+        for row in reader:
+            if len(row) < 2:
+                continue
+            source_sub = row[0].strip()
+            target_sub = row[1].strip()
+            if source_sub not in node_map:
+                node_map[source_sub] = next_id
+                next_id += 1
+            if target_sub not in node_map:
+                node_map[target_sub] = next_id
+                next_id += 1
+            src_list.append(node_map[source_sub])
+            dst_list.append(node_map[target_sub])
+
+    src_arr = np.array(src_list, dtype=np.int32)
+    dst_arr = np.array(dst_list, dtype=np.int32)
+    del src_list, dst_list
+
+    num_nodes = len(node_map)
+    num_edges = len(src_arr)
+    del node_map
+
+    sys.stderr.write(f"  {display_name}: {num_nodes:,} nodes, {num_edges:,} edges. Caching...\n")
+    sys.stderr.flush()
+
+    fd, tmp_cache_path = tempfile.mkstemp(dir=_CACHE_DIR, suffix=".npz")
+    os.close(fd)
+    try:
+        np.savez(tmp_cache_path,
+                 src=src_arr, dst=dst_arr,
+                 num_nodes=num_nodes, num_edges=num_edges)
+        os.rename(tmp_cache_path, cache_path)
+    except BaseException:
+        try:
+            os.remove(tmp_cache_path)
+        except OSError:
+            pass
+        raise
+
+    try:
+        os.remove(tsv_path)
+    except OSError:
+        pass
+
+    return {
+        "name": display_name,
+        "edges": _LazyEdgeList(src_arr, dst_arr),
+        "labels": {},
+        "num_nodes": num_nodes,
+        "num_edges": num_edges,
+        "num_classes": 0,
+        "columns": "complex::reflexive::subreddit",
+        "description": description,
+    }
+
+
+def _find_zip_member(zf, target_suffix: str) -> str:
+    for member in zf.namelist():
+        if member.endswith(target_suffix):
+            return member
+    raise KeyError(f"No zip member ending with '{target_suffix}' found. "
+                   f"Available: {zf.namelist()[:20]}")
+
+
+def _load_ogb_dataset(name: str, display_name: str, description: str,
+                      zip_url: str, edge_csv_path_in_zip: str,
+                      expected_nodes: int, expected_edges: int,
+                      label_csv_path_in_zip: Optional[str] = None,
+                      num_classes: int = 0,
+                      columns: str = "complex::reflexive::node") -> Dict:
+    import tempfile
+    import zipfile
+    import io
+
+    _ensure_cache_dir()
+    cache_path = os.path.join(_CACHE_DIR, f"{name}.npz")
+
+    if os.path.exists(cache_path):
+        data = np.load(cache_path, allow_pickle=True)
+        src_arr = data["src"]
+        dst_arr = data["dst"]
+        num_nodes = int(data["num_nodes"])
+        num_edges = int(data["num_edges"])
+        labels = {}
+        if "label_keys" in data and "label_vals" in data:
+            labels = dict(zip(data["label_keys"].tolist(), data["label_vals"].tolist()))
+        return {
+            "name": display_name,
+            "edges": _LazyEdgeList(src_arr, dst_arr),
+            "labels": labels,
+            "num_nodes": num_nodes,
+            "num_edges": num_edges,
+            "num_classes": num_classes,
+            "columns": columns,
+            "description": description,
+        }
+
+    zip_path = os.path.join(_CACHE_DIR, f"{name}.zip")
+    zip_tmp_path = zip_path + ".tmp"
+    if not os.path.exists(zip_path):
+        _download_with_progress(zip_url, zip_tmp_path, description=f"Downloading {display_name}")
+        os.rename(zip_tmp_path, zip_path)
+
+    sys.stderr.write(f"Extracting {display_name} edges from zip...\n")
+    sys.stderr.flush()
+
+    dtype = np.int64 if expected_nodes > 2_147_483_647 else np.int32
+    chunk_size = 1_000_000
+    src_chunks = []
+    dst_chunks = []
+    src_buf = np.empty(chunk_size, dtype=dtype)
+    dst_buf = np.empty(chunk_size, dtype=dtype)
+    buf_idx = 0
+    edge_count = 0
+    max_node_id = 0
+
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        edge_member = _find_zip_member(zf, edge_csv_path_in_zip.split("/", 1)[-1])
+
+        with zf.open(edge_member) as ef:
+            if edge_member.endswith(".gz"):
+                stream = gzip.open(ef, "rt", encoding="utf-8")
+            else:
+                stream = io.TextIOWrapper(ef, encoding="utf-8")
+
+            for line in stream:
+                parts = line.strip().split(",")
+                if len(parts) < 2:
+                    continue
+                try:
+                    s = int(parts[0])
+                    t = int(parts[1])
+                except ValueError:
+                    continue
+                src_buf[buf_idx] = s
+                dst_buf[buf_idx] = t
+                if s > max_node_id:
+                    max_node_id = s
+                if t > max_node_id:
+                    max_node_id = t
+                buf_idx += 1
+                edge_count += 1
+                if buf_idx == chunk_size:
+                    src_chunks.append(src_buf[:buf_idx].copy())
+                    dst_chunks.append(dst_buf[:buf_idx].copy())
+                    buf_idx = 0
+                    if edge_count % 5_000_000 == 0:
+                        sys.stderr.write(f"\r  Parsed {edge_count:,} edges...")
+                        sys.stderr.flush()
+
+        if buf_idx > 0:
+            src_chunks.append(src_buf[:buf_idx].copy())
+            dst_chunks.append(dst_buf[:buf_idx].copy())
+        del src_buf, dst_buf
+
+        labels = {}
+        label_keys = []
+        label_vals = []
+        if label_csv_path_in_zip:
+            try:
+                label_suffix = label_csv_path_in_zip.split("/", 1)[-1]
+                label_member = _find_zip_member(zf, label_suffix)
+                with zf.open(label_member) as lf:
+                    if label_member.endswith(".gz"):
+                        lstream = gzip.open(lf, "rt", encoding="utf-8")
+                    else:
+                        lstream = io.TextIOWrapper(lf, encoding="utf-8")
+                    for node_id, lline in enumerate(lstream):
+                        lline = lline.strip()
+                        if lline:
+                            try:
+                                label_val = int(lline.split(",")[0])
+                                label_keys.append(str(node_id))
+                                label_vals.append(str(label_val))
+                                labels[str(node_id)] = str(label_val)
+                            except ValueError:
+                                continue
+            except (KeyError, FileNotFoundError):
+                sys.stderr.write(f"  Warning: label file not found in zip, skipping labels.\n")
+                sys.stderr.flush()
+
+    src_arr = np.concatenate(src_chunks) if src_chunks else np.array([], dtype=dtype)
+    dst_arr = np.concatenate(dst_chunks) if dst_chunks else np.array([], dtype=dtype)
+    del src_chunks, dst_chunks
+
+    num_nodes_actual = max_node_id + 1 if len(src_arr) > 0 else 0
+    num_edges_actual = len(src_arr)
+
+    sys.stderr.write(f"\r  {display_name}: {num_nodes_actual:,} nodes, {num_edges_actual:,} edges. Caching...\n")
+    sys.stderr.flush()
+
+    fd, tmp_cache_path = tempfile.mkstemp(dir=_CACHE_DIR, suffix=".npz")
+    os.close(fd)
+    try:
+        save_kwargs = dict(src=src_arr, dst=dst_arr,
+                          num_nodes=num_nodes_actual, num_edges=num_edges_actual)
+        if label_keys:
+            save_kwargs["label_keys"] = np.array(label_keys)
+            save_kwargs["label_vals"] = np.array(label_vals)
+        np.savez(tmp_cache_path, **save_kwargs)
+        os.rename(tmp_cache_path, cache_path)
+    except BaseException:
+        try:
+            os.remove(tmp_cache_path)
+        except OSError:
+            pass
+        raise
+
+    try:
+        os.remove(zip_path)
+    except OSError:
+        pass
+
+    return {
+        "name": display_name,
+        "edges": _LazyEdgeList(src_arr, dst_arr),
+        "labels": labels,
+        "num_nodes": num_nodes_actual,
+        "num_edges": num_edges_actual,
+        "num_classes": num_classes,
+        "columns": columns,
+        "description": description,
+    }
+
+
+def load_ogbn_products() -> Dict:
+    return _load_ogb_dataset(
+        name="ogbn_products",
+        display_name="ogbn-products",
+        description="OGB products co-purchasing graph. 2.4M product nodes, 62M edges, 47 categories.",
+        zip_url="https://snap.stanford.edu/ogb/data/nodeproppred/ogbn-products.zip",
+        edge_csv_path_in_zip="ogbn-products/raw/edge.csv.gz",
+        expected_nodes=2_449_029,
+        expected_edges=61_859_140,
+        label_csv_path_in_zip="ogbn-products/raw/node-label.csv.gz",
+        num_classes=47,
+        columns="complex::reflexive::product",
+    )
+
+
+def load_ogbl_citation2() -> Dict:
+    return _load_ogb_dataset(
+        name="ogbl_citation2",
+        display_name="ogbl-citation2",
+        description="OGB citation2 graph. 2.9M papers, 30M citation edges. Link prediction benchmark.",
+        zip_url="https://snap.stanford.edu/ogb/data/linkproppred/ogbl-citation2.zip",
+        edge_csv_path_in_zip="ogbl-citation2/raw/edge.csv.gz",
+        expected_nodes=2_927_963,
+        expected_edges=30_561_187,
+        num_classes=0,
+        columns="complex::reflexive::paper",
+    )
+
+
+def load_twitter() -> Dict:
+    import tempfile
+    import zipfile
+
+    name = "twitter"
+    display_name = "Twitter-2010"
+    description = "Twitter-2010 follower network. ~41.7M users, ~1.47B edges."
+    expected_nodes = 41_652_230
+    expected_edges = 1_468_365_182
+
+    _ensure_cache_dir()
+    cache_path = os.path.join(_CACHE_DIR, f"{name}.npz")
+
+    if os.path.exists(cache_path):
+        data = np.load(cache_path, allow_pickle=False)
+        src_arr = data["src"]
+        dst_arr = data["dst"]
+        num_nodes = int(data["num_nodes"])
+        num_edges = int(data["num_edges"])
+        return {
+            "name": display_name,
+            "edges": _LazyEdgeList(src_arr, dst_arr),
+            "labels": {},
+            "num_nodes": num_nodes,
+            "num_edges": num_edges,
+            "num_classes": 0,
+            "columns": "complex::reflexive::user",
+            "description": description,
+        }
+
+    sys.stderr.write(
+        "WARNING: Twitter-2010 is a very large dataset (~6GB compressed, ~1.47B edges). "
+        "Download and parsing may take a long time and require significant memory.\n"
+    )
+    sys.stderr.flush()
+
+    zip_url = "https://nrvis.com/download/data/soc/soc-twitter.zip"
+    zip_path = os.path.join(_CACHE_DIR, f"{name}.zip")
+    zip_tmp_path = zip_path + ".tmp"
+    if not os.path.exists(zip_path):
+        _download_with_progress(zip_url, zip_tmp_path, description=f"Downloading {display_name}")
+        os.rename(zip_tmp_path, zip_path)
+
+    sys.stderr.write(f"Parsing {display_name} edges (streaming from zip)...\n")
+    sys.stderr.flush()
+
+    dtype = np.int32
+    chunk_size = 1_000_000
+    src_chunks = []
+    dst_chunks = []
+    src_buf = np.empty(chunk_size, dtype=dtype)
+    dst_buf = np.empty(chunk_size, dtype=dtype)
+    buf_idx = 0
+    edge_count = 0
+
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        edge_file = None
+        for zi in zf.namelist():
+            if zi.endswith(".edges") or zi.endswith(".mtx") or zi.endswith(".txt") or zi.endswith(".csv"):
+                edge_file = zi
+                break
+        if edge_file is None:
+            edge_file = [n for n in zf.namelist() if not n.endswith("/")][0]
+
+        import io
+        header_skipped = False
+        with zf.open(edge_file) as ef:
+            reader = io.TextIOWrapper(ef, encoding="utf-8")
+            for line in reader:
+                if not line or line[0] == "%" or line[0] == "#" or line[0] == "\n":
+                    continue
+                parts = line.split()
+                if len(parts) < 2:
+                    continue
+                if not header_skipped and len(parts) >= 3:
+                    try:
+                        int(parts[0])
+                        int(parts[1])
+                        int(parts[2])
+                        header_skipped = True
+                        continue
+                    except ValueError:
+                        header_skipped = True
+                if not header_skipped:
+                    header_skipped = True
+                try:
+                    s = int(parts[0])
+                    t = int(parts[1])
+                except ValueError:
+                    continue
+                src_buf[buf_idx] = s
+                dst_buf[buf_idx] = t
+                buf_idx += 1
+                edge_count += 1
+                if buf_idx == chunk_size:
+                    src_chunks.append(src_buf[:buf_idx].copy())
+                    dst_chunks.append(dst_buf[:buf_idx].copy())
+                    buf_idx = 0
+                    if edge_count % 5_000_000 == 0:
+                        sys.stderr.write(f"\r  Parsed {edge_count:,} edges...")
+                        sys.stderr.flush()
+
+    if buf_idx > 0:
+        src_chunks.append(src_buf[:buf_idx].copy())
+        dst_chunks.append(dst_buf[:buf_idx].copy())
+
+    sys.stderr.write(f"\r  Parsed {edge_count:,} edges total. Caching...\n")
+    sys.stderr.flush()
+
+    del src_buf, dst_buf
+
+    src_arr = np.concatenate(src_chunks) if src_chunks else np.array([], dtype=dtype)
+    dst_arr = np.concatenate(dst_chunks) if dst_chunks else np.array([], dtype=dtype)
+    del src_chunks, dst_chunks
+
+    if len(src_arr) > 0:
+        num_nodes = int(max(src_arr.max(), dst_arr.max())) + 1
+    else:
+        num_nodes = 0
+    num_edges = len(src_arr)
+
+    edge_drift = abs(num_edges - expected_edges) / max(expected_edges, 1)
+    if edge_drift > 0.20:
+        raise ValueError(
+            f"{display_name}: parsed {num_edges:,} edges but expected ~{expected_edges:,} "
+            f"(drift {edge_drift:.1%}). The download may be corrupt. "
+            f"Delete {zip_path} and retry."
+        )
+    if edge_drift > 0.01 or num_nodes != expected_nodes:
+        sys.stderr.write(
+            f"  Note: parsed {num_nodes:,} nodes / {num_edges:,} edges "
+            f"(expected ~{expected_nodes:,} / ~{expected_edges:,})\n"
+        )
+        sys.stderr.flush()
+
+    fd, tmp_cache_path = tempfile.mkstemp(dir=_CACHE_DIR, suffix=".npz")
+    os.close(fd)
+    try:
+        np.savez(tmp_cache_path,
+                 src=src_arr, dst=dst_arr,
+                 num_nodes=num_nodes, num_edges=num_edges)
+        os.rename(tmp_cache_path, cache_path)
+    except BaseException:
+        try:
+            os.remove(tmp_cache_path)
+        except OSError:
+            pass
+        raise
+
+    try:
+        os.remove(zip_path)
+    except OSError:
+        pass
+
+    sys.stderr.write(f"  {display_name}: {num_nodes:,} nodes, {num_edges:,} edges cached.\n")
+    sys.stderr.flush()
+
+    return {
+        "name": display_name,
+        "edges": _LazyEdgeList(src_arr, dst_arr),
+        "labels": {},
+        "num_nodes": num_nodes,
+        "num_edges": num_edges,
+        "num_classes": 0,
+        "columns": "complex::reflexive::user",
+        "description": description,
+    }
+
+
 def load_reddit() -> Dict:
     return _generate_product_graph(
         "reddit",
@@ -1081,6 +1550,14 @@ def list_datasets() -> List[Dict]:
          "description": "Large PPI network (57K nodes, 819K edges, 121 classes)"},
         {"name": "yelp", "nodes": 716847, "edges": 6977410, "classes": 100,
          "description": "Yelp review graph (717K nodes, 7M edges, 100 classes)"},
+        {"name": "reddit_hyperlink", "nodes": 55863, "edges": 858490, "classes": 0,
+         "description": "Reddit hyperlink network (SNAP, ~55K subreddits, ~858K edges)"},
+        {"name": "ogbn_products", "nodes": 2449029, "edges": 61859140, "classes": 47,
+         "description": "OGB products co-purchasing graph (2.4M nodes, 62M edges, 47 classes)"},
+        {"name": "ogbl_citation2", "nodes": 2927963, "edges": 30561187, "classes": 0,
+         "description": "OGB citation2 graph (2.9M nodes, 30M edges, link prediction)"},
+        {"name": "twitter", "nodes": 41652230, "edges": 1468365182, "classes": 0,
+         "description": "Twitter-2010 follower network (~41.7M nodes, ~1.47B edges)"},
     ]
 
 
@@ -1107,6 +1584,10 @@ def load_dataset(name: str) -> Dict:
         "flickr": load_flickr,
         "ppi_large": load_ppi_large,
         "yelp": load_yelp,
+        "reddit_hyperlink": load_reddit_hyperlink,
+        "ogbn_products": load_ogbn_products,
+        "ogbl_citation2": load_ogbl_citation2,
+        "twitter": load_twitter,
     }
     if name not in loaders:
         available = ", ".join(loaders.keys())
