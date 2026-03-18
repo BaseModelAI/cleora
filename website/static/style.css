@@ -399,9 +399,43 @@ nav {
 }
 
 .comparison-table th, .comparison-table td {
-    padding: 14px 18px;
+    padding: 12px 14px;
     text-align: left;
     border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.comparison-table td:first-child,
+.comparison-table th:first-child {
+    white-space: normal;
+    min-width: 180px;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--bg);
+}
+
+.comparison-table tr:hover td:first-child {
+    background: var(--bg-card);
+}
+
+.comparison-table th:first-child {
+    z-index: 2;
+    background: var(--bg-card);
+}
+
+.table-scroll-hint {
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 8px;
+    display: none;
+}
+
+@media (max-width: 1200px) {
+    .table-scroll-hint {
+        display: block;
+    }
 }
 
 .comparison-table th {

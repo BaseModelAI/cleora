@@ -462,6 +462,10 @@
                 <th>KarateClub</th>
                 <th>Original Cleora</th>
                 <th>DGL</th>
+                <th>Node2Vec</th>
+                <th>StellarGraph</th>
+                <th>GEM</th>
+                <th>GraphVite</th>
             </tr>
         </thead>
         <tbody>
@@ -472,6 +476,10 @@
                 <td class="check">Yes</td>
                 <td class="check">Yes</td>
                 <td class="cross">Optional</td>
+                <td class="check">Yes</td>
+                <td class="cross">Optional</td>
+                <td class="check">Yes</td>
+                <td class="cross">No (GPU)</td>
             </tr>
             <tr>
                 <td>Rust-powered core</td>
@@ -479,6 +487,10 @@
                 <td class="cross">No (C++)</td>
                 <td class="cross">No</td>
                 <td class="check">Yes</td>
+                <td class="cross">No (C++)</td>
+                <td class="cross">No</td>
+                <td class="cross">No (TF)</td>
+                <td class="cross">No</td>
                 <td class="cross">No (C++)</td>
             </tr>
             <tr>
@@ -488,6 +500,10 @@
                 <td class="cross">No</td>
                 <td class="check">Yes</td>
                 <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="partial">Partial</td>
+                <td class="cross">No</td>
             </tr>
             <tr>
                 <td>Deterministic output</td>
@@ -495,6 +511,10 @@
                 <td class="cross">No</td>
                 <td class="cross">No</td>
                 <td class="check">Yes</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
                 <td class="cross">No</td>
             </tr>
             <tr>
@@ -504,6 +524,10 @@
                 <td class="check">Yes</td>
                 <td class="cross">No</td>
                 <td class="check">Yes</td>
+                <td class="check">Yes</td>
+                <td class="check">Yes</td>
+                <td class="check">Yes</td>
+                <td class="check">Yes</td>
             </tr>
             <tr>
                 <td>GNN classifier (no PyTorch)</td>
@@ -512,6 +536,10 @@
                 <td class="cross">No</td>
                 <td class="cross">No</td>
                 <td class="cross">Requires PyTorch</td>
+                <td class="cross">No</td>
+                <td class="cross">Requires TF</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
             </tr>
             <tr>
                 <td>Built-in datasets</td>
@@ -520,12 +548,20 @@
                 <td class="partial">~5</td>
                 <td class="cross">No</td>
                 <td class="check">40+</td>
+                <td class="cross">No</td>
+                <td class="partial">~10</td>
+                <td class="partial">~3</td>
+                <td class="partial">~5</td>
             </tr>
             <tr>
                 <td>Graph sampling</td>
                 <td class="check highlight-col">6 methods</td>
                 <td class="check">Yes</td>
                 <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="check">Yes</td>
+                <td class="cross">No</td>
+                <td class="check">Yes</td>
                 <td class="cross">No</td>
                 <td class="check">Yes</td>
             </tr>
@@ -536,6 +572,10 @@
                 <td class="cross">No</td>
                 <td class="cross">No</td>
                 <td class="cross">Manual</td>
+                <td class="cross">No</td>
+                <td class="cross">Manual</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
             </tr>
             <tr>
                 <td>Install size</td>
@@ -544,9 +584,38 @@
                 <td class="check">~15 MB</td>
                 <td class="check">~3 MB</td>
                 <td class="cross">~400 MB+</td>
+                <td class="check">~2 MB</td>
+                <td class="cross">~600 MB+</td>
+                <td class="partial">~50 MB</td>
+                <td class="cross">~200 MB+</td>
+            </tr>
+            <tr>
+                <td>Multi-GPU support</td>
+                <td class="partial highlight-col">Planned</td>
+                <td class="check">Yes</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="check">Yes</td>
+                <td class="cross">No</td>
+                <td class="partial">Limited</td>
+                <td class="cross">No</td>
+                <td class="check">Yes</td>
+            </tr>
+            <tr>
+                <td>Actively maintained</td>
+                <td class="check highlight-col">Yes</td>
+                <td class="check">Yes</td>
+                <td class="check">Yes</td>
+                <td class="partial">Minimal</td>
+                <td class="check">Yes</td>
+                <td class="check">Yes</td>
+                <td class="cross">Archived</td>
+                <td class="cross">Inactive</td>
+                <td class="cross">Inactive</td>
             </tr>
         </tbody>
     </table>
+    <div class="table-scroll-hint">Scroll horizontally to see all libraries &rarr;</div>
     </div>
 </section>
 
