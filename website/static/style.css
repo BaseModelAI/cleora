@@ -112,7 +112,7 @@ nav {
     align-items: center;
     gap: 10px;
     color: #fff;
-    font-weight: 700;
+    font-weight: 500;
     font-size: 1.1rem;
 }
 
@@ -185,7 +185,7 @@ nav {
 
 .hero h1 {
     font-size: 4rem;
-    font-weight: 900;
+    font-weight: 600;
     line-height: 1.1;
     margin-bottom: 20px;
     background: linear-gradient(135deg, #fff 30%, var(--accent-bright) 100%);
@@ -276,7 +276,7 @@ nav {
 
 .section-header h2 {
     font-size: 2.4rem;
-    font-weight: 800;
+    font-weight: 600;
     margin-bottom: 12px;
 }
 
@@ -322,7 +322,7 @@ nav {
 
 .feature-card h3 {
     font-size: 1.1rem;
-    font-weight: 700;
+    font-weight: 600;
     margin-bottom: 8px;
 }
 
@@ -350,7 +350,7 @@ nav {
 
 .stat-value {
     font-size: 2.4rem;
-    font-weight: 800;
+    font-weight: 600;
     color: var(--accent-bright);
     font-family: var(--mono);
 }
@@ -394,7 +394,7 @@ nav {
 .comparison-table tr:last-child td { border-bottom: none; }
 .comparison-table tr:hover td { background: var(--bg-card); }
 
-.check { color: var(--green); font-weight: 700; }
+.check { color: var(--green); font-weight: 600; }
 .cross { color: var(--red); }
 .partial { color: var(--orange); }
 
@@ -474,7 +474,7 @@ pre code {
 
 .docs-content h1 {
     font-size: 2.2rem;
-    font-weight: 800;
+    font-weight: 600;
     margin-bottom: 16px;
     padding-bottom: 16px;
     border-bottom: 1px solid var(--border);
@@ -482,7 +482,7 @@ pre code {
 
 .docs-content h2 {
     font-size: 1.6rem;
-    font-weight: 700;
+    font-weight: 600;
     margin-top: 48px;
     margin-bottom: 16px;
     padding-bottom: 8px;
@@ -547,7 +547,7 @@ pre code {
 
 .changelog-entry h3 {
     font-size: 1.4rem;
-    font-weight: 700;
+    font-weight: 600;
     margin-bottom: 4px;
 }
 
@@ -795,7 +795,7 @@ footer {
     top: 24px;
     right: calc(50% - 50px);
     font-size: 1.2rem;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--accent-bright);
     font-family: var(--mono);
 }
@@ -825,7 +825,7 @@ footer {
 .step-number {
     font-family: var(--mono);
     font-size: 2rem;
-    font-weight: 900;
+    font-weight: 600;
     color: var(--accent);
     min-width: 60px;
     line-height: 1;
@@ -833,7 +833,7 @@ footer {
 
 .step-content h3 {
     font-size: 1.15rem;
-    font-weight: 700;
+    font-weight: 600;
     margin-bottom: 8px;
 }
 
@@ -907,7 +907,7 @@ footer {
 
 .advantage-card h3 {
     font-size: 1.1rem;
-    font-weight: 700;
+    font-weight: 600;
     margin-bottom: 10px;
 }
 
@@ -985,7 +985,7 @@ footer {
 }
 
 .testimonial-company {
-    font-weight: 700;
+    font-weight: 600;
     font-size: 1rem;
     color: var(--text);
     margin-bottom: 2px;
@@ -1069,7 +1069,7 @@ footer {
 
 .cta-card h2 {
     font-size: 2.2rem;
-    font-weight: 800;
+    font-weight: 600;
     margin-bottom: 16px;
 }
 
