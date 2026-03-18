@@ -1693,6 +1693,12 @@ footer {
     .cta-card { padding: 48px 24px; }
     .case-study { padding: 24px; }
     .case-study-results { grid-template-columns: repeat(2, 1fr); }
+    .section { padding: 48px 18px; }
+    .section-header { margin-bottom: 32px; }
+    .section-header h2 { font-size: 1.8rem; }
+    .section-header p { font-size: 0.95rem; }
+    .section-badge { margin-bottom: 10px; }
+    .how-step { padding: 20px; gap: 16px; }
     .case-study-header { flex-direction: column; gap: 12px; align-items: flex-start; }
     .arch-compare { grid-template-columns: 1fr; }
     .arch-modules { grid-template-columns: 1fr 1fr; }
@@ -1701,10 +1707,18 @@ footer {
 }
 
 @media (max-width: 600px) {
+    .section { padding: 36px 16px; }
+    .section-header { margin-bottom: 24px; }
+    .section-header h2 { font-size: 1.5rem; }
+    .hero { padding: 120px 16px 60px; }
     .hero h1 { font-size: 1.8rem; }
     .hero-buttons { flex-direction: column; align-items: center; }
     .stats-bar { grid-template-columns: 1fr 1fr; }
     .cta-buttons { flex-direction: column; align-items: center; }
+    .cta-card { padding: 36px 18px; }
+    .cta-card h2 { font-size: 1.6rem; }
+    .how-step { padding: 16px; gap: 12px; }
+    .step-number { font-size: 1.4rem; min-width: 36px; }
     .arch-modules { grid-template-columns: 1fr; }
     .chart-container, .chart-container-lg { height: 300px; }
 }
