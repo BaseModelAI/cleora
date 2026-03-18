@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, redirect
 import os
 
 app = Flask(__name__)
@@ -32,9 +32,13 @@ def use_cases():
 def architecture():
     return render_template('architecture.html')
 
-@app.route('/functions')
-def functions():
+@app.route('/features')
+def features():
     return render_template('functions.html')
+
+@app.route('/functions')
+def functions_redirect():
+    return redirect('/features', code=301)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)

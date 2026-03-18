@@ -1723,4 +1723,112 @@ footer {
     .step-number { font-size: 1.4rem; min-width: 36px; }
     .arch-modules { grid-template-columns: 1fr; }
     .chart-container, .chart-container-lg { height: 300px; }
+    .features-category-header { flex-direction: column; gap: 12px; }
+    .features-tag-grid { gap: 8px; }
+    .features-highlights-row { flex-direction: column; }
+}
+
+/* FEATURES PAGE */
+.features-category {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    margin-bottom: 20px;
+    transition: border-color 0.25s, box-shadow 0.25s;
+}
+
+.features-category:hover {
+    border-color: var(--accent);
+    box-shadow: 0 4px 24px rgba(108, 99, 255, 0.08);
+}
+
+.features-category-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.features-category-icon {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-glow);
+}
+
+.features-category-header h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.features-category-header p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.features-tag-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.features-tag {
+    padding: 6px 14px;
+    border-radius: 6px;
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 0.82rem;
+    font-weight: 500;
+    font-family: var(--mono);
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.features-tag:hover {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+}
+
+.features-variants {
+    margin-top: 14px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+.features-variants span {
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.features-highlights-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.features-highlight-chip {
+    padding: 10px 20px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    font-size: 0.88rem;
+    color: var(--text-muted);
+}
+
+.features-highlight-chip strong {
+    color: var(--green);
+    font-weight: 700;
+    font-family: var(--mono);
 }
