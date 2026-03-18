@@ -29,6 +29,15 @@
         <h1>Benchmark Results</h1>
         <p>7 algorithms compared across 3 SNAP datasets. Node classification accuracy (community labels via Louvain) using Nearest Centroid classifier on 80/20 train-test split.</p>
 
+        <div class="callout callout-info" style="margin-bottom:2rem">
+            <strong>Cleora vs Cleora-sym — what's the difference?</strong>
+            <ul style="margin:0.5rem 0 0.5rem 1.2rem">
+                <li><strong>Cleora (standard)</strong> optimises for accuracy. It looks at how many connections each starting node has to decide how important each neighbour is, which generally produces more precise embeddings.</li>
+                <li><strong>Cleora-sym (symmetric)</strong> optimises for speed. It balances importance by looking at both ends of every connection, making computation faster but sometimes sacrificing a small amount of accuracy.</li>
+            </ul>
+            <p style="margin:0.5rem 0 0"><em>Recommendation:</em> Use Cleora (default) unless you need the fastest possible embeddings and can tolerate slightly lower accuracy.</p>
+        </div>
+
         <div class="bench-section" id="viz-accuracy">
             <h2 id="summary">Summary Table</h2>
             <p>Best accuracy per dataset. <span class="best-score">Green</span> = best on that dataset. "&mdash;" = excluded (too large or not applicable).</p>
@@ -321,6 +330,11 @@
                     <td>Memory constrained</td>
                     <td><strong>Cleora</strong></td>
                     <td>4 MB for 4k-node graph. 1.9 GB for 2M nodes. Best memory efficiency at every scale.</td>
+                </tr>
+                <tr>
+                    <td>Maximum embedding speed</td>
+                    <td><strong>Cleora-sym</strong></td>
+                    <td>Fastest variant — trades ~5% accuracy for ~40% speed gain on small/medium graphs.</td>
                 </tr>
             </tbody>
         </table>
