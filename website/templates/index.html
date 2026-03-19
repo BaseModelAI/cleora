@@ -878,6 +878,14 @@
                 <th>StellarGraph</th>
                 <th>GEM</th>
                 <th>GraphVite</th>
+                <th>DeepWalk</th>
+                <th>LINE</th>
+                <th>SDNE</th>
+                <th>graspologic</th>
+                <th>GraphSAGE</th>
+                <th>Struc2Vec</th>
+                <th>VERSE</th>
+                <th>NetSMF</th>
             </tr>
         </thead>
         <tbody>
@@ -892,6 +900,14 @@
                 <td class="cross">Optional</td>
                 <td class="check">Yes</td>
                 <td class="cross">No (GPU)</td>
+                <td class="check">Yes</td>
+                <td class="check">Yes</td>
+                <td class="cross">Optional</td>
+                <td class="check">Yes</td>
+                <td class="cross">Optional</td>
+                <td class="check">Yes</td>
+                <td class="check">Yes</td>
+                <td class="check">Yes</td>
             </tr>
             <tr>
                 <td>Rust-powered core</td>
@@ -903,6 +919,14 @@
                 <td class="cross">No</td>
                 <td class="cross">No (TF)</td>
                 <td class="cross">No</td>
+                <td class="cross">No (C++)</td>
+                <td class="cross">No</td>
+                <td class="cross">No (C++)</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No (C++)</td>
                 <td class="cross">No (C++)</td>
             </tr>
             <tr>
@@ -916,6 +940,14 @@
                 <td class="cross">No</td>
                 <td class="partial">Partial</td>
                 <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="check">Yes</td>
+                <td class="check">Yes</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="check">Yes</td>
             </tr>
             <tr>
                 <td>Deterministic output</td>
@@ -924,6 +956,14 @@
                 <td class="cross">No</td>
                 <td class="check">Yes</td>
                 <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="partial">Partial</td>
                 <td class="cross">No</td>
                 <td class="cross">No</td>
                 <td class="cross">No</td>
@@ -940,6 +980,14 @@
                 <td class="check">Yes</td>
                 <td class="check">Yes</td>
                 <td class="check">Yes</td>
+                <td class="check">Yes</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
             </tr>
             <tr>
                 <td>GNN classifier (no PyTorch)</td>
@@ -950,6 +998,14 @@
                 <td class="cross">Requires PyTorch</td>
                 <td class="cross">No</td>
                 <td class="cross">Requires TF</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">Requires TF</td>
+                <td class="cross">No</td>
                 <td class="cross">No</td>
                 <td class="cross">No</td>
             </tr>
@@ -964,6 +1020,14 @@
                 <td class="partial">~10</td>
                 <td class="partial">~3</td>
                 <td class="partial">~5</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="partial">~5</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
             </tr>
             <tr>
                 <td>Graph sampling</td>
@@ -976,6 +1040,14 @@
                 <td class="check">Yes</td>
                 <td class="cross">No</td>
                 <td class="check">Yes</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="check">Yes</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
             </tr>
             <tr>
                 <td>Hyperparameter tuning</td>
@@ -986,6 +1058,14 @@
                 <td class="cross">Manual</td>
                 <td class="cross">No</td>
                 <td class="cross">Manual</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
                 <td class="cross">No</td>
                 <td class="cross">No</td>
             </tr>
@@ -1000,6 +1080,14 @@
                 <td class="cross">~600 MB+</td>
                 <td class="partial">~50 MB</td>
                 <td class="cross">~200 MB+</td>
+                <td class="check">~5 MB</td>
+                <td class="check">~5 MB</td>
+                <td class="cross">~300 MB+</td>
+                <td class="partial">~50 MB</td>
+                <td class="cross">~500 MB+</td>
+                <td class="check">~5 MB</td>
+                <td class="check">~5 MB</td>
+                <td class="check">~10 MB</td>
             </tr>
             <tr>
                 <td>Multi-GPU support</td>
@@ -1012,6 +1100,14 @@
                 <td class="partial">Limited</td>
                 <td class="cross">No</td>
                 <td class="check">Yes</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
+                <td class="cross">No</td>
             </tr>
             <tr>
                 <td>Actively maintained</td>
@@ -1022,6 +1118,14 @@
                 <td class="check">Yes</td>
                 <td class="check">Yes</td>
                 <td class="cross">Archived</td>
+                <td class="cross">Inactive</td>
+                <td class="cross">Inactive</td>
+                <td class="cross">Inactive</td>
+                <td class="cross">Inactive</td>
+                <td class="cross">Inactive</td>
+                <td class="check">Yes</td>
+                <td class="cross">Inactive</td>
+                <td class="cross">Inactive</td>
                 <td class="cross">Inactive</td>
                 <td class="cross">Inactive</td>
             </tr>
