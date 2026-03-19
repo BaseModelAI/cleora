@@ -87,13 +87,13 @@
                             <td>PPI-large</td>
                             <td>56,944</td>
                             <td>818,716</td>
-                            <td class="best-score">0.026</td>
+                            <td class="best-score">0.027</td>
                             <td>0.026</td>
-                            <td>0.008</td>
-                            <td>0.011</td>
-                            <td>&mdash;</td>
-                            <td>&mdash;</td>
-                            <td>&mdash;</td>
+                            <td>0.009</td>
+                            <td>0.026</td>
+                            <td>OOM</td>
+                            <td>OOM</td>
+                            <td>OOM</td>
                         </tr>
                         <tr>
                             <td>Flickr</td>
@@ -192,15 +192,18 @@
                 <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora</td><td class="best-score">0.026</td><td class="best-score">0.020</td><td>0.330s</td><td>27.81 MB</td></tr>
-                <tr><td>Cleora-sym</td><td>0.026</td><td>0.020</td><td class="best-score">0.251s</td><td class="best-score">27.80 MB</td></tr>
-                <tr><td>RandNE</td><td>0.011</td><td>0.011</td><td>1.072s</td><td>290.79 MB</td></tr>
-                <tr><td>ProNE</td><td>0.008</td><td>0.008</td><td>8.338s</td><td>458.38 MB</td></tr>
+                <tr><td>Cleora</td><td class="best-score">0.027</td><td>0.020</td><td>1.693s</td><td class="best-score">222.44 MB</td></tr>
+                <tr><td>Cleora-sym</td><td>0.026</td><td>0.019</td><td class="best-score">1.605s</td><td>222.44 MB</td></tr>
+                <tr><td>RandNE</td><td>0.026</td><td class="best-score">0.025</td><td>4.755s</td><td>2,042 MB</td></tr>
+                <tr><td>ProNE</td><td>0.009</td><td>0.008</td><td>20.792s</td><td>3,386 MB</td></tr>
+                <tr><td>NetMF</td><td colspan="4" class="text-muted">OOM &mdash; requires O(n&sup2;) dense matrix (~24 GB)</td></tr>
+                <tr><td>DeepWalk</td><td colspan="4" class="text-muted">OOM &mdash; requires O(n&sup2;) co-occurrence matrix (~24 GB)</td></tr>
+                <tr><td>Node2Vec</td><td colspan="4" class="text-muted">OOM &mdash; requires O(n&sup2;) co-occurrence matrix (~24 GB)</td></tr>
             </tbody>
         </table>
 
         <div class="callout callout-info">
-            <strong>121 classes:</strong> With 121 function labels, random baseline accuracy is ~0.8%. Cleora at 2.6% is 3.3x above random, showing meaningful signal extraction even with extreme class fragmentation. Cleora uses 10&ndash;16x less memory than alternatives.
+            <strong>121 classes:</strong> With 121 function labels, random baseline accuracy is ~0.8%. Cleora at 2.7% is 3.4x above random, showing meaningful signal extraction even with extreme class fragmentation. NetMF, DeepWalk, and Node2Vec cannot run on PPI-large due to O(n&sup2;) memory requirements (~24 GB for 57K nodes). Cleora uses 10&ndash;16x less memory than ProNE/RandNE.
         </div>
 
         <h2 id="flickr">Flickr (89,250 nodes, 7 classes)</h2>
@@ -317,13 +320,13 @@
                         <tr><th>Algorithm</th><th>Facebook (4k)</th><th>PPI-large (57k)</th><th>Flickr (89k)</th><th>ogbn-arxiv (169k)</th><th>Yelp (717k)</th><th>roadNet (2M)</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>Cleora</td><td>0.109s</td><td>0.330s</td><td>0.475s</td><td>0.747s</td><td>3.304s</td><td class="best-score">4.242s</td></tr>
-                        <tr><td>Cleora-sym</td><td class="best-score">0.103s</td><td class="best-score">0.251s</td><td class="best-score">0.436s</td><td class="best-score">0.752s</td><td class="best-score">3.162s</td><td>4.269s</td></tr>
-                        <tr><td>RandNE</td><td>0.232s</td><td>1.072s</td><td>1.332s</td><td>2.046s</td><td>&mdash;</td><td>8.968s</td></tr>
-                        <tr><td>ProNE</td><td>1.429s</td><td>8.338s</td><td>5.569s</td><td>8.333s</td><td>&mdash;</td><td>57.716s</td></tr>
-                        <tr><td>NetMF</td><td>17.920s</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
-                        <tr><td>DeepWalk</td><td>32.352s</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
-                        <tr><td>Node2Vec</td><td>111.426s</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>Cleora</td><td>0.109s</td><td>1.693s</td><td>0.475s</td><td>0.747s</td><td>3.304s</td><td class="best-score">4.242s</td></tr>
+                        <tr><td>Cleora-sym</td><td class="best-score">0.103s</td><td class="best-score">1.605s</td><td class="best-score">0.436s</td><td class="best-score">0.752s</td><td class="best-score">3.162s</td><td>4.269s</td></tr>
+                        <tr><td>RandNE</td><td>0.232s</td><td>4.755s</td><td>1.332s</td><td>2.046s</td><td>&mdash;</td><td>8.968s</td></tr>
+                        <tr><td>ProNE</td><td>1.429s</td><td>20.792s</td><td>5.569s</td><td>8.333s</td><td>&mdash;</td><td>57.716s</td></tr>
+                        <tr><td>NetMF</td><td>17.920s</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>DeepWalk</td><td>32.352s</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>Node2Vec</td><td>111.426s</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -347,14 +350,14 @@
                         <tr><th>Algorithm</th><th>Facebook (4k)</th><th>PPI-large (57k)</th><th>Flickr (89k)</th><th>ogbn-arxiv (169k)</th><th>Yelp (717k)</th><th>roadNet (2M)</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>Cleora</td><td class="best-score">15.78 MB</td><td class="best-score">27.81 MB</td><td class="best-score">43.58 MB</td><td class="best-score">82.69 MB</td><td class="best-score">350 MB</td><td class="best-score">1,934 MB</td></tr>
+                        <tr><td>Cleora</td><td class="best-score">15.78 MB</td><td class="best-score">222.44 MB</td><td class="best-score">43.58 MB</td><td class="best-score">82.69 MB</td><td class="best-score">350 MB</td><td class="best-score">1,934 MB</td></tr>
                         <tr><td>Cleora (whiten)</td><td>119 MB</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
-                        <tr><td>Cleora-sym</td><td>15.78 MB</td><td>27.80 MB</td><td>43.58 MB</td><td>82.69 MB</td><td>350 MB</td><td>1,934 MB</td></tr>
-                        <tr><td>RandNE</td><td>146.28 MB</td><td>290.79 MB</td><td>438.17 MB</td><td>806.62 MB</td><td>&mdash;</td><td>8,868 MB</td></tr>
-                        <tr><td>ProNE</td><td>248.98 MB</td><td>458.38 MB</td><td>700.79 MB</td><td>1,305 MB</td><td>&mdash;</td><td>14,648 MB</td></tr>
-                        <tr><td>Node2Vec</td><td>600 MB</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
-                        <tr><td>DeepWalk</td><td>600 MB</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
-                        <tr><td>NetMF</td><td>1,107 MB</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>Cleora-sym</td><td>15.78 MB</td><td>222.44 MB</td><td>43.58 MB</td><td>82.69 MB</td><td>350 MB</td><td>1,934 MB</td></tr>
+                        <tr><td>RandNE</td><td>146.28 MB</td><td>2,042 MB</td><td>438.17 MB</td><td>806.62 MB</td><td>&mdash;</td><td>8,868 MB</td></tr>
+                        <tr><td>ProNE</td><td>248.98 MB</td><td>3,386 MB</td><td>700.79 MB</td><td>1,305 MB</td><td>&mdash;</td><td>14,648 MB</td></tr>
+                        <tr><td>Node2Vec</td><td>600 MB</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>DeepWalk</td><td>600 MB</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>NetMF</td><td>1,107 MB</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
                     </tbody>
                 </table>
             </div>
