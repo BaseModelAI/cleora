@@ -411,16 +411,27 @@ nav {
     min-width: 180px;
     position: sticky;
     left: 0;
-    z-index: 1;
+    z-index: 2;
     background: var(--bg);
 }
 
-.comparison-table tr:hover td:first-child {
+.comparison-table td:nth-child(2),
+.comparison-table th:nth-child(2) {
+    position: sticky;
+    left: 180px;
+    z-index: 2;
+    background: var(--bg);
+    border-right: 2px solid var(--accent);
+}
+
+.comparison-table tr:hover td:first-child,
+.comparison-table tr:hover td:nth-child(2) {
     background: var(--bg-card);
 }
 
-.comparison-table th:first-child {
-    z-index: 2;
+.comparison-table th:first-child,
+.comparison-table th:nth-child(2) {
+    z-index: 3;
     background: var(--bg-card);
 }
 
@@ -429,13 +440,7 @@ nav {
     font-size: 0.8rem;
     color: var(--text-muted);
     margin-top: 8px;
-    display: none;
-}
-
-@media (max-width: 1200px) {
-    .table-scroll-hint {
-        display: block;
-    }
+    display: block;
 }
 
 .comparison-table th {
