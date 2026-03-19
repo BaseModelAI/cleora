@@ -1190,12 +1190,26 @@
 
     const toggle = document.getElementById('libDropdownToggle');
     const menu = document.getElementById('libDropdownMenu');
+
+    function positionMenu() {
+        var rect = toggle.getBoundingClientRect();
+        menu.style.top = (rect.bottom + 6) + 'px';
+        menu.style.right = (window.innerWidth - rect.right) + 'px';
+    }
+
     toggle.addEventListener('click', (e) => {
+        e.preventDefault();
         e.stopPropagation();
-        menu.classList.toggle('open');
+        if (menu.classList.contains('open')) {
+            menu.classList.remove('open');
+        } else {
+            positionMenu();
+            menu.classList.add('open');
+        }
     });
     document.addEventListener('click', () => menu.classList.remove('open'));
     menu.addEventListener('click', (e) => e.stopPropagation());
+    window.addEventListener('scroll', () => { if (menu.classList.contains('open')) positionMenu(); }, true);
 
     menu.querySelectorAll('input[type=checkbox]').forEach(cb => {
         cb.addEventListener('change', () => {
