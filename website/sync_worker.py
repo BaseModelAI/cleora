@@ -1,12 +1,14 @@
 import threading
 import time
-import tracemalloc
 import json
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 import numpy as np
+
+NUM_RUNS = 3
 
 DATASETS = [
     "facebook",
@@ -139,48 +141,84 @@ def _run_sync():
 
             algos = _make_algorithms(n_nodes)
             ds_results = {}
+            algo_names = list(algos.keys())
+            algos_completed = [0]
 
-            for algo_idx, (algo_name, algo_fn) in enumerate(algos.items()):
-                with _lock:
-                    _sync_state["current_algorithm"] = algo_name
-                    base_pct = (ds_idx / len(DATASETS)) * 100
-                    algo_pct = ((algo_idx + 1) / len(algos)) * (100 / len(DATASETS))
-                    _sync_state["percent"] = int(base_pct + algo_pct)
+            def _run_single_algo(algo_name, algo_fn):
+                run_times = []
+                run_mems = []
+                run_metrics = []
 
-                _log(f"  Running {algo_name} on {DATASET_DISPLAY_NAMES.get(ds_name, ds_name)}...")
-
-                try:
-                    tracemalloc.start()
+                for run_idx in range(NUM_RUNS):
                     t0 = time.time()
                     emb = algo_fn(graph)
                     elapsed = time.time() - t0
-                    _, peak = tracemalloc.get_traced_memory()
-                    tracemalloc.stop()
-                    mem_mb = peak / 1024 / 1024
+                    mem_mb = emb.nbytes / 1024 / 1024
 
-                    result_entry = {"time": elapsed, "memory_mb": mem_mb}
+                    run_times.append(elapsed)
+                    run_mems.append(mem_mb)
 
                     if has_labels:
                         nc = node_classification_scores(graph, emb, labels, seed=42)
-                        result_entry["accuracy"] = nc["accuracy"]
-                        result_entry["macro_f1"] = nc["macro_f1"]
-
                         true_arr = np.array([labels.get(eid, 0) for eid in graph.entity_ids])
-                        result_entry["silhouette"] = float(silhouette_score(emb, true_arr))
+                        sil = float(silhouette_score(emb, true_arr))
+                        run_metrics.append({
+                            "accuracy": nc["accuracy"],
+                            "macro_f1": nc["macro_f1"],
+                            "silhouette": sil,
+                        })
 
-                    ds_results[algo_name] = result_entry
-                    _log(f"  {algo_name}: time={elapsed:.3f}s, mem={mem_mb:.1f}MB" +
-                         (f", acc={result_entry.get('accuracy', 'N/A')}" if has_labels else ""))
+                result_entry = {
+                    "time": float(np.mean(run_times)),
+                    "time_std": float(np.std(run_times)),
+                    "memory_mb": float(np.mean(run_mems)),
+                    "memory_mb_std": float(np.std(run_mems)),
+                    "num_runs": NUM_RUNS,
+                }
 
-                except Exception as e:
+                if run_metrics:
+                    for key in run_metrics[0]:
+                        vals = [m[key] for m in run_metrics]
+                        result_entry[key] = float(np.mean(vals))
+                        result_entry[f"{key}_std"] = float(np.std(vals))
+
+                return algo_name, result_entry
+
+            def _update_progress():
+                with _lock:
+                    base_pct = (ds_idx / len(DATASETS)) * 100
+                    algo_pct = (algos_completed[0] / len(algos)) * (100 / len(DATASETS))
+                    _sync_state["percent"] = int(base_pct + algo_pct)
+
+            _log(f"  Running {len(algo_names)} algorithms in parallel ({NUM_RUNS} iterations each)...")
+            with _lock:
+                _sync_state["current_algorithm"] = f"Running {len(algo_names)} algorithms in parallel"
+
+            with ThreadPoolExecutor(max_workers=min(len(algo_names), 4)) as executor:
+                futures = {
+                    executor.submit(_run_single_algo, name, fn): name
+                    for name, fn in algos.items()
+                }
+
+                for future in as_completed(futures):
+                    algo_name = futures[future]
                     try:
-                        tracemalloc.stop()
-                    except Exception:
-                        pass
-                    ds_results[algo_name] = {"error": str(e)}
-                    _log(f"  {algo_name}: ERROR — {str(e)[:100]}")
-                    with _lock:
-                        _sync_state["errors"].append(f"{algo_name} on {ds_name}: {str(e)[:200]}")
+                        name, result_entry = future.result()
+                        ds_results[name] = result_entry
+                        algos_completed[0] += 1
+                        _update_progress()
+
+                        _log(f"  {name}: time={result_entry['time']:.3f}s±{result_entry['time_std']:.3f}s, mem={result_entry['memory_mb']:.1f}MB" +
+                             (f", acc={result_entry.get('accuracy', 'N/A')}" if has_labels else "") +
+                             f" ({NUM_RUNS} runs)")
+
+                    except Exception as e:
+                        ds_results[algo_name] = {"error": str(e)}
+                        algos_completed[0] += 1
+                        _update_progress()
+                        _log(f"  {algo_name}: ERROR — {str(e)[:100]}")
+                        with _lock:
+                            _sync_state["errors"].append(f"{algo_name} on {ds_name}: {str(e)[:200]}")
 
             all_results[ds_name] = ds_results
 

@@ -4,8 +4,10 @@ Compares all embedding algorithms across SNAP datasets.
 """
 import numpy as np
 import time
-import tracemalloc
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+NUM_RUNS = 3
 
 from pycleora import SparseMatrix, embed
 from pycleora.algorithms import (
@@ -114,62 +116,96 @@ def run_benchmark():
         algos = _make_algorithms(n_nodes)
 
         header = (
-            f"  {'Algorithm':<12s} {'Acc':>6s} {'MacF1':>6s} {'Time':>8s} "
-            f"{'Mem MB':>10s} {'Sil':>6s}"
+            f"  {'Algorithm':<12s} {'Acc':>10s} {'MacF1':>10s} {'Time':>14s} "
+            f"{'Mem MB':>14s} {'Sil':>10s} {'Runs':>5s}"
         )
         print(header)
         print(f"  {thin}")
 
         ds_results = {}
 
-        for algo_name, algo_fn in algos.items():
-            try:
-                tracemalloc.start()
+        def _run_algo_multi(algo_name, algo_fn):
+            run_times = []
+            run_mems = []
+            run_metrics = []
+
+            for _ in range(NUM_RUNS):
                 t0 = time.time()
                 emb = algo_fn(graph)
                 elapsed = time.time() - t0
-                _, peak = tracemalloc.get_traced_memory()
-                tracemalloc.stop()
-                mem_mb = peak / 1024 / 1024
+                mem_mb = emb.nbytes / 1024 / 1024
 
                 if emb.shape[0] != graph.num_entities:
                     raise ValueError(f"Shape mismatch: {emb.shape[0]} vs {graph.num_entities}")
 
-                result_entry = {
-                    "time": elapsed, "memory_mb": mem_mb,
-                }
+                run_times.append(elapsed)
+                run_mems.append(mem_mb)
 
                 if has_labels:
                     nc = node_classification_scores(graph, emb, labels, seed=42)
-                    acc = nc["accuracy"]
-                    f1 = nc["macro_f1"]
-
                     true_arr = np.array([labels.get(eid, 0) for eid in graph.entity_ids])
-                    sil = silhouette_score(emb, true_arr)
-
-                    result_entry.update({
-                        "accuracy": acc, "macro_f1": f1, "silhouette": sil,
+                    sil = float(silhouette_score(emb, true_arr))
+                    run_metrics.append({
+                        "accuracy": nc["accuracy"],
+                        "macro_f1": nc["macro_f1"],
+                        "silhouette": sil,
                     })
 
-                    print(
-                        f"  {algo_name:<12s} {acc:>6.3f} {f1:>6.3f} {elapsed:>7.3f}s "
-                        f"{mem_mb:>9.2f} {sil:>6.3f}"
-                    )
-                else:
-                    print(
-                        f"  {algo_name:<12s}    —      —   {elapsed:>7.3f}s "
-                        f"{mem_mb:>9.2f}    —  "
-                    )
+            result_entry = {
+                "time": float(np.mean(run_times)),
+                "time_std": float(np.std(run_times)),
+                "memory_mb": float(np.mean(run_mems)),
+                "memory_mb_std": float(np.std(run_mems)),
+                "num_runs": NUM_RUNS,
+            }
 
-                ds_results[algo_name] = result_entry
+            if run_metrics:
+                for key in run_metrics[0]:
+                    vals = [m[key] for m in run_metrics]
+                    result_entry[key] = float(np.mean(vals))
+                    result_entry[f"{key}_std"] = float(np.std(vals))
 
-            except Exception as e:
+            return algo_name, result_entry
+
+        sys.stderr.write(f"  Running {len(algos)} algorithms in parallel ({NUM_RUNS} iterations each)...\n")
+        sys.stderr.flush()
+
+        with ThreadPoolExecutor(max_workers=min(len(algos), 4)) as executor:
+            futures = {
+                executor.submit(_run_algo_multi, name, fn): name
+                for name, fn in algos.items()
+            }
+
+            for future in as_completed(futures):
+                algo_name = futures[future]
                 try:
-                    tracemalloc.stop()
-                except Exception:
-                    pass
-                print(f"  {algo_name:<12s} {'ERROR':>6s}  {str(e)[:60]}")
-                ds_results[algo_name] = {"error": str(e)}
+                    name, result_entry = future.result()
+                    ds_results[name] = result_entry
+
+                    mem = result_entry["memory_mb"]
+                    if has_labels:
+                        acc = result_entry["accuracy"]
+                        acc_std = result_entry.get("accuracy_std", 0)
+                        f1 = result_entry["macro_f1"]
+                        f1_std = result_entry.get("macro_f1_std", 0)
+                        t = result_entry["time"]
+                        t_std = result_entry["time_std"]
+                        sil = result_entry["silhouette"]
+                        print(
+                            f"  {name:<12s} {acc:>.3f}±{acc_std:.3f} {f1:>.3f}±{f1_std:.3f} "
+                            f"{t:>.3f}s±{t_std:.3f}s {mem:>9.2f}  {sil:>.3f}   {NUM_RUNS:>3d}"
+                        )
+                    else:
+                        t = result_entry["time"]
+                        t_std = result_entry["time_std"]
+                        print(
+                            f"  {name:<12s}    —          —       "
+                            f"{t:>.3f}s±{t_std:.3f}s {mem:>9.2f}    —      {NUM_RUNS:>3d}"
+                        )
+
+                except Exception as e:
+                    print(f"  {algo_name:<12s} {'ERROR':>6s}  {str(e)[:60]}")
+                    ds_results[algo_name] = {"error": str(e)}
 
         all_results[ds_name] = ds_results
 
