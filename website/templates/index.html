@@ -864,276 +864,364 @@
         <h2>How It Stacks Up</h2>
         <p>pycleora vs. the most popular graph embedding libraries</p>
     </div>
+    <div class="comparison-controls scroll-reveal">
+        <div class="comparison-presets">
+            <button class="preset-btn active" data-preset="popular">Popular</button>
+            <button class="preset-btn" data-preset="lightweight">Lightweight</button>
+            <button class="preset-btn" data-preset="all">All 16</button>
+        </div>
+        <div class="comparison-dropdown">
+            <button class="dropdown-toggle" id="libDropdownToggle">Customize libraries <span class="dropdown-arrow">&#9662;</span></button>
+            <div class="dropdown-menu" id="libDropdownMenu">
+                <label><input type="checkbox" value="pyg" checked> PyG</label>
+                <label><input type="checkbox" value="karateclub" checked> KarateClub</label>
+                <label><input type="checkbox" value="cleora-orig" checked> Original Cleora</label>
+                <label><input type="checkbox" value="dgl" checked> DGL</label>
+                <label><input type="checkbox" value="node2vec"> Node2Vec</label>
+                <label><input type="checkbox" value="stellargraph"> StellarGraph</label>
+                <label><input type="checkbox" value="gem"> GEM</label>
+                <label><input type="checkbox" value="graphvite"> GraphVite</label>
+                <label><input type="checkbox" value="deepwalk"> DeepWalk</label>
+                <label><input type="checkbox" value="line"> LINE</label>
+                <label><input type="checkbox" value="sdne"> SDNE</label>
+                <label><input type="checkbox" value="graspologic"> graspologic</label>
+                <label><input type="checkbox" value="graphsage"> GraphSAGE</label>
+                <label><input type="checkbox" value="struc2vec"> Struc2Vec</label>
+                <label><input type="checkbox" value="verse"> VERSE</label>
+                <label><input type="checkbox" value="netsmf"> NetSMF</label>
+            </div>
+        </div>
+    </div>
     <div class="table-wrapper scroll-reveal">
+    <div class="table-fade-right"></div>
     <table class="comparison-table">
         <thead>
             <tr>
                 <th>Feature</th>
                 <th class="highlight-col">pycleora 3.0</th>
-                <th>PyG</th>
-                <th>KarateClub</th>
-                <th>Original Cleora</th>
-                <th>DGL</th>
-                <th>Node2Vec</th>
-                <th>StellarGraph</th>
-                <th>GEM</th>
-                <th>GraphVite</th>
-                <th>DeepWalk</th>
-                <th>LINE</th>
-                <th>SDNE</th>
-                <th>graspologic</th>
-                <th>GraphSAGE</th>
-                <th>Struc2Vec</th>
-                <th>VERSE</th>
-                <th>NetSMF</th>
+                <th data-lib="pyg">PyG</th>
+                <th data-lib="karateclub">KarateClub</th>
+                <th data-lib="cleora-orig">Original Cleora</th>
+                <th data-lib="dgl">DGL</th>
+                <th data-lib="node2vec">Node2Vec</th>
+                <th data-lib="stellargraph">StellarGraph</th>
+                <th data-lib="gem">GEM</th>
+                <th data-lib="graphvite">GraphVite</th>
+                <th data-lib="deepwalk">DeepWalk</th>
+                <th data-lib="line">LINE</th>
+                <th data-lib="sdne">SDNE</th>
+                <th data-lib="graspologic">graspologic</th>
+                <th data-lib="graphsage">GraphSAGE</th>
+                <th data-lib="struc2vec">Struc2Vec</th>
+                <th data-lib="verse">VERSE</th>
+                <th data-lib="netsmf">NetSMF</th>
             </tr>
         </thead>
         <tbody>
             <tr class="highlight-row">
                 <td>CPU-only (no GPU needed)</td>
                 <td class="check highlight-col">Yes</td>
-                <td class="cross">Optional</td>
-                <td class="check">Yes</td>
-                <td class="check">Yes</td>
-                <td class="cross">Optional</td>
-                <td class="check">Yes</td>
-                <td class="cross">Optional</td>
-                <td class="check">Yes</td>
-                <td class="cross">No (GPU)</td>
-                <td class="check">Yes</td>
-                <td class="check">Yes</td>
-                <td class="cross">Optional</td>
-                <td class="check">Yes</td>
-                <td class="cross">Optional</td>
-                <td class="check">Yes</td>
-                <td class="check">Yes</td>
-                <td class="check">Yes</td>
+                <td class="cross" data-lib="pyg">Optional</td>
+                <td class="check" data-lib="karateclub">Yes</td>
+                <td class="check" data-lib="cleora-orig">Yes</td>
+                <td class="cross" data-lib="dgl">Optional</td>
+                <td class="check" data-lib="node2vec">Yes</td>
+                <td class="cross" data-lib="stellargraph">Optional</td>
+                <td class="check" data-lib="gem">Yes</td>
+                <td class="cross" data-lib="graphvite">No (GPU)</td>
+                <td class="check" data-lib="deepwalk">Yes</td>
+                <td class="check" data-lib="line">Yes</td>
+                <td class="cross" data-lib="sdne">Optional</td>
+                <td class="check" data-lib="graspologic">Yes</td>
+                <td class="cross" data-lib="graphsage">Optional</td>
+                <td class="check" data-lib="struc2vec">Yes</td>
+                <td class="check" data-lib="verse">Yes</td>
+                <td class="check" data-lib="netsmf">Yes</td>
             </tr>
             <tr>
                 <td>Rust-powered core</td>
                 <td class="check highlight-col">Yes</td>
-                <td class="cross">No (C++)</td>
-                <td class="cross">No</td>
-                <td class="check">Yes</td>
-                <td class="cross">No (C++)</td>
-                <td class="cross">No</td>
-                <td class="cross">No (TF)</td>
-                <td class="cross">No</td>
-                <td class="cross">No (C++)</td>
-                <td class="cross">No</td>
-                <td class="cross">No (C++)</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No (C++)</td>
-                <td class="cross">No (C++)</td>
+                <td class="cross" data-lib="pyg">No (C++)</td>
+                <td class="cross" data-lib="karateclub">No</td>
+                <td class="check" data-lib="cleora-orig">Yes</td>
+                <td class="cross" data-lib="dgl">No (C++)</td>
+                <td class="cross" data-lib="node2vec">No</td>
+                <td class="cross" data-lib="stellargraph">No (TF)</td>
+                <td class="cross" data-lib="gem">No</td>
+                <td class="cross" data-lib="graphvite">No (C++)</td>
+                <td class="cross" data-lib="deepwalk">No</td>
+                <td class="cross" data-lib="line">No (C++)</td>
+                <td class="cross" data-lib="sdne">No</td>
+                <td class="cross" data-lib="graspologic">No</td>
+                <td class="cross" data-lib="graphsage">No</td>
+                <td class="cross" data-lib="struc2vec">No</td>
+                <td class="cross" data-lib="verse">No (C++)</td>
+                <td class="cross" data-lib="netsmf">No (C++)</td>
             </tr>
             <tr>
                 <td>No negative sampling needed</td>
                 <td class="check highlight-col">Yes</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="check">Yes</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="partial">Partial</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="check">Yes</td>
-                <td class="check">Yes</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="check">Yes</td>
+                <td class="cross" data-lib="pyg">No</td>
+                <td class="cross" data-lib="karateclub">No</td>
+                <td class="check" data-lib="cleora-orig">Yes</td>
+                <td class="cross" data-lib="dgl">No</td>
+                <td class="cross" data-lib="node2vec">No</td>
+                <td class="cross" data-lib="stellargraph">No</td>
+                <td class="partial" data-lib="gem">Partial</td>
+                <td class="cross" data-lib="graphvite">No</td>
+                <td class="cross" data-lib="deepwalk">No</td>
+                <td class="cross" data-lib="line">No</td>
+                <td class="check" data-lib="sdne">Yes</td>
+                <td class="check" data-lib="graspologic">Yes</td>
+                <td class="cross" data-lib="graphsage">No</td>
+                <td class="cross" data-lib="struc2vec">No</td>
+                <td class="cross" data-lib="verse">No</td>
+                <td class="check" data-lib="netsmf">Yes</td>
             </tr>
             <tr>
                 <td>Deterministic output</td>
                 <td class="check highlight-col">Yes</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="check">Yes</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="partial">Partial</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
+                <td class="cross" data-lib="pyg">No</td>
+                <td class="cross" data-lib="karateclub">No</td>
+                <td class="check" data-lib="cleora-orig">Yes</td>
+                <td class="cross" data-lib="dgl">No</td>
+                <td class="cross" data-lib="node2vec">No</td>
+                <td class="cross" data-lib="stellargraph">No</td>
+                <td class="cross" data-lib="gem">No</td>
+                <td class="cross" data-lib="graphvite">No</td>
+                <td class="cross" data-lib="deepwalk">No</td>
+                <td class="cross" data-lib="line">No</td>
+                <td class="cross" data-lib="sdne">No</td>
+                <td class="partial" data-lib="graspologic">Partial</td>
+                <td class="cross" data-lib="graphsage">No</td>
+                <td class="cross" data-lib="struc2vec">No</td>
+                <td class="cross" data-lib="verse">No</td>
+                <td class="cross" data-lib="netsmf">No</td>
             </tr>
             <tr>
                 <td>Node2Vec / DeepWalk</td>
                 <td class="check highlight-col">Built-in</td>
-                <td class="check">Yes</td>
-                <td class="check">Yes</td>
-                <td class="cross">No</td>
-                <td class="check">Yes</td>
-                <td class="check">Yes</td>
-                <td class="check">Yes</td>
-                <td class="check">Yes</td>
-                <td class="check">Yes</td>
-                <td class="check">Yes</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
+                <td class="check" data-lib="pyg">Yes</td>
+                <td class="check" data-lib="karateclub">Yes</td>
+                <td class="cross" data-lib="cleora-orig">No</td>
+                <td class="check" data-lib="dgl">Yes</td>
+                <td class="check" data-lib="node2vec">Yes</td>
+                <td class="check" data-lib="stellargraph">Yes</td>
+                <td class="check" data-lib="gem">Yes</td>
+                <td class="check" data-lib="graphvite">Yes</td>
+                <td class="check" data-lib="deepwalk">Yes</td>
+                <td class="cross" data-lib="line">No</td>
+                <td class="cross" data-lib="sdne">No</td>
+                <td class="cross" data-lib="graspologic">No</td>
+                <td class="cross" data-lib="graphsage">No</td>
+                <td class="cross" data-lib="struc2vec">No</td>
+                <td class="cross" data-lib="verse">No</td>
+                <td class="cross" data-lib="netsmf">No</td>
             </tr>
             <tr>
                 <td>GNN classifier (no PyTorch)</td>
                 <td class="check highlight-col">GCN</td>
-                <td class="cross">Requires PyTorch</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">Requires PyTorch</td>
-                <td class="cross">No</td>
-                <td class="cross">Requires TF</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">Requires TF</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
+                <td class="cross" data-lib="pyg">Requires PyTorch</td>
+                <td class="cross" data-lib="karateclub">No</td>
+                <td class="cross" data-lib="cleora-orig">No</td>
+                <td class="cross" data-lib="dgl">Requires PyTorch</td>
+                <td class="cross" data-lib="node2vec">No</td>
+                <td class="cross" data-lib="stellargraph">Requires TF</td>
+                <td class="cross" data-lib="gem">No</td>
+                <td class="cross" data-lib="graphvite">No</td>
+                <td class="cross" data-lib="deepwalk">No</td>
+                <td class="cross" data-lib="line">No</td>
+                <td class="cross" data-lib="sdne">No</td>
+                <td class="cross" data-lib="graspologic">No</td>
+                <td class="cross" data-lib="graphsage">Requires TF</td>
+                <td class="cross" data-lib="struc2vec">No</td>
+                <td class="cross" data-lib="verse">No</td>
+                <td class="cross" data-lib="netsmf">No</td>
             </tr>
             <tr>
                 <td>Built-in datasets</td>
                 <td class="check highlight-col">14</td>
-                <td class="check">70+</td>
-                <td class="partial">~5</td>
-                <td class="cross">No</td>
-                <td class="check">40+</td>
-                <td class="cross">No</td>
-                <td class="partial">~10</td>
-                <td class="partial">~3</td>
-                <td class="partial">~5</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="partial">~5</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
+                <td class="check" data-lib="pyg">70+</td>
+                <td class="partial" data-lib="karateclub">~5</td>
+                <td class="cross" data-lib="cleora-orig">No</td>
+                <td class="check" data-lib="dgl">40+</td>
+                <td class="cross" data-lib="node2vec">No</td>
+                <td class="partial" data-lib="stellargraph">~10</td>
+                <td class="partial" data-lib="gem">~3</td>
+                <td class="partial" data-lib="graphvite">~5</td>
+                <td class="cross" data-lib="deepwalk">No</td>
+                <td class="cross" data-lib="line">No</td>
+                <td class="cross" data-lib="sdne">No</td>
+                <td class="partial" data-lib="graspologic">~5</td>
+                <td class="cross" data-lib="graphsage">No</td>
+                <td class="cross" data-lib="struc2vec">No</td>
+                <td class="cross" data-lib="verse">No</td>
+                <td class="cross" data-lib="netsmf">No</td>
             </tr>
             <tr>
                 <td>Graph sampling</td>
                 <td class="check highlight-col">6 methods</td>
-                <td class="check">Yes</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="check">Yes</td>
-                <td class="cross">No</td>
-                <td class="check">Yes</td>
-                <td class="cross">No</td>
-                <td class="check">Yes</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="check">Yes</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
+                <td class="check" data-lib="pyg">Yes</td>
+                <td class="cross" data-lib="karateclub">No</td>
+                <td class="cross" data-lib="cleora-orig">No</td>
+                <td class="check" data-lib="dgl">Yes</td>
+                <td class="cross" data-lib="node2vec">No</td>
+                <td class="check" data-lib="stellargraph">Yes</td>
+                <td class="cross" data-lib="gem">No</td>
+                <td class="check" data-lib="graphvite">Yes</td>
+                <td class="cross" data-lib="deepwalk">No</td>
+                <td class="cross" data-lib="line">No</td>
+                <td class="cross" data-lib="sdne">No</td>
+                <td class="cross" data-lib="graspologic">No</td>
+                <td class="check" data-lib="graphsage">Yes</td>
+                <td class="cross" data-lib="struc2vec">No</td>
+                <td class="cross" data-lib="verse">No</td>
+                <td class="cross" data-lib="netsmf">No</td>
             </tr>
             <tr>
                 <td>Hyperparameter tuning</td>
                 <td class="check highlight-col">Grid + Random</td>
-                <td class="cross">Manual</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">Manual</td>
-                <td class="cross">No</td>
-                <td class="cross">Manual</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
+                <td class="cross" data-lib="pyg">Manual</td>
+                <td class="cross" data-lib="karateclub">No</td>
+                <td class="cross" data-lib="cleora-orig">No</td>
+                <td class="cross" data-lib="dgl">Manual</td>
+                <td class="cross" data-lib="node2vec">No</td>
+                <td class="cross" data-lib="stellargraph">Manual</td>
+                <td class="cross" data-lib="gem">No</td>
+                <td class="cross" data-lib="graphvite">No</td>
+                <td class="cross" data-lib="deepwalk">No</td>
+                <td class="cross" data-lib="line">No</td>
+                <td class="cross" data-lib="sdne">No</td>
+                <td class="cross" data-lib="graspologic">No</td>
+                <td class="cross" data-lib="graphsage">No</td>
+                <td class="cross" data-lib="struc2vec">No</td>
+                <td class="cross" data-lib="verse">No</td>
+                <td class="cross" data-lib="netsmf">No</td>
             </tr>
             <tr>
                 <td>Install size</td>
                 <td class="check highlight-col">~5 MB</td>
-                <td class="cross">~500 MB+</td>
-                <td class="check">~15 MB</td>
-                <td class="check">~3 MB</td>
-                <td class="cross">~400 MB+</td>
-                <td class="check">~2 MB</td>
-                <td class="cross">~600 MB+</td>
-                <td class="partial">~50 MB</td>
-                <td class="cross">~200 MB+</td>
-                <td class="check">~5 MB</td>
-                <td class="check">~5 MB</td>
-                <td class="cross">~300 MB+</td>
-                <td class="partial">~50 MB</td>
-                <td class="cross">~500 MB+</td>
-                <td class="check">~5 MB</td>
-                <td class="check">~5 MB</td>
-                <td class="check">~10 MB</td>
+                <td class="cross" data-lib="pyg">~500 MB+</td>
+                <td class="check" data-lib="karateclub">~15 MB</td>
+                <td class="check" data-lib="cleora-orig">~3 MB</td>
+                <td class="cross" data-lib="dgl">~400 MB+</td>
+                <td class="check" data-lib="node2vec">~2 MB</td>
+                <td class="cross" data-lib="stellargraph">~600 MB+</td>
+                <td class="partial" data-lib="gem">~50 MB</td>
+                <td class="cross" data-lib="graphvite">~200 MB+</td>
+                <td class="check" data-lib="deepwalk">~5 MB</td>
+                <td class="check" data-lib="line">~5 MB</td>
+                <td class="cross" data-lib="sdne">~300 MB+</td>
+                <td class="partial" data-lib="graspologic">~50 MB</td>
+                <td class="cross" data-lib="graphsage">~500 MB+</td>
+                <td class="check" data-lib="struc2vec">~5 MB</td>
+                <td class="check" data-lib="verse">~5 MB</td>
+                <td class="check" data-lib="netsmf">~10 MB</td>
             </tr>
             <tr>
                 <td>Multi-GPU support</td>
                 <td class="partial highlight-col">Planned</td>
-                <td class="check">Yes</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="check">Yes</td>
-                <td class="cross">No</td>
-                <td class="partial">Limited</td>
-                <td class="cross">No</td>
-                <td class="check">Yes</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
-                <td class="cross">No</td>
+                <td class="check" data-lib="pyg">Yes</td>
+                <td class="cross" data-lib="karateclub">No</td>
+                <td class="cross" data-lib="cleora-orig">No</td>
+                <td class="check" data-lib="dgl">Yes</td>
+                <td class="cross" data-lib="node2vec">No</td>
+                <td class="partial" data-lib="stellargraph">Limited</td>
+                <td class="cross" data-lib="gem">No</td>
+                <td class="check" data-lib="graphvite">Yes</td>
+                <td class="cross" data-lib="deepwalk">No</td>
+                <td class="cross" data-lib="line">No</td>
+                <td class="cross" data-lib="sdne">No</td>
+                <td class="cross" data-lib="graspologic">No</td>
+                <td class="cross" data-lib="graphsage">No</td>
+                <td class="cross" data-lib="struc2vec">No</td>
+                <td class="cross" data-lib="verse">No</td>
+                <td class="cross" data-lib="netsmf">No</td>
             </tr>
             <tr>
                 <td>Actively maintained</td>
                 <td class="check highlight-col">Yes</td>
-                <td class="check">Yes</td>
-                <td class="check">Yes</td>
-                <td class="partial">Minimal</td>
-                <td class="check">Yes</td>
-                <td class="check">Yes</td>
-                <td class="cross">Archived</td>
-                <td class="cross">Inactive</td>
-                <td class="cross">Inactive</td>
-                <td class="cross">Inactive</td>
-                <td class="cross">Inactive</td>
-                <td class="cross">Inactive</td>
-                <td class="check">Yes</td>
-                <td class="cross">Inactive</td>
-                <td class="cross">Inactive</td>
-                <td class="cross">Inactive</td>
-                <td class="cross">Inactive</td>
+                <td class="check" data-lib="pyg">Yes</td>
+                <td class="check" data-lib="karateclub">Yes</td>
+                <td class="partial" data-lib="cleora-orig">Minimal</td>
+                <td class="check" data-lib="dgl">Yes</td>
+                <td class="check" data-lib="node2vec">Yes</td>
+                <td class="cross" data-lib="stellargraph">Archived</td>
+                <td class="cross" data-lib="gem">Inactive</td>
+                <td class="cross" data-lib="graphvite">Inactive</td>
+                <td class="cross" data-lib="deepwalk">Inactive</td>
+                <td class="cross" data-lib="line">Inactive</td>
+                <td class="cross" data-lib="sdne">Inactive</td>
+                <td class="check" data-lib="graspologic">Yes</td>
+                <td class="cross" data-lib="graphsage">Inactive</td>
+                <td class="cross" data-lib="struc2vec">Inactive</td>
+                <td class="cross" data-lib="verse">Inactive</td>
+                <td class="cross" data-lib="netsmf">Inactive</td>
             </tr>
         </tbody>
     </table>
-    <div class="table-scroll-hint">Scroll horizontally to see all libraries &rarr;</div>
     </div>
 </section>
+
+<script>
+(function() {
+    const PRESETS = {
+        popular:     ['pyg', 'karateclub', 'cleora-orig', 'dgl'],
+        lightweight: ['karateclub', 'cleora-orig', 'node2vec', 'deepwalk', 'line', 'graspologic', 'struc2vec', 'verse', 'netsmf'],
+        all:         ['pyg','karateclub','cleora-orig','dgl','node2vec','stellargraph','gem','graphvite','deepwalk','line','sdne','graspologic','graphsage','struc2vec','verse','netsmf']
+    };
+
+    function applyFilter(visible) {
+        document.querySelectorAll('.comparison-table [data-lib]').forEach(el => {
+            el.style.display = visible.includes(el.dataset.lib) ? '' : 'none';
+        });
+        document.querySelectorAll('#libDropdownMenu input[type=checkbox]').forEach(cb => {
+            cb.checked = visible.includes(cb.value);
+        });
+    }
+
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            applyFilter(PRESETS[btn.dataset.preset]);
+        });
+    });
+
+    const toggle = document.getElementById('libDropdownToggle');
+    const menu = document.getElementById('libDropdownMenu');
+    toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.classList.toggle('open');
+    });
+    document.addEventListener('click', () => menu.classList.remove('open'));
+    menu.addEventListener('click', (e) => e.stopPropagation());
+
+    menu.querySelectorAll('input[type=checkbox]').forEach(cb => {
+        cb.addEventListener('change', () => {
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+            const checked = [...menu.querySelectorAll('input:checked')].map(c => c.value);
+            applyFilter(checked);
+        });
+    });
+
+    applyFilter(PRESETS.popular);
+
+    var tw = document.querySelector('.table-wrapper');
+    function checkScroll() {
+        if (!tw) return;
+        var hasMore = tw.scrollWidth > tw.clientWidth && (tw.scrollLeft + tw.clientWidth < tw.scrollWidth - 2);
+        tw.classList.toggle('has-scroll', hasMore);
+    }
+    if (tw) {
+        tw.addEventListener('scroll', checkScroll);
+        window.addEventListener('resize', checkScroll);
+        setTimeout(checkScroll, 100);
+        var obs = new MutationObserver(checkScroll);
+        obs.observe(tw, { childList: true, subtree: true, attributes: true });
+    }
+})();
+</script>
 
 <section class="section">
     <div class="section-header scroll-reveal">

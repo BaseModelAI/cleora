@@ -435,12 +435,128 @@ nav {
     background: var(--bg-card);
 }
 
-.table-scroll-hint {
-    text-align: center;
-    font-size: 0.8rem;
+.comparison-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.comparison-presets {
+    display: flex;
+    gap: 8px;
+}
+
+.preset-btn {
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
     color: var(--text-muted);
-    margin-top: 8px;
-    display: block;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.preset-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+}
+
+.preset-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.comparison-dropdown {
+    position: relative;
+    margin-left: auto;
+}
+
+.dropdown-toggle {
+    padding: 6px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+}
+
+.dropdown-toggle:hover {
+    border-color: var(--accent);
+    color: var(--text);
+}
+
+.dropdown-arrow {
+    font-size: 0.7rem;
+    margin-left: 4px;
+}
+
+.dropdown-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    z-index: 100;
+    min-width: 180px;
+    max-height: 320px;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.dropdown-menu.open {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dropdown-menu label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--text);
+    cursor: pointer;
+    padding: 4px 0;
+    white-space: nowrap;
+}
+
+.dropdown-menu input[type=checkbox] {
+    accent-color: var(--accent);
+    width: 15px;
+    height: 15px;
+}
+
+.table-wrapper {
+    position: relative;
+    overflow-x: auto;
+}
+
+.table-fade-right {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 60px;
+    background: linear-gradient(to right, transparent, var(--bg));
+    pointer-events: none;
+    z-index: 4;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.table-wrapper.has-scroll .table-fade-right {
+    opacity: 1;
 }
 
 .comparison-table th {
@@ -1446,10 +1562,6 @@ footer {
 /* COMPARISON TABLE HIGHLIGHT COL */
 .highlight-col {
     background: var(--accent-glow) !important;
-}
-
-.table-wrapper {
-    overflow-x: auto;
 }
 
 /* CODE SHOWCASE */
