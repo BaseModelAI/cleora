@@ -12,8 +12,8 @@
         <a href="#propagation-types">Propagation Types</a>
 
         <h4>Embedding</h4>
-        <a href="#basic-embedding">Basic Embedding</a>
-        <a href="#algorithms">Algorithms</a>
+        <a href="#basic-embedding">Cleora Embedding</a>
+        <a href="#algorithms">Alternative Algorithms</a>
         <a href="#node-features">Node Features</a>
         <a href="#edge-features">Edge Features</a>
         <a href="#attention">Attention-Weighted</a>
@@ -112,7 +112,7 @@ results = <span class="code-func">find_most_similar</span>(graph, embeddings, <s
             <li><code>"none"</code> — No normalization</li>
         </ul>
 
-        <h2 id="basic-embedding">Basic Embedding</h2>
+        <h2 id="basic-embedding">Cleora Embedding</h2>
         <pre><code><span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> embed, embed_multiscale
 
 <span class="code-comment"># Standard embedding</span>
@@ -126,22 +126,25 @@ emb_multi = <span class="code-func">embed_multiscale</span>(graph, feature_dim=<
 <span class="code-comment"># Result: (n_entities, 64*4) = (n, 256) dimensions</span></code></pre>
 
         <h2 id="algorithms">Alternative Algorithms</h2>
+        <div class="callout callout-info">
+            <strong>Note on negative sampling:</strong> DeepWalk, Node2Vec, NetMF, and GraRep all require negative sampling to approximate random walks. This introduces noise, stochastic variation, and reproducibility issues. Cleora eliminates negative sampling entirely — it computes all walks exactly via a single sparse matrix multiplication.
+        </div>
         <pre><code><span class="code-keyword">from</span> pycleora.algorithms <span class="code-keyword">import</span> (
     embed_deepwalk, embed_node2vec,
     embed_prone, embed_randne,
     embed_hope, embed_netmf, embed_grarep
 )
 
-<span class="code-comment"># DeepWalk — random walks + SVD</span>
+<span class="code-comment"># DeepWalk — random walks + SVD (requires negative sampling)</span>
 emb = <span class="code-func">embed_deepwalk</span>(graph, feature_dim=<span class="code-num">1024</span>, num_walks=<span class="code-num">20</span>, walk_length=<span class="code-num">40</span>)
 
-<span class="code-comment"># Node2Vec — biased walks (p controls BFS, q controls DFS)</span>
+<span class="code-comment"># Node2Vec — biased walks (requires negative sampling)</span>
 emb = <span class="code-func">embed_node2vec</span>(graph, feature_dim=<span class="code-num">1024</span>, p=<span class="code-num">0.5</span>, q=<span class="code-num">2.0</span>)
 
 <span class="code-comment"># RandNE — ultra-fast random projection</span>
 emb = <span class="code-func">embed_randne</span>(graph, feature_dim=<span class="code-num">1024</span>)
 
-<span class="code-comment"># NetMF — theoretically grounded matrix factorization</span>
+<span class="code-comment"># NetMF — matrix factorization (requires negative sampling)</span>
 emb = <span class="code-func">embed_netmf</span>(graph, feature_dim=<span class="code-num">1024</span>, negative_samples=<span class="code-num">1.0</span>)</code></pre>
 
         <h2 id="node-features">Node Features</h2>

@@ -28,12 +28,12 @@
             <div class="stat-suffix">x</div>
         </div>
         <div class="stat scroll-reveal" data-delay="100">
-            <div class="stat-value" data-count="9">0</div>
-            <div class="stat-label">Embedding Algorithms</div>
+            <div class="stat-value" data-count="7">0</div>
+            <div class="stat-label">Alternative Algorithms</div>
         </div>
         <div class="stat scroll-reveal" data-delay="200">
-            <div class="stat-value" data-count="14">0</div>
-            <div class="stat-label">Built-in Datasets</div>
+            <div class="stat-value" data-count="5">0</div>
+            <div class="stat-label">Graph Generators</div>
         </div>
         <div class="stat scroll-reveal" data-delay="300">
             <div class="stat-value">5 MB</div>
@@ -460,15 +460,15 @@
             <div class="feature-icon-svg">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/><line x1="12" y1="22" x2="12" y2="15.5"/><polyline points="22 8.5 12 15.5 2 8.5"/></svg>
             </div>
-            <h3>9 Embedding Algorithms</h3>
-            <p>Cleora, ProNE, RandNE, HOPE, NetMF, GraRep, DeepWalk, Node2Vec. Spectral, walk-based, and matrix factorization methods unified under one API.</p>
+            <h3>7 Alternative Algorithms</h3>
+            <p>ProNE, RandNE, HOPE, NetMF, GraRep, DeepWalk, Node2Vec included as comparison baselines. Cleora outperforms all of them — unified under one API so you can verify that yourself.</p>
         </div>
         <div class="feature-card scroll-reveal" data-delay="50">
             <div class="feature-icon-svg">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
             </div>
-            <h3>Mini-GNN (GCN Classifier)</h3>
-            <p>2-layer Graph Convolutional Network in pure numpy/scipy. No PyTorch, no TensorFlow. Node classification without a GPU dependency.</p>
+            <h3>MLP Classifier</h3>
+            <p>Cleora embeddings are dense, high-quality vectors — they go directly into a simple MLP for node classification. No GCN, no PyTorch, no GPU. Pure numpy/scipy.</p>
         </div>
         <div class="feature-card scroll-reveal" data-delay="100">
             <div class="feature-icon-svg">
@@ -510,7 +510,7 @@
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
             </div>
             <h3>Benchmarking Suite</h3>
-            <p>Compare algorithms across 14 datasets with time, memory, and accuracy metrics. Publication-ready formatted tables included.</p>
+            <p>Compare all 7 alternative algorithms against Cleora with time, memory, and accuracy metrics. Benchmark on your own graphs or use the 5 built-in graph generators. Publication-ready formatted tables included.</p>
         </div>
         <div class="feature-card scroll-reveal" data-delay="400">
             <div class="feature-icon-svg">
@@ -525,8 +525,8 @@
 <section class="section benchmark-section">
     <div class="section-header scroll-reveal">
         <div class="section-badge">Benchmarks</div>
-        <h2>Real Numbers, Real Datasets</h2>
-        <p>Tested on real-world graphs from 4K to 2M+ nodes. Cleora wins on accuracy, speed, and memory.</p>
+        <h2>Real Numbers, Reproducible Benchmarks</h2>
+        <p>Benchmarked on synthetic graphs generated to match the scale of well-known datasets — same node and edge counts, community-structured topology. From 4K to 2M+ nodes. Cleora wins on accuracy, speed, and memory.</p>
     </div>
 
     <div class="bench-highlights bench-grid-3x2">
@@ -858,6 +858,43 @@
     </div>
 </section>
 
+<section class="section cost-section">
+    <div class="section-header scroll-reveal">
+        <div class="section-badge">Cost Reality</div>
+        <h2>CPU RAM vs. GPU VRAM: The Economics of Scale</h2>
+        <p>GPU-based embedding methods must fit all data in GPU VRAM — a hard ceiling of 640 GB at best. Cleora uses ordinary CPU RAM, which is dramatically cheaper at the same capacity.</p>
+    </div>
+    <div class="cost-comparison scroll-reveal">
+        <div class="cost-card cost-card-cpu">
+            <div class="cost-card-badge">Cleora</div>
+            <div class="cost-instance">AWS EC2 x2iedn.16xlarge</div>
+            <div class="cost-specs">
+                <div class="cost-spec"><span class="cost-spec-label">Memory</span><span class="cost-spec-value highlight">1,024 GB RAM</span></div>
+                <div class="cost-spec"><span class="cost-spec-label">vCPUs</span><span class="cost-spec-value">64</span></div>
+                <div class="cost-spec"><span class="cost-spec-label">GPU required</span><span class="cost-spec-value">None</span></div>
+            </div>
+            <div class="cost-price">$13.10<span class="cost-per">/hr</span></div>
+            <div class="cost-note">More addressable memory than the GPU machine. No GPU drivers, no CUDA, no VRAM limits.</div>
+        </div>
+        <div class="cost-vs scroll-reveal">VS</div>
+        <div class="cost-card cost-card-gpu">
+            <div class="cost-card-badge cost-card-badge-gpu">GPU-based methods</div>
+            <div class="cost-instance">AWS EC2 p4de.24xlarge</div>
+            <div class="cost-specs">
+                <div class="cost-spec"><span class="cost-spec-label">GPU VRAM</span><span class="cost-spec-value">640 GB (8&times; A100 80 GB)</span></div>
+                <div class="cost-spec"><span class="cost-spec-label">vCPUs</span><span class="cost-spec-value">96</span></div>
+                <div class="cost-spec"><span class="cost-spec-label">GPU required</span><span class="cost-spec-value cost-spec-bad">Yes — mandatory</span></div>
+            </div>
+            <div class="cost-price cost-price-gpu">$40.45<span class="cost-per">/hr</span></div>
+            <div class="cost-note">640 GB is the hard ceiling. Graph exceeds VRAM? Method fails. No fallback to RAM.</div>
+        </div>
+    </div>
+    <div class="cost-takeaway scroll-reveal">
+        <div class="cost-takeaway-stat">3&times; cheaper</div>
+        <div class="cost-takeaway-text">at the same memory tier — and Cleora gives you <em>more</em> memory (1 TB vs 640 GB VRAM). As your graph grows beyond what any GPU machine can hold, Cleora keeps running. GPU methods simply can't.</div>
+    </div>
+</section>
+
 <section class="section">
     <div class="section-header scroll-reveal">
         <div class="section-badge">Comparison</div>
@@ -1019,8 +1056,8 @@
                 <td class="cross" data-lib="netsmf">No</td>
             </tr>
             <tr>
-                <td>GNN classifier (no PyTorch)</td>
-                <td class="check highlight-col">GCN</td>
+                <td>MLP Classifier (no PyTorch)</td>
+                <td class="check highlight-col">MLP</td>
                 <td class="cross" data-lib="pyg">Requires PyTorch</td>
                 <td class="cross" data-lib="karateclub">No</td>
                 <td class="cross" data-lib="cleora-orig">No</td>
@@ -1039,20 +1076,20 @@
                 <td class="cross" data-lib="netsmf">No</td>
             </tr>
             <tr>
-                <td>Built-in datasets</td>
-                <td class="check highlight-col">14</td>
-                <td class="check" data-lib="pyg">70+</td>
-                <td class="partial" data-lib="karateclub">~5</td>
+                <td>Graph generators</td>
+                <td class="check highlight-col">5</td>
+                <td class="partial" data-lib="pyg">Some</td>
+                <td class="cross" data-lib="karateclub">No</td>
                 <td class="cross" data-lib="cleora-orig">No</td>
-                <td class="check" data-lib="dgl">40+</td>
+                <td class="partial" data-lib="dgl">Some</td>
                 <td class="cross" data-lib="node2vec">No</td>
-                <td class="partial" data-lib="stellargraph">~10</td>
-                <td class="partial" data-lib="gem">~3</td>
-                <td class="partial" data-lib="graphvite">~5</td>
+                <td class="cross" data-lib="stellargraph">No</td>
+                <td class="cross" data-lib="gem">No</td>
+                <td class="cross" data-lib="graphvite">No</td>
                 <td class="cross" data-lib="deepwalk">No</td>
                 <td class="cross" data-lib="line">No</td>
                 <td class="cross" data-lib="sdne">No</td>
-                <td class="partial" data-lib="graspologic">~5</td>
+                <td class="cross" data-lib="graspologic">No</td>
                 <td class="cross" data-lib="graphsage">No</td>
                 <td class="cross" data-lib="struc2vec">No</td>
                 <td class="cross" data-lib="verse">No</td>
@@ -1120,7 +1157,7 @@
             </tr>
             <tr>
                 <td>Multi-GPU support</td>
-                <td class="partial highlight-col">Planned</td>
+                <td class="check highlight-col">Not Needed</td>
                 <td class="check" data-lib="pyg">Yes</td>
                 <td class="cross" data-lib="karateclub">No</td>
                 <td class="cross" data-lib="cleora-orig">No</td>
