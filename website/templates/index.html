@@ -467,8 +467,8 @@
             <div class="feature-icon-svg">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
             </div>
-            <h3>MLP Classifier</h3>
-            <p>Cleora embeddings are dense, high-quality vectors — they go directly into a simple MLP for node classification. No GCN, no PyTorch, no GPU. Pure numpy/scipy.</p>
+            <h3>Built-in Classifiers</h3>
+            <p>Three classifiers included: MLP, GCN, and Label Propagation — all pure numpy/scipy, no PyTorch, no GPU. Evaluate embedding quality directly.</p>
         </div>
         <div class="feature-card scroll-reveal" data-delay="100">
             <div class="feature-icon-svg">
@@ -861,8 +861,8 @@
 <section class="section cost-section">
     <div class="section-header scroll-reveal">
         <div class="section-badge">Cost Reality</div>
-        <h2>CPU RAM vs. GPU VRAM: The Economics of Scale</h2>
-        <p>GPU-based embedding methods must fit all data in GPU VRAM — a hard ceiling of 640 GB at best. Cleora uses ordinary CPU RAM, which is dramatically cheaper at the same capacity.</p>
+        <h2>The Real Cost Per Embedding Job</h2>
+        <p>GPU-based methods must fit all data in GPU VRAM — a hard ceiling of 640 GB. Cleora uses ordinary CPU RAM (cheaper, bigger) and finishes in seconds. The result: each job costs pennies.</p>
     </div>
     <div class="cost-comparison scroll-reveal">
         <div class="cost-card cost-card-cpu">
@@ -890,8 +890,8 @@
         </div>
     </div>
     <div class="cost-takeaway scroll-reveal">
-        <div class="cost-takeaway-stat">3&times; cheaper</div>
-        <div class="cost-takeaway-text">at the same memory tier — and Cleora gives you <em>more</em> memory (1 TB vs 640 GB VRAM). As your graph grows beyond what any GPU machine can hold, Cleora keeps running. GPU methods simply can't.</div>
+        <div class="cost-takeaway-stat">&lt;$0.02</div>
+        <div class="cost-takeaway-text">to embed 2M nodes on the CPU machine (4.2 seconds at $13.10/hr). GPU methods need a $40.45/hr machine — <em>and</em> Cleora gives you more addressable memory (1 TB vs 640 GB VRAM). As your graph outgrows GPU VRAM, Cleora keeps running. GPU methods fail.</div>
     </div>
 </section>
 
@@ -1056,8 +1056,8 @@
                 <td class="cross" data-lib="netsmf">No</td>
             </tr>
             <tr>
-                <td>MLP Classifier (no PyTorch)</td>
-                <td class="check highlight-col">MLP</td>
+                <td>Built-in classifiers (no PyTorch)</td>
+                <td class="check highlight-col">GCN + MLP + LP</td>
                 <td class="cross" data-lib="pyg">Requires PyTorch</td>
                 <td class="cross" data-lib="karateclub">No</td>
                 <td class="cross" data-lib="cleora-orig">No</td>
