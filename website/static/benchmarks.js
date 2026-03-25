@@ -24,60 +24,72 @@ const ALGO_COLORS = {
 };
 
 const DATASETS = ['ego-Facebook', 'PPI-large', 'Flickr', 'ogbn-arxiv', 'Yelp'];
-const ALGORITHMS = ['Cleora (whiten)', 'Cleora', 'ProNE', 'RandNE', 'NetMF', 'DeepWalk', 'Node2Vec'];
+const ALGORITHMS = ['Cleora (whiten)', 'Cleora', 'ProNE', 'RandNE', 'NetMF', 'DeepWalk'];
 
 const SUMMARY_DATA = {
-    'Cleora (whiten)': [0.964, null,  null,  null,  null],
-    'Cleora':     [0.355, 0.027, 0.158, 0.038, 0.013],
-    'ProNE':      [0.021, 0.009, 0.139, 0.026, null],
-    'RandNE':     [0.318, 0.026, 0.146, 0.030, null],
-    'NetMF':      [0.944, null,  null,  null,  null],
-    'DeepWalk':   [0.912, null,  null,  null,  null],
-    'Node2Vec':   [0.918, null,  null,  null,  null],
+    'Cleora (whiten)': [0.881, 0.985, 0.502, 0.624, null],
+    'Cleora':          [0.350, 0.025, 0.157, 0.038, 0.013],
+    'ProNE':           [0.019, 0.008, 0.142, 0.026, null],
+    'RandNE':          [0.120, 0.014, 0.153, 0.032, null],
+    'NetMF':           [0.889, null,  null,  null,  null],
+    'DeepWalk':        [0.885, null,  null,  null,  null],
 };
 
 const SPEED_DATA = {
-    algorithms: ['Cleora', 'RandNE', 'ProNE', 'NetMF', 'DeepWalk', 'Node2Vec'],
-    facebook:   [0.109,    0.232,   1.429,    17.920,  32.352,      111.426],
-    ppi_large:  [1.693,    4.755,   20.792,   null,    null,         null],
-    flickr:     [0.475,    1.332,   5.569,    null,    null,         null],
-    ogbn_arxiv: [0.747,    2.046,   8.333,    null,    null,         null],
-    yelp:       [3.304,    null,    null,     null,    null,         null],
-    roadnet:    [4.242,    8.968,   57.716,   null,    null,         null],
+    algorithms: ['Cleora', 'Cleora (whiten)', 'RandNE', 'ProNE', 'NetMF', 'DeepWalk'],
+    facebook:   [0.111,    0.223,              0.070,    0.264,   35.229,  50.093],
+    ppi_large:  [0.707,    1.702,              1.863,    7.286,   null,    null],
+    flickr:     [0.869,    2.218,              2.169,    10.732,  null,    null],
+    ogbn_arxiv: [1.290,    3.623,              3.204,    15.725,  null,    null],
+    yelp:       [7.076,    null,               null,     null,    null,    null],
+    roadnet:    [5.312,    null,               null,     null,    null,    null],
 };
 
 const MEMORY_DATA = {
-    algorithms: ['Cleora', 'RandNE', 'ProNE', 'Node2Vec', 'DeepWalk', 'NetMF'],
-    facebook:   [15.78,    146.28,   248.98,  600,        600,         1107],
-    ppi_large:  [222.44,   2042.46,  3385.77, null,       null,         null],
-    flickr:     [43.58,    438.17,   700.79,  null,       null,         null],
-    ogbn_arxiv: [82.69,    806.62,   1305,    null,       null,         null],
-    yelp:       [350,      null,     null,    null,       null,         null],
-    roadnet:    [1934,     8868,     14648,   null,       null,         null],
+    algorithms: ['Cleora', 'Cleora (whiten)', 'RandNE', 'ProNE', 'DeepWalk', 'NetMF'],
+    facebook:   [3.9,      25.2,               39.8,     64.0,    540.8,      1047.4],
+    ppi_large:  [55.6,     335.2,              541.0,    875.8,   null,        null],
+    flickr:     [87.2,     524.5,              830.4,    1354.9,  null,        null],
+    ogbn_arxiv: [165.4,    993.8,              1550.8,   2545.5,  null,        null],
+    yelp:       [700.0,    null,               null,     null,    null,        null],
+    roadnet:    [1919.1,   null,               null,     null,    null,        null],
 };
 
 const SCATTER_DATA = {
     'ego-Facebook': {
-        'Cleora (whiten)': { acc: 0.964, time: 0.740 },
-        'NetMF':      { acc: 0.944, time: 17.920 },
-        'Node2Vec':   { acc: 0.918, time: 111.426 },
-        'DeepWalk':   { acc: 0.912, time: 32.352 },
-        'RandNE':     { acc: 0.318, time: 0.232 },
-        'ProNE':      { acc: 0.021, time: 1.429 },
+        'Cleora (whiten)': { acc: 0.881, time: 0.223 },
+        'NetMF':           { acc: 0.889, time: 35.229 },
+        'DeepWalk':        { acc: 0.885, time: 50.093 },
+        'RandNE':          { acc: 0.120, time: 0.070 },
+        'ProNE':           { acc: 0.019, time: 0.264 },
+        'Cleora':          { acc: 0.350, time: 0.111 },
+    },
+    'PPI-large': {
+        'Cleora (whiten)': { acc: 0.985, time: 1.702 },
+        'Cleora':          { acc: 0.025, time: 0.707 },
+        'ProNE':           { acc: 0.008, time: 7.286 },
+        'RandNE':          { acc: 0.014, time: 1.863 },
+    },
+    'Flickr': {
+        'Cleora (whiten)': { acc: 0.502, time: 2.218 },
+        'Cleora':          { acc: 0.157, time: 0.869 },
+        'ProNE':           { acc: 0.142, time: 10.732 },
+        'RandNE':          { acc: 0.153, time: 2.169 },
     },
     'ogbn-arxiv': {
-        'Cleora':     { acc: 0.038, time: 0.747 },
-        'RandNE':     { acc: 0.030, time: 2.046 },
-        'ProNE':      { acc: 0.026, time: 8.333 },
+        'Cleora (whiten)': { acc: 0.624, time: 3.623 },
+        'Cleora':          { acc: 0.038, time: 1.290 },
+        'RandNE':          { acc: 0.032, time: 3.204 },
+        'ProNE':           { acc: 0.026, time: 15.725 },
     },
 };
 
 const CV_DATA = {
-    datasets:     ['ego-Facebook'],
-    meanAccuracy: [0.888],
-    stdAccuracy:  [0.015],
-    meanF1:       [0.757],
-    stdF1:        [0.021],
+    datasets:     ['ego-Facebook', 'PPI-large', 'Flickr', 'ogbn-arxiv'],
+    meanAccuracy: [0.886, 0.985, 0.507, 0.620],
+    stdAccuracy:  [0.017, 0.001, 0.006, 0.003],
+    meanF1:       [0.710, 0.985, 0.507, 0.620],
+    stdF1:        [0.019, 0.001, 0.006, 0.003],
 };
 
 function chartDefaults() {
@@ -116,7 +128,7 @@ function buildAccuracyChart() {
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: {
-                title: { display: true, text: 'Accuracy per Algorithm — All Datasets', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Node Classification Accuracy — 256 dim, All Datasets', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
                     callbacks: {
                         label: ctx => {
@@ -163,14 +175,13 @@ function buildSpeedChart() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                title: { display: true, text: 'Embedding Time (seconds, log scale)', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Embedding Time (seconds) — Linear Scale', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
                     callbacks: { label: ctx => ctx.raw !== null ? ctx.dataset.label + ': ' + ctx.raw + 's' : '' }
                 },
             },
             scales: {
                 x: {
-                    type: 'logarithmic',
                     grid: { color: COLORS.border + '60' },
                     ticks: { color: COLORS.textMuted, callback: v => v + 's' },
                 },
@@ -208,7 +219,7 @@ function buildMemoryChart() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                title: { display: true, text: 'Peak Memory Usage (MB, log scale)', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Peak Memory Usage (MB) — Linear Scale', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
                     callbacks: { label: ctx => ctx.raw !== null ? ctx.dataset.label + ': ' + ctx.raw + ' MB' : '' }
                 },
@@ -216,7 +227,6 @@ function buildMemoryChart() {
             scales: {
                 x: { grid: { display: false }, ticks: { color: COLORS.textMuted } },
                 y: {
-                    type: 'logarithmic',
                     grid: { color: COLORS.border + '60' },
                     ticks: { color: COLORS.textMuted, callback: v => v + ' MB' },
                 },
@@ -229,6 +239,8 @@ function buildScatterChart() {
     const ctx = document.getElementById('chart-scatter').getContext('2d');
     const datasetColors = {
         'ego-Facebook': COLORS.accent,
+        'PPI-large': '#10b981',
+        'Flickr': COLORS.orange,
         'ogbn-arxiv': COLORS.blue,
     };
 
@@ -253,7 +265,7 @@ function buildScatterChart() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                title: { display: true, text: 'Accuracy vs Embedding Time', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Accuracy vs Embedding Time — 256 dim', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
                     callbacks: {
                         label: ctx => {
@@ -265,7 +277,6 @@ function buildScatterChart() {
             },
             scales: {
                 x: {
-                    type: 'logarithmic',
                     title: { display: true, text: 'Embedding Time (seconds)', color: COLORS.textMuted },
                     grid: { color: COLORS.border + '60' },
                     ticks: { color: COLORS.textMuted, callback: v => v + 's' },
@@ -358,7 +369,7 @@ function buildCVChart() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                title: { display: true, text: 'Cross-Validation: Cleora on ego-Facebook (1024 dim, 4 iter)', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Cross-Validation: Cleora (whiten, 8 iter, 256 dim)', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
                     callbacks: {
                         label: ctx => {

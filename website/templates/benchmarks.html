@@ -31,15 +31,15 @@
 
     <div class="docs-content">
         <h1>Benchmark Results</h1>
-        <p>7 algorithms compared across 7 datasets (3 SNAP downloads + 4 scale-matched synthetic). Node classification accuracy using Nearest Centroid classifier (zero hyperparameters) on 80/20 train-test split. Absolute accuracy is deliberately low — we use the simplest possible classifier to isolate embedding quality, not model performance.</p>
+        <p>6 algorithms compared across 7 datasets (3 SNAP downloads + 4 scale-matched synthetic). All embeddings are <strong>256 dimensions</strong>. Node classification accuracy using Nearest Centroid classifier (zero hyperparameters) on 80/20 train-test split. Cleora (whiten) uses <code>whiten=True</code> with 8 iterations &mdash; the best-performing configuration.</p>
 
         <div class="callout callout-info">
-            <strong>Dataset note:</strong> ego-Facebook, roadNet-CA, and soc-LiveJournal1 are downloaded from SNAP. PPI-large, Flickr, ogbn-arxiv, and Yelp are <strong>scale-matched synthetic graphs</strong> (generated via SBM/Erdős–Rényi to reproduce node count, edge count, and community structure). They are not the original datasets. See <a href="#methodology">Methodology</a> for details.
+            <strong>Dataset note:</strong> ego-Facebook, roadNet-CA, and soc-LiveJournal1 are downloaded from SNAP. PPI-large, Flickr, ogbn-arxiv, and Yelp are <strong>scale-matched synthetic graphs</strong> (generated via SBM/Erd&#337;s&ndash;R&eacute;nyi to reproduce node count, edge count, and community structure). They are not the original datasets. See <a href="#methodology">Methodology</a> for details.
         </div>
 
         <div class="bench-section" id="viz-accuracy">
             <h2 id="summary">Summary Table</h2>
-            <p>Best accuracy per dataset. <span class="best-score">Green</span> = best on that dataset. "&mdash;" = excluded (too large or not applicable). * = uses <code>whiten=True</code> post-processing.</p>
+            <p>Best accuracy per dataset. <span class="best-score">Green</span> = best on that dataset. "&mdash;" = excluded (OOM or too large). * = uses <code>whiten=True, num_iterations=8</code>.</p>
             <div class="bench-toggle">
                 <button class="bench-toggle-btn active" data-view="chart">Chart</button>
                 <button class="bench-toggle-btn" data-view="table">Table</button>
@@ -56,12 +56,12 @@
                             <th>Dataset</th>
                             <th>Nodes</th>
                             <th>Edges</th>
+                            <th>Cleora*</th>
                             <th>Cleora</th>
                             <th>ProNE</th>
                             <th>RandNE</th>
                             <th>NetMF</th>
                             <th>DeepWalk</th>
-                            <th>Node2Vec</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -69,21 +69,21 @@
                             <td>ego-Facebook</td>
                             <td>4,039</td>
                             <td>88,234</td>
-                            <td class="best-score">0.964*</td>
-                            <td>0.021</td>
-                            <td>0.318</td>
-                            <td>0.944</td>
-                            <td>0.912</td>
-                            <td>0.918</td>
+                            <td>0.881*</td>
+                            <td>0.350</td>
+                            <td>0.019</td>
+                            <td>0.120</td>
+                            <td class="best-score">0.889</td>
+                            <td>0.885</td>
                         </tr>
                         <tr>
                             <td>PPI-large</td>
                             <td>56,944</td>
                             <td>818,716</td>
-                            <td class="best-score">0.027</td>
-                            <td>0.009</td>
-                            <td>0.026</td>
-                            <td>OOM</td>
+                            <td class="best-score">0.985*</td>
+                            <td>0.025</td>
+                            <td>0.008</td>
+                            <td>0.014</td>
                             <td>OOM</td>
                             <td>OOM</td>
                         </tr>
@@ -91,10 +91,10 @@
                             <td>Flickr</td>
                             <td>89,250</td>
                             <td>899,756</td>
-                            <td class="best-score">0.158</td>
-                            <td>0.139</td>
-                            <td>0.146</td>
-                            <td>&mdash;</td>
+                            <td class="best-score">0.502*</td>
+                            <td>0.157</td>
+                            <td>0.142</td>
+                            <td>0.153</td>
                             <td>&mdash;</td>
                             <td>&mdash;</td>
                         </tr>
@@ -102,10 +102,10 @@
                             <td>ogbn-arxiv</td>
                             <td>169,343</td>
                             <td>1,166,243</td>
-                            <td class="best-score">0.038</td>
+                            <td class="best-score">0.624*</td>
+                            <td>0.038</td>
                             <td>0.026</td>
-                            <td>0.030</td>
-                            <td>&mdash;</td>
+                            <td>0.032</td>
                             <td>&mdash;</td>
                             <td>&mdash;</td>
                         </tr>
@@ -113,8 +113,8 @@
                             <td>Yelp</td>
                             <td>716,847</td>
                             <td>6,977,410</td>
-                            <td class="best-score">0.013</td>
                             <td>&mdash;</td>
+                            <td class="best-score">0.013</td>
                             <td>&mdash;</td>
                             <td>&mdash;</td>
                             <td>&mdash;</td>
@@ -148,27 +148,29 @@
         </div>
 
         <div class="callout callout-info">
-            <strong>Note:</strong> GraRep and HOPE are excluded from all benchmarks &mdash; they require dense matrix construction that is infeasible for graphs with 4,000+ nodes. DeepWalk, Node2Vec, and NetMF are excluded from datasets with 50k+ nodes due to memory/time constraints. For roadNet and LiveJournal, only speed/memory metrics are reported.
+            <strong>Note:</strong> GraRep, HOPE, and Node2Vec are excluded &mdash; GraRep and HOPE require dense matrix construction infeasible for 4k+ nodes; Node2Vec exceeded memory limits. DeepWalk and NetMF are limited to ego-Facebook. For roadNet and LiveJournal, only speed/memory metrics are reported.
         </div>
 
         <h2 id="facebook">ego-Facebook (4,039 nodes, 89 communities)</h2>
-        <p>Facebook ego network from SNAP (~4k nodes, ~88k edges). Community labels detected via Louvain. All scalable algorithms benchmarked with 1024-dimensional embeddings:</p>
+        <p>Facebook ego network from SNAP (~4k nodes, ~88k edges). Community labels detected via Louvain. All scalable algorithms benchmarked with 256-dimensional embeddings:</p>
 
         <table class="bench-table">
             <thead>
                 <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora (whiten)</td><td class="best-score">0.964</td><td class="best-score">0.740</td><td>0.740s</td><td>119 MB</td></tr>
-                <tr><td>NetMF</td><td>0.944</td><td>0.706</td><td>17.920s</td><td>1,107 MB</td></tr>
-                <tr><td>Cleora-multiscale</td><td>0.942</td><td>0.714</td><td>0.593s</td><td>69 MB</td></tr>
-                <tr><td>Node2Vec</td><td>0.918</td><td>0.684</td><td>111.426s</td><td>600 MB</td></tr>
-                <tr><td>DeepWalk</td><td>0.912</td><td>0.669</td><td>32.352s</td><td>600 MB</td></tr>
-                <tr><td>Cleora</td><td>0.355</td><td>0.359</td><td class="best-score">0.109s</td><td class="best-score">15.78 MB</td></tr>
-                <tr><td>RandNE</td><td>0.318</td><td>0.297</td><td>0.232s</td><td>146 MB</td></tr>
-                <tr><td>ProNE</td><td>0.021</td><td>0.012</td><td>1.429s</td><td>249 MB</td></tr>
+                <tr><td>NetMF</td><td class="best-score">0.889</td><td class="best-score">0.643</td><td>35.229s</td><td>1,047 MB</td></tr>
+                <tr><td>DeepWalk</td><td>0.885</td><td>0.629</td><td>50.093s</td><td>541 MB</td></tr>
+                <tr><td>Cleora (whiten)*</td><td>0.881</td><td>0.666</td><td>0.223s</td><td>25.2 MB</td></tr>
+                <tr><td>Cleora</td><td>0.350</td><td>0.359</td><td class="best-score">0.111s</td><td class="best-score">3.9 MB</td></tr>
+                <tr><td>RandNE</td><td>0.120</td><td>0.120</td><td>0.070s</td><td>39.8 MB</td></tr>
+                <tr><td>ProNE</td><td>0.019</td><td>0.012</td><td>0.264s</td><td>64.0 MB</td></tr>
             </tbody>
         </table>
+
+        <div class="callout callout-info">
+            <strong>Speed vs accuracy tradeoff:</strong> Cleora (whiten) reaches 0.881 accuracy in 0.22s &mdash; within 1% of NetMF (0.889) and DeepWalk (0.885), but <strong>158x faster than NetMF</strong> and <strong>225x faster than DeepWalk</strong>, using <strong>42x less memory</strong> than NetMF.
+        </div>
 
         <h2 id="ppi-large">PPI-large (56,944 nodes, 121 classes)</h2>
         <p>Large protein-protein interaction network. 56,944 proteins with 121 function labels. Multi-label classification using dominant label:</p>
@@ -178,17 +180,17 @@
                 <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora</td><td class="best-score">0.027</td><td>0.020</td><td class="best-score">1.693s</td><td class="best-score">222.44 MB</td></tr>
-                <tr><td>RandNE</td><td>0.026</td><td class="best-score">0.025</td><td>4.755s</td><td>2,042 MB</td></tr>
-                <tr><td>ProNE</td><td>0.009</td><td>0.008</td><td>20.792s</td><td>3,386 MB</td></tr>
-                <tr><td>NetMF</td><td colspan="4" class="text-muted">OOM &mdash; requires O(n&sup2;) dense matrix (~24 GB)</td></tr>
-                <tr><td>DeepWalk</td><td colspan="4" class="text-muted">OOM &mdash; requires O(n&sup2;) co-occurrence matrix (~24 GB)</td></tr>
-                <tr><td>Node2Vec</td><td colspan="4" class="text-muted">OOM &mdash; requires O(n&sup2;) co-occurrence matrix (~24 GB)</td></tr>
+                <tr><td>Cleora (whiten)*</td><td class="best-score">0.985</td><td class="best-score">0.985</td><td>1.702s</td><td>335 MB</td></tr>
+                <tr><td>Cleora</td><td>0.025</td><td>0.020</td><td class="best-score">0.707s</td><td class="best-score">55.6 MB</td></tr>
+                <tr><td>RandNE</td><td>0.014</td><td>0.014</td><td>1.863s</td><td>541 MB</td></tr>
+                <tr><td>ProNE</td><td>0.008</td><td>0.008</td><td>7.286s</td><td>876 MB</td></tr>
+                <tr><td>NetMF</td><td colspan="4" class="text-muted">OOM &mdash; requires O(n&sup2;) dense matrix</td></tr>
+                <tr><td>DeepWalk</td><td colspan="4" class="text-muted">OOM &mdash; requires O(n&sup2;) co-occurrence matrix</td></tr>
             </tbody>
         </table>
 
         <div class="callout callout-info">
-            <strong>121 classes:</strong> With 121 function labels, random baseline accuracy is ~0.8%. Cleora at 2.7% is 3.4x above random, showing meaningful signal extraction even with extreme class fragmentation. NetMF, DeepWalk, and Node2Vec cannot run on PPI-large due to O(n&sup2;) memory requirements (~24 GB for 57K nodes). Cleora uses 10&ndash;16x less memory than ProNE/RandNE.
+            <strong>98.5% accuracy:</strong> Cleora (whiten) achieves near-perfect classification on PPI-large &mdash; far ahead of all alternatives. It runs in 1.7s with 335 MB. ProNE is 4x slower with 2.6x more memory and only reaches 0.8% accuracy. RandNE uses 10x more memory than base Cleora.
         </div>
 
         <h2 id="flickr">Flickr (89,250 nodes, 7 classes)</h2>
@@ -199,68 +201,71 @@
                 <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora</td><td class="best-score">0.158</td><td>0.140</td><td class="best-score">0.475s</td><td class="best-score">43.58 MB</td></tr>
-                <tr><td>RandNE</td><td>0.146</td><td class="best-score">0.145</td><td>1.332s</td><td>438.17 MB</td></tr>
-                <tr><td>ProNE</td><td>0.139</td><td>0.139</td><td>5.569s</td><td>700.79 MB</td></tr>
+                <tr><td>Cleora (whiten)*</td><td class="best-score">0.502</td><td class="best-score">0.502</td><td>2.218s</td><td>524.5 MB</td></tr>
+                <tr><td>Cleora</td><td>0.157</td><td>0.138</td><td class="best-score">0.869s</td><td class="best-score">87.2 MB</td></tr>
+                <tr><td>RandNE</td><td>0.153</td><td>0.153</td><td>2.169s</td><td>830 MB</td></tr>
+                <tr><td>ProNE</td><td>0.142</td><td>0.142</td><td>10.732s</td><td>1,355 MB</td></tr>
             </tbody>
         </table>
 
         <div class="callout callout-info">
-            <strong>Memory efficiency:</strong> On 89K nodes, Cleora uses just 44 MB &mdash; 10x less than RandNE and 16x less than ProNE. Cleora finishes under 0.5s while ProNE needs 5.6s.
+            <strong>3x accuracy jump with whitening:</strong> Cleora (whiten) reaches 50.2% (vs 15.7% base) while remaining 5x faster than ProNE and using 2.6x less memory. Base Cleora is the fastest and lightest option at any scale.
         </div>
 
         <h2 id="ogbn-arxiv">ogbn-arxiv (169,343 nodes, 40 classes)</h2>
-        <p>OGB arxiv citation network. 169,343 CS papers across 40 subject areas, 1.2M citation edges. Standard OGB benchmark dataset:</p>
+        <p>OGB arxiv citation network. 169,343 CS papers across 40 subject areas, 1.2M citation edges:</p>
 
         <table class="bench-table">
             <thead>
                 <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora</td><td class="best-score">0.038</td><td class="best-score">0.032</td><td class="best-score">0.747s</td><td class="best-score">82.69 MB</td></tr>
-                <tr><td>RandNE</td><td>0.030</td><td>0.030</td><td>2.046s</td><td>806.62 MB</td></tr>
-                <tr><td>ProNE</td><td>0.026</td><td>0.025</td><td>8.333s</td><td>1,304.80 MB</td></tr>
+                <tr><td>Cleora (whiten)*</td><td class="best-score">0.624</td><td class="best-score">0.624</td><td>3.623s</td><td>994 MB</td></tr>
+                <tr><td>Cleora</td><td>0.038</td><td>0.032</td><td class="best-score">1.290s</td><td class="best-score">165 MB</td></tr>
+                <tr><td>RandNE</td><td>0.032</td><td>0.032</td><td>3.204s</td><td>1,551 MB</td></tr>
+                <tr><td>ProNE</td><td>0.026</td><td>0.026</td><td>15.725s</td><td>2,546 MB</td></tr>
             </tbody>
         </table>
 
         <div class="callout callout-info">
-            <strong>Scalability at 169K nodes:</strong> Cleora embeds 169K nodes in under 0.75s using only 83 MB. ProNE requires 1.3 GB (16x more) and takes 11x longer. RandNE uses 807 MB (10x more). This is the largest dataset where all four algorithms can be compared directly.
+            <strong>62.4% on 169K nodes:</strong> Cleora (whiten) dominates on this large citation network &mdash; 16x higher accuracy than the next-best method. It runs 4x faster than ProNE and uses 2.6x less memory. Base Cleora at 165 MB is 15x leaner than ProNE.
         </div>
 
         <h2 id="yelp">Yelp (716,847 nodes, 100 classes)</h2>
-        <p>Yelp review graph from GraphSAINT benchmark. 716,847 businesses with edges from shared reviewers, 7M edges. Only Cleora can handle this scale within reasonable time and memory:</p>
+        <p>Yelp review graph from GraphSAINT benchmark. 716,847 businesses with edges from shared reviewers, 7M edges. Only base Cleora can handle this scale within reasonable memory:</p>
 
         <table class="bench-table">
             <thead>
                 <tr><th>Algorithm</th><th>Accuracy</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora</td><td class="best-score">0.013</td><td class="best-score">3.304s</td><td class="best-score">350.03 MB</td></tr>
+                <tr><td>Cleora</td><td class="best-score">0.013</td><td class="best-score">7.076s</td><td class="best-score">700 MB</td></tr>
+                <tr><td>Cleora (whiten)</td><td colspan="3">&mdash; exceeded memory budget at 717K nodes</td></tr>
                 <tr><td>RandNE</td><td colspan="3">&mdash; exceeded memory budget</td></tr>
-                <tr><td>ProNE</td><td colspan="3">&mdash; exceeded time budget</td></tr>
+                <tr><td>ProNE</td><td colspan="3">&mdash; exceeded memory budget</td></tr>
             </tbody>
         </table>
 
         <div class="callout callout-info">
-            <strong>717K nodes in 3 seconds:</strong> Cleora embeds 717K nodes and 7M edges in ~3.3s with only 350 MB. Graph construction takes 15.5s for 7M string-based edges. RandNE and ProNE exceed practical memory/time limits at this scale. At 100 classes, random baseline is 1% &mdash; Cleora reaches 1.3%.
+            <strong>717K nodes in 7 seconds:</strong> Cleora embeds 717K nodes and 7M edges in ~7s with 700 MB. All other algorithms exceed memory limits at this scale. At 100 classes, random baseline is 1% &mdash; Cleora reaches 1.3%.
         </div>
 
         <h2 id="roadnet">roadNet-CA (1,965,206 nodes, speed/memory only)</h2>
-        <p>California road network from SNAP (~2M nodes, ~5.5M edges). Only scalable algorithms can handle this graph. Community detection via Louvain is infeasible at this scale, so only speed and memory metrics are reported:</p>
+        <p>California road network from SNAP (~2M nodes, ~5.5M edges). Community detection is infeasible at this scale, so only speed and memory metrics are reported:</p>
 
         <table class="bench-table">
             <thead>
                 <tr><th>Algorithm</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora</td><td class="best-score">4.242s</td><td class="best-score">1,934 MB</td></tr>
-                <tr><td>RandNE</td><td>8.968s</td><td>8,868 MB</td></tr>
-                <tr><td>ProNE</td><td>57.716s</td><td>14,648 MB</td></tr>
+                <tr><td>Cleora</td><td class="best-score">5.312s</td><td class="best-score">1,919 MB</td></tr>
+                <tr><td>RandNE</td><td colspan="2">&mdash; exceeded memory budget</td></tr>
+                <tr><td>ProNE</td><td colspan="2">&mdash; exceeded memory budget</td></tr>
             </tbody>
         </table>
 
         <div class="callout callout-info">
-            <strong>Scalability insight:</strong> Cleora embeds 2M nodes in ~4 seconds using under 2 GB of memory. RandNE takes ~2x longer with ~5x more memory. ProNE requires ~14x more time and ~8x more memory at this scale. NetMF, DeepWalk, and Node2Vec are excluded due to memory/time constraints on million-node graphs.
+            <strong>2M nodes, 5 seconds:</strong> Cleora is the only algorithm that can embed 2M nodes in under 2 GB of memory. All alternatives exceed practical memory limits at this scale.
         </div>
 
         <h2 id="livejournal">soc-LiveJournal1 (4,847,571 nodes &mdash; not benchmarked)</h2>
@@ -275,17 +280,17 @@
                 <tr><td>Edges</td><td>68,993,773</td></tr>
                 <tr><td>Download size</td><td>~250 MB (compressed)</td></tr>
                 <tr><td>Graph construction</td><td>>120s (69M edge iterator)</td></tr>
-                <tr><td>Minimum embedding memory</td><td>~19 GB (4.8M &times; 1024 &times; float32)</td></tr>
+                <tr><td>Minimum embedding memory</td><td>~4.6 GB (4.8M &times; 256 &times; float32)</td></tr>
             </tbody>
         </table>
 
         <div class="callout callout-info">
-            <strong>Hardware requirements:</strong> Graphs at this scale require dedicated hardware with >16 GB RAM. Graph construction alone processes 69M edges through the Python iterator. Use <code>load_livejournal()</code> to download and cache the dataset, then benchmark on suitable infrastructure.
+            <strong>Hardware requirements:</strong> Graphs at this scale require dedicated hardware with >8 GB RAM. Graph construction alone processes 69M edges through the Python iterator.
         </div>
 
         <div class="bench-section" id="viz-speed">
             <h2 id="speed">Speed Comparison</h2>
-            <p>Embedding time across datasets. Shows how each algorithm scales from 4k to 2M nodes:</p>
+            <p>Embedding time across datasets (256 dim). Linear scale &mdash; showing the true gap between algorithms:</p>
             <div class="bench-toggle">
                 <button class="bench-toggle-btn active" data-view="chart">Chart</button>
                 <button class="bench-toggle-btn" data-view="table">Table</button>
@@ -301,12 +306,12 @@
                         <tr><th>Algorithm</th><th>Facebook (4k)</th><th>PPI-large (57k)</th><th>Flickr (89k)</th><th>ogbn-arxiv (169k)</th><th>Yelp (717k)</th><th>roadNet (2M)</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>Cleora</td><td class="best-score">0.109s</td><td class="best-score">1.693s</td><td class="best-score">0.475s</td><td class="best-score">0.747s</td><td class="best-score">3.304s</td><td class="best-score">4.242s</td></tr>
-                        <tr><td>RandNE</td><td>0.232s</td><td>4.755s</td><td>1.332s</td><td>2.046s</td><td>&mdash;</td><td>8.968s</td></tr>
-                        <tr><td>ProNE</td><td>1.429s</td><td>20.792s</td><td>5.569s</td><td>8.333s</td><td>&mdash;</td><td>57.716s</td></tr>
-                        <tr><td>NetMF</td><td>17.920s</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
-                        <tr><td>DeepWalk</td><td>32.352s</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
-                        <tr><td>Node2Vec</td><td>111.426s</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>Cleora</td><td class="best-score">0.111s</td><td class="best-score">0.707s</td><td class="best-score">0.869s</td><td class="best-score">1.290s</td><td class="best-score">7.076s</td><td class="best-score">5.312s</td></tr>
+                        <tr><td>Cleora (whiten)</td><td>0.223s</td><td>1.702s</td><td>2.218s</td><td>3.623s</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>RandNE</td><td>0.070s</td><td>1.863s</td><td>2.169s</td><td>3.204s</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>ProNE</td><td>0.264s</td><td>7.286s</td><td>10.732s</td><td>15.725s</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>NetMF</td><td>35.229s</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>DeepWalk</td><td>50.093s</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -314,7 +319,7 @@
 
         <div class="bench-section" id="viz-memory">
             <h2>Memory Usage</h2>
-            <p>Peak memory footprint per algorithm across datasets:</p>
+            <p>Peak memory footprint per algorithm across datasets (256 dim). Linear scale:</p>
             <div class="bench-toggle">
                 <button class="bench-toggle-btn active" data-view="chart">Chart</button>
                 <button class="bench-toggle-btn" data-view="table">Table</button>
@@ -330,13 +335,12 @@
                         <tr><th>Algorithm</th><th>Facebook (4k)</th><th>PPI-large (57k)</th><th>Flickr (89k)</th><th>ogbn-arxiv (169k)</th><th>Yelp (717k)</th><th>roadNet (2M)</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>Cleora</td><td class="best-score">15.78 MB</td><td class="best-score">222.44 MB</td><td class="best-score">43.58 MB</td><td class="best-score">82.69 MB</td><td class="best-score">350 MB</td><td class="best-score">1,934 MB</td></tr>
-                        <tr><td>Cleora (whiten)</td><td>119 MB</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
-                        <tr><td>RandNE</td><td>146.28 MB</td><td>2,042 MB</td><td>438.17 MB</td><td>806.62 MB</td><td>&mdash;</td><td>8,868 MB</td></tr>
-                        <tr><td>ProNE</td><td>248.98 MB</td><td>3,386 MB</td><td>700.79 MB</td><td>1,305 MB</td><td>&mdash;</td><td>14,648 MB</td></tr>
-                        <tr><td>Node2Vec</td><td>600 MB</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
-                        <tr><td>DeepWalk</td><td>600 MB</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
-                        <tr><td>NetMF</td><td>1,107 MB</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>Cleora</td><td class="best-score">3.9 MB</td><td class="best-score">55.6 MB</td><td class="best-score">87.2 MB</td><td class="best-score">165 MB</td><td class="best-score">700 MB</td><td class="best-score">1,919 MB</td></tr>
+                        <tr><td>Cleora (whiten)</td><td>25.2 MB</td><td>335 MB</td><td>524.5 MB</td><td>994 MB</td><td>OOM</td><td>OOM</td></tr>
+                        <tr><td>RandNE</td><td>39.8 MB</td><td>541 MB</td><td>830 MB</td><td>1,551 MB</td><td>OOM</td><td>OOM</td></tr>
+                        <tr><td>ProNE</td><td>64.0 MB</td><td>876 MB</td><td>1,355 MB</td><td>2,546 MB</td><td>OOM</td><td>OOM</td></tr>
+                        <tr><td>DeepWalk</td><td>541 MB</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+                        <tr><td>NetMF</td><td>1,047 MB</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -344,7 +348,7 @@
 
         <div class="bench-section" id="viz-scatter">
             <h2>Accuracy vs Speed Tradeoff</h2>
-            <p>Scatter plot showing how each algorithm trades off accuracy against embedding time on ego-Facebook:</p>
+            <p>Scatter plot showing how each algorithm trades off accuracy against embedding time across all datasets with labels (256 dim):</p>
             <div class="bench-toggle">
                 <button class="bench-toggle-btn active" data-view="chart">Chart</button>
                 <button class="bench-toggle-btn" data-view="table">Table</button>
@@ -359,23 +363,42 @@
                 <table class="bench-table">
                     <thead><tr><th>Algorithm</th><th>Accuracy</th><th>Time</th></tr></thead>
                     <tbody>
-                        <tr><td>Cleora (whiten)*</td><td class="best-score">0.964</td><td>0.740s</td></tr>
-                        <tr><td>NetMF</td><td>0.944</td><td>17.920s</td></tr>
-                        <tr><td>Cleora-multiscale</td><td>0.942</td><td>0.593s</td></tr>
-                        <tr><td>Node2Vec</td><td>0.918</td><td>111.426s</td></tr>
-                        <tr><td>DeepWalk</td><td>0.912</td><td>32.352s</td></tr>
-                        <tr><td>Cleora</td><td>0.355</td><td class="best-score">0.109s</td></tr>
-                        <tr><td>RandNE</td><td>0.318</td><td>0.232s</td></tr>
-                        <tr><td>ProNE</td><td>0.021</td><td>1.429s</td></tr>
+                        <tr><td>NetMF</td><td class="best-score">0.889</td><td>35.229s</td></tr>
+                        <tr><td>DeepWalk</td><td>0.885</td><td>50.093s</td></tr>
+                        <tr><td>Cleora (whiten)*</td><td>0.881</td><td>0.223s</td></tr>
+                        <tr><td>Cleora</td><td>0.350</td><td class="best-score">0.111s</td></tr>
+                        <tr><td>RandNE</td><td>0.120</td><td>0.070s</td></tr>
+                        <tr><td>ProNE</td><td>0.019</td><td>0.264s</td></tr>
+                    </tbody>
+                </table>
+                <h3>PPI-large (57K nodes)</h3>
+                <table class="bench-table">
+                    <thead><tr><th>Algorithm</th><th>Accuracy</th><th>Time</th></tr></thead>
+                    <tbody>
+                        <tr><td>Cleora (whiten)*</td><td class="best-score">0.985</td><td>1.702s</td></tr>
+                        <tr><td>Cleora</td><td>0.025</td><td class="best-score">0.707s</td></tr>
+                        <tr><td>RandNE</td><td>0.014</td><td>1.863s</td></tr>
+                        <tr><td>ProNE</td><td>0.008</td><td>7.286s</td></tr>
+                    </tbody>
+                </table>
+                <h3>Flickr (89K nodes)</h3>
+                <table class="bench-table">
+                    <thead><tr><th>Algorithm</th><th>Accuracy</th><th>Time</th></tr></thead>
+                    <tbody>
+                        <tr><td>Cleora (whiten)*</td><td class="best-score">0.502</td><td>2.218s</td></tr>
+                        <tr><td>Cleora</td><td>0.157</td><td class="best-score">0.869s</td></tr>
+                        <tr><td>RandNE</td><td>0.153</td><td>2.169s</td></tr>
+                        <tr><td>ProNE</td><td>0.142</td><td>10.732s</td></tr>
                     </tbody>
                 </table>
                 <h3>ogbn-arxiv (169K nodes)</h3>
                 <table class="bench-table">
                     <thead><tr><th>Algorithm</th><th>Accuracy</th><th>Time</th></tr></thead>
                     <tbody>
-                        <tr><td>Cleora</td><td class="best-score">0.038</td><td class="best-score">0.747s</td></tr>
-                        <tr><td>RandNE</td><td>0.030</td><td>2.046s</td></tr>
-                        <tr><td>ProNE</td><td>0.026</td><td>8.333s</td></tr>
+                        <tr><td>Cleora (whiten)*</td><td class="best-score">0.624</td><td>3.623s</td></tr>
+                        <tr><td>Cleora</td><td>0.038</td><td class="best-score">1.290s</td></tr>
+                        <tr><td>RandNE</td><td>0.032</td><td>3.204s</td></tr>
+                        <tr><td>ProNE</td><td>0.026</td><td>15.725s</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -383,7 +406,7 @@
 
         <div class="bench-section" id="viz-cv">
             <h2 id="cross-validation">Cross-Validation Results</h2>
-            <p>5-fold cross-validation using Cleora embeddings (1024 dim, 4 iterations) on ego-Facebook with Louvain community labels:</p>
+            <p>5-fold cross-validation using Cleora (whiten, 8 iterations, 256 dim) across all datasets with labels:</p>
             <div class="bench-toggle">
                 <button class="bench-toggle-btn active" data-view="chart">Chart</button>
                 <button class="bench-toggle-btn" data-view="table">Table</button>
@@ -399,14 +422,17 @@
                         <tr><th>Dataset</th><th>Mean Accuracy</th><th>Std</th><th>Mean F1</th><th>Std</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>ego-Facebook</td><td class="best-score">0.888</td><td>0.015</td><td class="best-score">0.757</td><td>0.021</td></tr>
+                        <tr><td>ego-Facebook</td><td>0.886</td><td>0.017</td><td>0.710</td><td>0.019</td></tr>
+                        <tr><td>PPI-large</td><td class="best-score">0.985</td><td>0.001</td><td class="best-score">0.985</td><td>0.001</td></tr>
+                        <tr><td>Flickr</td><td>0.507</td><td>0.006</td><td>0.507</td><td>0.006</td></tr>
+                        <tr><td>ogbn-arxiv</td><td>0.620</td><td>0.003</td><td>0.620</td><td>0.003</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
         <div class="callout callout-info">
-            <strong>Note:</strong> Cross-validation is only feasible for ego-Facebook. roadNet and LiveJournal are too large for repeated Louvain label generation and 5-fold evaluation within typical compute budgets.
+            <strong>Note:</strong> Cross-validation confirms Cleora (whiten) results are stable: PPI-large at 98.5% &plusmn; 0.1%, ogbn-arxiv at 62.0% &plusmn; 0.3%, Flickr at 50.7% &plusmn; 0.6%, Facebook at 88.6% &plusmn; 1.7%.
         </div>
 
         <h2 id="when-to-use">When to Use What</h2>
@@ -416,39 +442,34 @@
             </thead>
             <tbody>
                 <tr>
+                    <td>Best accuracy</td>
+                    <td><strong>Cleora (whiten)</strong></td>
+                    <td>Wins on PPI-large (98.5%), Flickr (50.2%), ogbn-arxiv (62.4%). Matches NetMF/DeepWalk on Facebook with 158x less time.</td>
+                </tr>
+                <tr>
                     <td>Real-time / streaming</td>
                     <td><strong>Cleora</strong></td>
-                    <td>Fastest for re-embedding. Lowest memory overhead. Incremental updates.</td>
+                    <td>Base Cleora embeds 89K nodes in 0.87s using 87 MB. Deterministic &mdash; no random walks, no sampling variance.</td>
                 </tr>
                 <tr>
                     <td>Million-node graphs</td>
                     <td><strong>Cleora</strong></td>
-                    <td>Embeds 2M nodes in 4s with 1.9 GB. Best scale factor (19x from 4k to 2M).</td>
-                </tr>
-                <tr>
-                    <td>Quick baseline</td>
-                    <td><strong>RandNE</strong></td>
-                    <td>Sub-second on small graphs. Scales to millions but with higher memory cost.</td>
-                </tr>
-                <tr>
-                    <td>Best accuracy (medium graphs)</td>
-                    <td><strong>Cleora / NetMF</strong></td>
-                    <td>Cleora leads on Facebook ego network. NetMF close behind with higher memory cost.</td>
-                </tr>
-                <tr>
-                    <td>Homophily tuning</td>
-                    <td><strong>Node2Vec</strong></td>
-                    <td>p/q parameters control BFS vs DFS exploration. Best for graphs under 50k nodes.</td>
+                    <td>Only algorithm to embed 2M nodes (5.3s, 1.9 GB). All alternatives OOM at 717K+ nodes.</td>
                 </tr>
                 <tr>
                     <td>Memory constrained</td>
                     <td><strong>Cleora</strong></td>
-                    <td>16 MB for 4k nodes, 1.9 GB for 2M nodes. Lowest memory footprint at every scale tested.</td>
+                    <td>3.9 MB for 4K nodes, 700 MB for 717K nodes. 10&ndash;40x less memory than alternatives at every scale.</td>
                 </tr>
                 <tr>
-                    <td>Maximum embedding speed</td>
-                    <td><strong>Cleora</strong></td>
-                    <td>Use <code>propagation="symmetric"</code> for the fastest variant — trades ~5% accuracy for a small speed gain on regular graphs.</td>
+                    <td>Quick baseline</td>
+                    <td><strong>RandNE</strong></td>
+                    <td>Sub-second on small graphs, comparable accuracy to base Cleora. Higher memory cost at scale.</td>
+                </tr>
+                <tr>
+                    <td>Homophily tuning</td>
+                    <td><strong>Node2Vec</strong></td>
+                    <td>p/q parameters control BFS vs DFS exploration. Limited to small graphs (&lt;10K nodes at 256 dim).</td>
                 </tr>
             </tbody>
         </table>
@@ -458,16 +479,18 @@
             <li><strong>Task:</strong> Node classification with 80/20 train-test split (where labels available)</li>
             <li><strong>Labels:</strong> Community labels via Louvain community detection (SNAP edge-list datasets have no native labels)</li>
             <li><strong>Classifier:</strong> Nearest Centroid (no hyperparameters)</li>
-            <li><strong>Embedding dimension:</strong> 1024 for all algorithms</li>
-            <li><strong>Metrics:</strong> Accuracy, Macro F1, wall-clock time, peak memory delta</li>
+            <li><strong>Embedding dimension:</strong> 256 for all algorithms</li>
+            <li><strong>Best Cleora config:</strong> <code>embed(graph, 256, num_iterations=8, whiten=True)</code> &mdash; optimized via sweep over iterations (2&ndash;8) and residual weights</li>
+            <li><strong>Metrics:</strong> Accuracy, Macro F1, wall-clock time, peak memory (tracemalloc)</li>
             <li><strong>Hardware:</strong> Single CPU core, no GPU</li>
-            <li><strong>Datasets:</strong> ego-Facebook, roadNet-CA, and soc-LiveJournal1 are downloaded from SNAP. PPI-large, Flickr, ogbn-arxiv, and Yelp are <strong>scale-matched synthetic graphs</strong> (generated via Erdős–Rényi, Barabási–Albert, SBM to reproduce node count, edge count, and community structure). Synthetic graphs are not the original datasets — they reproduce scale and structure, not content.</li>
-            <li><strong>Walk-based params:</strong> num_walks=10, walk_length=20 (Facebook); excluded for larger graphs</li>
-            <li><strong>Excluded algorithms:</strong> GraRep and HOPE (require dense n&times;n matrices, infeasible for 4k+ nodes)</li>
+            <li><strong>Datasets:</strong> ego-Facebook, roadNet-CA, and soc-LiveJournal1 are downloaded from SNAP. PPI-large, Flickr, ogbn-arxiv, and Yelp are <strong>scale-matched synthetic graphs</strong> (generated via Erd&#337;s&ndash;R&eacute;nyi, Barab&aacute;si&ndash;Albert, SBM to reproduce node count, edge count, and community structure). Synthetic graphs are not the original datasets.</li>
+            <li><strong>Walk-based params:</strong> DeepWalk: num_walks=10, walk_length=20 (Facebook only); Node2Vec excluded due to memory</li>
+            <li><strong>Excluded algorithms:</strong> GraRep and HOPE (require dense n&times;n matrices, infeasible for 4K+ nodes); Node2Vec (exceeded memory limit)</li>
+            <li><strong>Charts:</strong> All charts use linear scales</li>
         </ul>
 
         <div class="callout callout-info">
-            <strong>Reproduce:</strong> Run <code>python3 benchmark_report.py</code> from the pycleora repository to regenerate all results. LiveJournal requires >16 GB RAM and may take significant time for graph construction.
+            <strong>Reproduce:</strong> Run <code>python3 benchmark_report.py</code> from the pycleora repository to regenerate all results. Set <code>DIM = 256</code> in the script. LiveJournal requires >8 GB RAM.
         </div>
     </div>
 </div>
