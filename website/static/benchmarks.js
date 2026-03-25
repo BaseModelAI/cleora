@@ -14,12 +14,13 @@ const COLORS = {
 };
 
 const ALGO_COLORS = {
-    'Cleora':     '#6c63ff',
-    'ProNE':      '#f59e0b',
-    'RandNE':     '#ef4444',
-    'NetMF':      '#3b82f6',
-    'DeepWalk':   '#f472b6',
-    'Node2Vec':   '#fb923c',
+    'Cleora':           '#6c63ff',
+    'Cleora (whiten)':  '#6c63ff',
+    'ProNE':            '#f59e0b',
+    'RandNE':           '#ef4444',
+    'NetMF':            '#3b82f6',
+    'DeepWalk':         '#f472b6',
+    'Node2Vec':         '#fb923c',
 };
 
 const DATASETS = ['ego-Facebook', 'PPI-large', 'Flickr', 'ogbn-arxiv', 'Yelp'];
@@ -56,7 +57,7 @@ const MEMORY_DATA = {
 
 const SCATTER_DATA = {
     'ego-Facebook': {
-        'Cleora':     { acc: 0.964, time: 0.740 },
+        'Cleora (whiten)': { acc: 0.964, time: 0.740 },
         'NetMF':      { acc: 0.944, time: 17.920 },
         'Node2Vec':   { acc: 0.918, time: 111.426 },
         'DeepWalk':   { acc: 0.912, time: 32.352 },

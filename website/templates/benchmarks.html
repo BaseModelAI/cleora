@@ -31,11 +31,15 @@
 
     <div class="docs-content">
         <h1>Benchmark Results</h1>
-        <p>7 algorithms compared across 7 datasets (3 SNAP + 4 standard benchmarks). Node classification accuracy using Nearest Centroid classifier on 80/20 train-test split.</p>
+        <p>7 algorithms compared across 7 datasets (3 SNAP downloads + 4 scale-matched synthetic). Node classification accuracy using Nearest Centroid classifier (zero hyperparameters) on 80/20 train-test split. Absolute accuracy is deliberately low — we use the simplest possible classifier to isolate embedding quality, not model performance.</p>
+
+        <div class="callout callout-info">
+            <strong>Dataset note:</strong> ego-Facebook, roadNet-CA, and soc-LiveJournal1 are downloaded from SNAP. PPI-large, Flickr, ogbn-arxiv, and Yelp are <strong>scale-matched synthetic graphs</strong> (generated via SBM/Erdős–Rényi to reproduce node count, edge count, and community structure). They are not the original datasets. See <a href="#methodology">Methodology</a> for details.
+        </div>
 
         <div class="bench-section" id="viz-accuracy">
             <h2 id="summary">Summary Table</h2>
-            <p>Best accuracy per dataset. <span class="best-score">Green</span> = best on that dataset. "&mdash;" = excluded (too large or not applicable). Cleora results use <code>whiten=True</code> with auto-tuned iterations for optimal quality.</p>
+            <p>Best accuracy per dataset. <span class="best-score">Green</span> = best on that dataset. "&mdash;" = excluded (too large or not applicable). * = uses <code>whiten=True</code> post-processing.</p>
             <div class="bench-toggle">
                 <button class="bench-toggle-btn active" data-view="chart">Chart</button>
                 <button class="bench-toggle-btn" data-view="table">Table</button>
@@ -65,7 +69,7 @@
                             <td>ego-Facebook</td>
                             <td>4,039</td>
                             <td>88,234</td>
-                            <td class="best-score">0.964</td>
+                            <td class="best-score">0.964*</td>
                             <td>0.021</td>
                             <td>0.318</td>
                             <td>0.944</td>
@@ -355,7 +359,7 @@
                 <table class="bench-table">
                     <thead><tr><th>Algorithm</th><th>Accuracy</th><th>Time</th></tr></thead>
                     <tbody>
-                        <tr><td>Cleora (whiten)</td><td class="best-score">0.964</td><td>0.740s</td></tr>
+                        <tr><td>Cleora (whiten)*</td><td class="best-score">0.964</td><td>0.740s</td></tr>
                         <tr><td>NetMF</td><td>0.944</td><td>17.920s</td></tr>
                         <tr><td>Cleora-multiscale</td><td>0.942</td><td>0.593s</td></tr>
                         <tr><td>Node2Vec</td><td>0.918</td><td>111.426s</td></tr>
@@ -414,7 +418,7 @@
                 <tr>
                     <td>Real-time / streaming</td>
                     <td><strong>Cleora</strong></td>
-                    <td>Fastest for re-embedding. Constant memory. Incremental updates.</td>
+                    <td>Fastest for re-embedding. Lowest memory overhead. Incremental updates.</td>
                 </tr>
                 <tr>
                     <td>Million-node graphs</td>
@@ -439,7 +443,7 @@
                 <tr>
                     <td>Memory constrained</td>
                     <td><strong>Cleora</strong></td>
-                    <td>4 MB for 4k-node graph. 1.9 GB for 2M nodes. Best memory efficiency at every scale.</td>
+                    <td>16 MB for 4k nodes, 1.9 GB for 2M nodes. Lowest memory footprint at every scale tested.</td>
                 </tr>
                 <tr>
                     <td>Maximum embedding speed</td>
@@ -457,7 +461,7 @@
             <li><strong>Embedding dimension:</strong> 1024 for all algorithms</li>
             <li><strong>Metrics:</strong> Accuracy, Macro F1, wall-clock time, peak memory delta</li>
             <li><strong>Hardware:</strong> Single CPU core, no GPU</li>
-            <li><strong>Datasets:</strong> Benchmarks use synthetically generated graphs (Erdős–Rényi, Barabási–Albert, SBM) with node and edge counts matching named real-world datasets. PPI-large, Flickr, ogbn-arxiv, and Yelp are simulated at matching scale; ego-Facebook, roadNet-CA, and soc-LiveJournal1 are downloaded from SNAP. Synthetic graphs are not the original datasets — they reproduce scale and community structure, not content.</li>
+            <li><strong>Datasets:</strong> ego-Facebook, roadNet-CA, and soc-LiveJournal1 are downloaded from SNAP. PPI-large, Flickr, ogbn-arxiv, and Yelp are <strong>scale-matched synthetic graphs</strong> (generated via Erdős–Rényi, Barabási–Albert, SBM to reproduce node count, edge count, and community structure). Synthetic graphs are not the original datasets — they reproduce scale and structure, not content.</li>
             <li><strong>Walk-based params:</strong> num_walks=10, walk_length=20 (Facebook); excluded for larger graphs</li>
             <li><strong>Excluded algorithms:</strong> GraRep and HOPE (require dense n&times;n matrices, infeasible for 4k+ nodes)</li>
         </ul>

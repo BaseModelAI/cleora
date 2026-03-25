@@ -38,7 +38,7 @@
 
     <div class="docs-content">
         <h1>Documentation</h1>
-        <p>Complete guide to pycleora 3.0 — the fastest CPU-only graph embedding library.</p>
+        <p>Complete guide to pycleora 3.2 — the fastest CPU-only graph embedding library.</p>
 
         <h2 id="installation">Installation</h2>
         <h3>From PyPI (recommended)</h3>
@@ -127,7 +127,7 @@ emb_multi = <span class="code-func">embed_multiscale</span>(graph, feature_dim=<
 
         <h2 id="algorithms">Alternative Algorithms</h2>
         <div class="callout callout-info">
-            <strong>Note on negative sampling:</strong> DeepWalk, Node2Vec, NetMF, and GraRep all require negative sampling to approximate random walks. This introduces noise, stochastic variation, and reproducibility issues. Cleora eliminates negative sampling entirely — it computes all walks exactly via a single sparse matrix multiplication.
+            <strong>Cleora vs walk-based methods:</strong> DeepWalk and Node2Vec sample random walks and train a skip-gram model (which uses negative sampling to approximate the softmax). NetMF factorizes the same co-occurrence matrix directly but still requires a negative sampling parameter. Cleora eliminates both walk sampling and skip-gram training entirely — it computes the full walk distribution via matrix powers.
         </div>
         <pre><code><span class="code-keyword">from</span> pycleora.algorithms <span class="code-keyword">import</span> (
     embed_deepwalk, embed_node2vec,
