@@ -15,7 +15,6 @@ const COLORS = {
 
 const ALGO_COLORS = {
     'Cleora':     '#6c63ff',
-    'Cleora-sym': '#8b83ff',
     'ProNE':      '#f59e0b',
     'RandNE':     '#ef4444',
     'NetMF':      '#3b82f6',
@@ -24,11 +23,10 @@ const ALGO_COLORS = {
 };
 
 const DATASETS = ['ego-Facebook', 'PPI-large', 'Flickr', 'ogbn-arxiv', 'Yelp'];
-const ALGORITHMS = ['Cleora', 'Cleora-sym', 'ProNE', 'RandNE', 'NetMF', 'DeepWalk', 'Node2Vec'];
+const ALGORITHMS = ['Cleora', 'ProNE', 'RandNE', 'NetMF', 'DeepWalk', 'Node2Vec'];
 
 const SUMMARY_DATA = {
     'Cleora':     [0.964, 0.027, 0.158, 0.038, 0.013],
-    'Cleora-sym': [0.293, 0.026, 0.158, 0.038, null],
     'ProNE':      [0.021, 0.009, 0.139, 0.026, null],
     'RandNE':     [0.318, 0.026, 0.146, 0.030, null],
     'NetMF':      [0.944, null,  null,  null,  null],
@@ -37,23 +35,23 @@ const SUMMARY_DATA = {
 };
 
 const SPEED_DATA = {
-    algorithms: ['Cleora', 'Cleora-sym', 'RandNE', 'ProNE', 'NetMF', 'DeepWalk', 'Node2Vec'],
-    facebook:   [0.109,    0.103,        0.232,   1.429,    17.920,  32.352,      111.426],
-    ppi_large:  [1.693,    1.605,        4.755,   20.792,   null,    null,         null],
-    flickr:     [0.475,    0.436,        1.332,   5.569,    null,    null,         null],
-    ogbn_arxiv: [0.747,    0.752,        2.046,   8.333,    null,    null,         null],
-    yelp:       [3.304,    3.162,        null,    null,     null,    null,         null],
-    roadnet:    [4.242,    4.269,        8.968,   57.716,   null,    null,         null],
+    algorithms: ['Cleora', 'RandNE', 'ProNE', 'NetMF', 'DeepWalk', 'Node2Vec'],
+    facebook:   [0.109,    0.232,   1.429,    17.920,  32.352,      111.426],
+    ppi_large:  [1.693,    4.755,   20.792,   null,    null,         null],
+    flickr:     [0.436,    1.332,   5.569,    null,    null,         null],
+    ogbn_arxiv: [0.747,    2.046,   8.333,    null,    null,         null],
+    yelp:       [3.304,    null,    null,     null,    null,         null],
+    roadnet:    [4.242,    8.968,   57.716,   null,    null,         null],
 };
 
 const MEMORY_DATA = {
-    algorithms: ['Cleora', 'Cleora-sym', 'RandNE', 'ProNE', 'Node2Vec', 'DeepWalk', 'NetMF'],
-    facebook:   [15.78,    15.78,        146.28,   248.98,  600,        600,         1107],
-    ppi_large:  [222.44,   222.44,       2042.46,  3385.77, null,       null,         null],
-    flickr:     [43.58,    43.58,        438.17,   700.79,  null,       null,         null],
-    ogbn_arxiv: [82.69,    82.69,        806.62,   1305,    null,       null,         null],
-    yelp:       [350,      350,          null,     null,    null,       null,         null],
-    roadnet:    [1934,     1934,         8868,     14648,   null,       null,         null],
+    algorithms: ['Cleora', 'RandNE', 'ProNE', 'Node2Vec', 'DeepWalk', 'NetMF'],
+    facebook:   [15.78,    146.28,   248.98,  600,        600,         1107],
+    ppi_large:  [222.44,   2042.46,  3385.77, null,       null,         null],
+    flickr:     [43.58,    438.17,   700.79,  null,       null,         null],
+    ogbn_arxiv: [82.69,    806.62,   1305,    null,       null,         null],
+    yelp:       [350,      null,     null,    null,       null,         null],
+    roadnet:    [1934,     8868,     14648,   null,       null,         null],
 };
 
 const SCATTER_DATA = {
@@ -63,12 +61,10 @@ const SCATTER_DATA = {
         'Node2Vec':   { acc: 0.918, time: 111.426 },
         'DeepWalk':   { acc: 0.912, time: 32.352 },
         'RandNE':     { acc: 0.318, time: 0.232 },
-        'Cleora-sym': { acc: 0.293, time: 0.103 },
         'ProNE':      { acc: 0.021, time: 1.429 },
     },
     'ogbn-arxiv': {
         'Cleora':     { acc: 0.038, time: 0.747 },
-        'Cleora-sym': { acc: 0.038, time: 0.752 },
         'RandNE':     { acc: 0.030, time: 2.046 },
         'ProNE':      { acc: 0.026, time: 8.333 },
     },
@@ -118,7 +114,7 @@ function buildAccuracyChart() {
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: {
-                title: { display: true, text: 'Accuracy per Algorithm — ego-Facebook', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Accuracy per Algorithm — All Datasets', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
                     callbacks: {
                         label: ctx => {
