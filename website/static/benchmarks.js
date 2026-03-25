@@ -38,7 +38,7 @@ const SPEED_DATA = {
     algorithms: ['Cleora', 'RandNE', 'ProNE', 'NetMF', 'DeepWalk', 'Node2Vec'],
     facebook:   [0.109,    0.232,   1.429,    17.920,  32.352,      111.426],
     ppi_large:  [1.693,    4.755,   20.792,   null,    null,         null],
-    flickr:     [0.436,    1.332,   5.569,    null,    null,         null],
+    flickr:     [0.475,    1.332,   5.569,    null,    null,         null],
     ogbn_arxiv: [0.747,    2.046,   8.333,    null,    null,         null],
     yelp:       [3.304,    null,    null,     null,    null,         null],
     roadnet:    [4.242,    8.968,   57.716,   null,    null,         null],
