@@ -535,6 +535,13 @@ nav {
     height: 15px;
 }
 
+.comparison-footnote {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 12px;
+    font-style: italic;
+}
+
 .table-wrapper {
     position: relative;
     overflow-x: auto;
