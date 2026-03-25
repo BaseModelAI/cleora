@@ -453,7 +453,7 @@
     <div class="section-header scroll-reveal">
         <div class="section-badge">Capabilities</div>
         <h2>Everything You Need in One Package</h2>
-        <p>No external dependencies. No GPU. Production-ready graph embeddings.</p>
+        <p>Minimal dependencies (just numpy + scipy). No GPU. Production-ready graph embeddings.</p>
     </div>
     <div class="feature-grid">
         <div class="feature-card scroll-reveal">
@@ -461,7 +461,7 @@
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/><line x1="12" y1="22" x2="12" y2="15.5"/><polyline points="22 8.5 12 15.5 2 8.5"/></svg>
             </div>
             <h3>7 Alternative Algorithms</h3>
-            <p>ProNE, RandNE, HOPE, NetMF, GraRep, DeepWalk, Node2Vec included as comparison baselines. Cleora outperforms all of them — unified under one API so you can verify that yourself.</p>
+            <p>ProNE, RandNE, HOPE, NetMF, GraRep, DeepWalk, Node2Vec — all included as comparison baselines under one API. Cleora is faster and leaner than every one of them, and matches or beats accuracy with whitening enabled.</p>
         </div>
         <div class="feature-card scroll-reveal" data-delay="50">
             <div class="feature-icon-svg">
@@ -526,7 +526,7 @@
     <div class="section-header scroll-reveal">
         <div class="section-badge">Benchmarks</div>
         <h2>Real Numbers, Reproducible Benchmarks</h2>
-        <p>Benchmarked on synthetic graphs generated to match the scale of well-known datasets — same node and edge counts, community-structured topology. From 4K to 2M+ nodes. Cleora wins on accuracy, speed, and memory.</p>
+        <p>Benchmarked on synthetic graphs generated to match the scale of well-known datasets — same node and edge counts, community-structured topology. From 4K to 2M+ nodes. Cleora leads on speed and memory at every scale — and tops accuracy with whitening enabled.</p>
     </div>
 
     <div class="bench-highlights bench-grid-3x2">
@@ -534,7 +534,7 @@
             <h3>ego-Facebook <span class="bench-meta">4K nodes &middot; 88K edges &middot; Accuracy</span></h3>
             <div class="bench-bars">
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
-                    <span class="bench-bar-label">Cleora</span>
+                    <span class="bench-bar-label">Cleora*</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill bench-bar-best" data-width="96.4" style="width: 0%">
                             <span class="bench-bar-value">0.964</span>
@@ -570,38 +570,38 @@
                     <span class="bench-bar-time">32.4s</span>
                 </div>
             </div>
-            <div class="bench-insight">Highest accuracy <em>and</em> 24x faster than NetMF &mdash; 119 MB vs 1.1 GB</div>
+            <div class="bench-insight">* = whiten variant. Highest accuracy <em>and</em> 24x faster than NetMF &mdash; 119 MB vs 1.1 GB</div>
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="50">
-            <h3>PPI-large <span class="bench-meta">57K nodes &middot; 793K edges &middot; Speed</span></h3>
+            <h3>PPI-large <span class="bench-meta">57K nodes &middot; 819K edges &middot; Speed</span></h3>
             <div class="bench-bars">
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
                     <span class="bench-bar-label">Cleora</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill bench-bar-best" data-width="95" style="width: 0%">
-                            <span class="bench-bar-value">0.33s</span>
+                            <span class="bench-bar-value">1.69s</span>
                         </div>
                     </div>
-                    <span class="bench-bar-time">28 MB</span>
+                    <span class="bench-bar-time">222 MB</span>
                 </div>
                 <div class="bench-bar-row scroll-reveal" data-delay="50">
                     <span class="bench-bar-label">RandNE</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill" data-width="65" style="width: 0%">
-                            <span class="bench-bar-value">1.07s</span>
+                            <span class="bench-bar-value">4.76s</span>
                         </div>
                     </div>
-                    <span class="bench-bar-time">291 MB</span>
+                    <span class="bench-bar-time">2,042 MB</span>
                 </div>
                 <div class="bench-bar-row scroll-reveal" data-delay="100">
                     <span class="bench-bar-label">ProNE</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill" data-width="25" style="width: 0%">
-                            <span class="bench-bar-value">8.34s</span>
+                            <span class="bench-bar-value">20.8s</span>
                         </div>
                     </div>
-                    <span class="bench-bar-time">458 MB</span>
+                    <span class="bench-bar-time">3,386 MB</span>
                 </div>
                 <div class="bench-bar-row scroll-reveal" data-delay="150">
                     <span class="bench-bar-label">NetMF</span>
@@ -613,7 +613,7 @@
                     <span class="bench-bar-time">&#x2715;</span>
                 </div>
             </div>
-            <div class="bench-insight"><em>25x faster</em> than ProNE, using <em>16x less memory</em></div>
+            <div class="bench-insight"><em>12x faster</em> than ProNE, using <em>15x less memory</em></div>
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="100">
@@ -703,7 +703,7 @@
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="200">
-            <h3>Yelp <span class="bench-meta">717K nodes &middot; 13.9M edges &middot; Scale</span></h3>
+            <h3>Yelp <span class="bench-meta">717K nodes &middot; 7M edges &middot; Scale</span></h3>
             <div class="bench-bars">
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
                     <span class="bench-bar-label">Cleora</span>
@@ -794,8 +794,8 @@
         <div class="memory-strip-items">
             <div class="memory-strip-item">
                 <div class="memory-strip-dataset">PPI-large <span>57K</span></div>
-                <div class="memory-strip-compare"><strong>28 MB</strong> vs 458 MB</div>
-                <div class="memory-strip-factor">16x less</div>
+                <div class="memory-strip-compare"><strong>222 MB</strong> vs 3,386 MB</div>
+                <div class="memory-strip-factor">15x less</div>
             </div>
             <div class="memory-strip-item">
                 <div class="memory-strip-dataset">Flickr <span>89K</span></div>
@@ -850,7 +850,7 @@
             <div class="scale-nodes">2M</div>
             <div class="scale-label">roadNet</div>
         </div>
-        <div class="scale-factor">500x more nodes with only ~19x runtime increase &mdash; from 0.22s to 4.2s</div>
+        <div class="scale-factor">500x more nodes with only ~39x runtime increase &mdash; from 0.109s to 4.2s</div>
     </div>
 
     <div style="text-align: center; margin-top: 32px;" class="scroll-reveal">
@@ -935,7 +935,7 @@
         <thead>
             <tr>
                 <th>Feature</th>
-                <th class="highlight-col">pycleora 3.0</th>
+                <th class="highlight-col">pycleora 3.2</th>
                 <th data-lib="pyg">PyG</th>
                 <th data-lib="karateclub">KarateClub</th>
                 <th data-lib="cleora-orig">Original Cleora</th>
@@ -1197,7 +1197,7 @@
             </tr>
         </tbody>
     </table>
-    <p class="comparison-footnote">*) Benchmarked on synthetic datasets equal in size and complexity to the ones in the table, to ensure universality and robustness.</p>
+    <p class="comparison-footnote">Feature comparison only. Performance benchmarks are on the <a href="/benchmarks">Benchmarks</a> page (3 SNAP datasets + 4 scale-matched synthetic graphs).</p>
     </div>
 </section>
 

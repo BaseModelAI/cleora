@@ -14,8 +14,8 @@ const COLORS = {
 };
 
 const ALGO_COLORS = {
+    'Cleora (whiten)':  '#a78bfa',
     'Cleora':           '#6c63ff',
-    'Cleora (whiten)':  '#6c63ff',
     'ProNE':            '#f59e0b',
     'RandNE':           '#ef4444',
     'NetMF':            '#3b82f6',
@@ -24,10 +24,11 @@ const ALGO_COLORS = {
 };
 
 const DATASETS = ['ego-Facebook', 'PPI-large', 'Flickr', 'ogbn-arxiv', 'Yelp'];
-const ALGORITHMS = ['Cleora', 'ProNE', 'RandNE', 'NetMF', 'DeepWalk', 'Node2Vec'];
+const ALGORITHMS = ['Cleora (whiten)', 'Cleora', 'ProNE', 'RandNE', 'NetMF', 'DeepWalk', 'Node2Vec'];
 
 const SUMMARY_DATA = {
-    'Cleora':     [0.964, 0.027, 0.158, 0.038, 0.013],
+    'Cleora (whiten)': [0.964, null,  null,  null,  null],
+    'Cleora':     [0.355, 0.027, 0.158, 0.038, 0.013],
     'ProNE':      [0.021, 0.009, 0.139, 0.026, null],
     'RandNE':     [0.318, 0.026, 0.146, 0.030, null],
     'NetMF':      [0.944, null,  null,  null,  null],
