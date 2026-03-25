@@ -26,7 +26,6 @@
         <a href="#hope">embed_hope()</a>
 
         <h4>Classification</h4>
-        <a href="#gcn">gcn_classify()</a>
         <a href="#mlp">mlp_classify()</a>
         <a href="#label-prop">label_propagation()</a>
 
@@ -220,21 +219,6 @@
             <p>HOPE: Higher-Order Proximity Embedding. Preserves asymmetric relationships in directed graphs.</p>
             <div class="api-params">
                 <p><code>beta</code> : <em>float</em> — Decay factor for Katz similarity (default: 0.01)</p>
-            </div>
-        </div>
-
-        <h2 id="gcn">classify.gcn_classify()</h2>
-        <div class="api-method">
-            <h3>gcn_classify(graph, embeddings, labels, hidden_dim=64, num_layers=2, learning_rate=0.01, num_epochs=200, train_ratio=0.8, l2_reg=1e-4, seed=42)</h3>
-            <p>Graph Convolutional Network classifier. Pure numpy/scipy, no PyTorch. Symmetric normalization with ReLU activations.</p>
-            <div class="api-params">
-                <p><code>labels</code> : <em>Dict[str, int]</em> — Entity ID to class label mapping</p>
-                <p><code>hidden_dim</code> : <em>int</em> — Hidden layer size (default: 64)</p>
-                <p><code>num_layers</code> : <em>int</em> — Number of GCN layers (default: 2)</p>
-                <p><code>num_epochs</code> : <em>int</em> — Training epochs (default: 200)</p>
-                <p><code>train_ratio</code> : <em>float</em> — Fraction of labeled nodes for training (default: 0.8)</p>
-                <p><code>l2_reg</code> : <em>float</em> — L2 regularization weight (default: 1e-4)</p>
-                <p><strong>Returns:</strong> <code>Dict</code> with <code>accuracy</code>, <code>macro_f1</code></p>
             </div>
         </div>
 

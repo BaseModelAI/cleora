@@ -124,8 +124,8 @@
                 <h3>v3.0.0</h3>
                 <div class="changelog-date">March 2026 — Major Release</div>
 
-                <p><span class="changelog-tag tag-new">New</span> <strong>Mini-GNN (GCN) Classifier</strong></p>
-                <p>Pure numpy/scipy 2-layer Graph Convolutional Network. No PyTorch required. Symmetric normalization (D⁻¹/² Â D⁻¹/²), dropout, multi-layer support.</p>
+                <p><span class="changelog-tag tag-new">New</span> <strong>MLP Classifier &amp; Label Propagation</strong></p>
+                <p>Pure numpy/scipy classifiers for evaluating embedding quality. MLP for supervised node classification, Label Propagation for semi-supervised. No PyTorch required.</p>
 
                 <p><span class="changelog-tag tag-new">New</span> <strong>Graph Sampling Module (<code>pycleora.sampling</code>)</strong></p>
                 <p>7 methods: <code>sample_nodes</code>, <code>sample_edges</code>, <code>sample_neighborhood</code> (k-hop), <code>sample_subgraph</code>, <code>graphsaint_sample</code> (mini-batching), <code>negative_sampling</code>, <code>train_test_split_edges</code>.</p>
@@ -329,7 +329,7 @@
                         <tr><td>Propagation types</td><td>Left, symmetric</td><td>Left, symmetric + residual connections</td></tr>
                         <tr><td>Post-processing</td><td>None</td><td>Whitening, PCA compression, random projection, product quantization</td></tr>
                         <tr><td>Evaluation</td><td>None</td><td>12 metrics (accuracy, F1, AUC, MRR, Hits@K, MAP@K, nDCG, ARI, silhouette, modularity, cross-validation)</td></tr>
-                        <tr><td>Classification</td><td>None</td><td>GCN, MLP, label propagation</td></tr>
+                        <tr><td>Classification</td><td>None</td><td>MLP, label propagation</td></tr>
                         <tr><td>Community detection</td><td>None</td><td>K-means, spectral, Louvain + modularity</td></tr>
                         <tr><td>Graph analysis</td><td>None</td><td>Degree distribution, clustering coefficient, diameter, PageRank, betweenness centrality, connected components</td></tr>
                         <tr><td>Preprocessing</td><td>None</td><td>Self-loop removal, deduplication, degree filtering, LCC extraction</td></tr>

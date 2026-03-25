@@ -221,18 +221,18 @@ split = <span class="code-func">train_test_split_edges</span>(graph, test_ratio=
 neg_edges = <span class="code-func">negative_sampling</span>(graph, num_negatives=<span class="code-num">1000</span>)</code></pre>
 
         <h2 id="classification">Classification</h2>
-        <p>Three built-in classifiers — all pure numpy/scipy, no PyTorch or TensorFlow required:</p>
-        <pre><code><span class="code-keyword">from</span> pycleora.classify <span class="code-keyword">import</span> gcn_classify, mlp_classify, label_propagation
-
-<span class="code-comment"># Mini-GCN — graph convolution layers, pure numpy (no PyTorch)</span>
-result = <span class="code-func">gcn_classify</span>(graph, emb, labels, hidden_dim=<span class="code-num">64</span>, num_layers=<span class="code-num">2</span>)
-<span class="code-func">print</span>(<span class="code-string">f"Accuracy: </span>{result[<span class="code-string">'accuracy'</span>]:.4f}<span class="code-string">"</span>)
+        <p>Built-in classifiers — pure numpy/scipy, no PyTorch or TensorFlow required:</p>
+        <pre><code><span class="code-keyword">from</span> pycleora.classify <span class="code-keyword">import</span> mlp_classify, label_propagation
 
 <span class="code-comment"># MLP classifier — dense layers on embedding vectors</span>
 result = <span class="code-func">mlp_classify</span>(graph, emb, labels, hidden_dim=<span class="code-num">64</span>)
+<span class="code-func">print</span>(<span class="code-string">f"Accuracy: </span>{result[<span class="code-string">'accuracy'</span>]:.4f}<span class="code-string">"</span>)
 
 <span class="code-comment"># Semi-supervised label propagation — no embeddings needed</span>
 predictions = <span class="code-func">label_propagation</span>(graph, partial_labels)</code></pre>
+        <div class="callout callout-info">
+            <strong>Why MLP, not GCN?</strong> Cleora embeddings already encode multi-hop graph structure through iterative Markov propagation. A simple MLP is the right classifier — adding GCN graph convolution layers on top of already-convolved embeddings causes over-smoothing and adds no value. That's the whole point: Cleora replaces the GCN feature extraction step entirely.
+        </div>
 
         <h2 id="metrics">Evaluation Metrics</h2>
         <pre><code><span class="code-keyword">from</span> pycleora.metrics <span class="code-keyword">import</span> (
