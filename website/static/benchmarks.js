@@ -28,7 +28,7 @@ const DATASETS = ['ego-Facebook', 'Cora', 'CiteSeer', 'PubMed', 'PPI'];
 const ALGORITHMS = ['Cleora', 'ProNE', 'RandNE', 'HOPE', 'NetMF', 'GraRep', 'DeepWalk', 'Node2Vec'];
 
 const SUMMARY_DATA = {
-    'Cleora':          [0.986, 0.763, 0.692, 0.517, 1.000],
+    'Cleora':          [0.990, 0.861, 0.824, 0.879, 1.000],
     'ProNE':           [0.075, 0.179, 0.189, 0.339, 0.023],
     'RandNE':          [0.212, 0.247, 0.244, 0.351, 0.073],
     'HOPE':            [0.890, 0.821, 0.740, null,  null],
@@ -48,11 +48,11 @@ const FAILURE_STATUS = {
 
 const SPEED_DATA = {
     algorithms: ['Cleora', 'RandNE', 'ProNE', 'HOPE', 'NetMF', 'GraRep', 'DeepWalk', 'Node2Vec'],
-    facebook:   [0.62,     0.07,     0.26,    31.48,  28.81,   null,     59.21,      67.90],
-    cora:       [0.27,     0.03,     0.13,    17.00,  5.92,    29.18,    25.52,      25.99],
-    citeseer:   [0.21,     0.03,     0.13,    38.27,  7.26,    28.26,    30.58,      29.77],
-    pubmed:     [0.24,     0.22,     0.75,    null,   null,    null,     null,       null],
-    ppi:        [0.29,     0.07,     1.45,    null,   null,    null,     null,       null],
+    facebook:   [1.23,     0.07,     0.26,    31.48,  28.81,   null,     59.21,      67.90],
+    cora:       [1.03,     0.03,     0.13,    15.97,  4.23,    16.40,    24.11,      25.79],
+    citeseer:   [0.99,     0.02,     0.14,    19.56,  6.58,    27.25,    29.29,      29.59],
+    pubmed:     [1.40,     0.22,     0.75,    null,   null,    null,     null,       null],
+    ppi:        [1.23,     0.07,     1.45,    null,   null,    null,     null,       null],
     roadnet:    [31.500,   null,     null,    null,   null,    null,     null,       null],
 };
 
@@ -82,7 +82,7 @@ const MEMORY_FAILURE = {
 
 const SCATTER_DATA = {
     'ego-Facebook': {
-        'Cleora':          { acc: 0.986, time: 0.62 },
+        'Cleora':          { acc: 0.990, time: 1.23 },
         'ProNE':           { acc: 0.075, time: 0.26 },
         'RandNE':          { acc: 0.212, time: 0.07 },
         'HOPE':            { acc: 0.890, time: 31.48 },
@@ -91,32 +91,32 @@ const SCATTER_DATA = {
         'Node2Vec':        { acc: 0.958, time: 67.90 },
     },
     'Cora': {
-        'Cleora':          { acc: 0.763, time: 0.27 },
+        'Cleora':          { acc: 0.861, time: 1.03 },
         'ProNE':           { acc: 0.179, time: 0.13 },
         'RandNE':          { acc: 0.247, time: 0.03 },
-        'HOPE':            { acc: 0.821, time: 17.00 },
-        'NetMF':           { acc: 0.839, time: 5.92 },
-        'GraRep':          { acc: 0.809, time: 29.18 },
-        'DeepWalk':        { acc: 0.835, time: 25.52 },
-        'Node2Vec':        { acc: 0.835, time: 25.99 },
+        'HOPE':            { acc: 0.821, time: 15.97 },
+        'NetMF':           { acc: 0.839, time: 4.23 },
+        'GraRep':          { acc: 0.809, time: 16.40 },
+        'DeepWalk':        { acc: 0.835, time: 24.11 },
+        'Node2Vec':        { acc: 0.835, time: 25.79 },
     },
     'CiteSeer': {
-        'Cleora':          { acc: 0.692, time: 0.21 },
-        'ProNE':           { acc: 0.189, time: 0.13 },
-        'RandNE':          { acc: 0.244, time: 0.03 },
-        'HOPE':            { acc: 0.740, time: 38.27 },
-        'NetMF':           { acc: 0.810, time: 7.26 },
-        'GraRep':          { acc: 0.756, time: 28.26 },
-        'DeepWalk':        { acc: 0.806, time: 30.58 },
-        'Node2Vec':        { acc: 0.806, time: 29.77 },
+        'Cleora':          { acc: 0.824, time: 0.99 },
+        'ProNE':           { acc: 0.189, time: 0.14 },
+        'RandNE':          { acc: 0.244, time: 0.02 },
+        'HOPE':            { acc: 0.740, time: 19.56 },
+        'NetMF':           { acc: 0.810, time: 6.58 },
+        'GraRep':          { acc: 0.756, time: 27.25 },
+        'DeepWalk':        { acc: 0.806, time: 29.29 },
+        'Node2Vec':        { acc: 0.806, time: 29.59 },
     },
     'PubMed': {
-        'Cleora':          { acc: 0.517, time: 0.24 },
+        'Cleora':          { acc: 0.879, time: 1.40 },
         'ProNE':           { acc: 0.339, time: 0.75 },
         'RandNE':          { acc: 0.351, time: 0.22 },
     },
     'PPI': {
-        'Cleora':          { acc: 1.000, time: 0.29 },
+        'Cleora':          { acc: 1.000, time: 1.23 },
         'ProNE':           { acc: 0.023, time: 1.45 },
         'RandNE':          { acc: 0.073, time: 0.07 },
     },

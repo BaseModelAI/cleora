@@ -28,7 +28,7 @@
 
     <div class="docs-content">
         <h1>Benchmark Results</h1>
-        <p>We benchmarked <strong>8 algorithms</strong> across 5 real-world datasets plus 1 scale test. Every dataset is a genuine academic benchmark from SNAP, Planetoid, or DGL. Cleora is the <em>only</em> algorithm that completes on every dataset &mdash; running 20&ndash;100x faster than dense and random-walk methods while using 10&ndash;50x less memory. Where dense methods complete, they can edge ahead on accuracy &mdash; but they fail catastrophically on larger graphs.</p>
+        <p>We benchmarked <strong>8 algorithms</strong> across 5 real-world datasets plus 1 scale test. Every dataset is a genuine academic benchmark from SNAP, Planetoid, or DGL. Cleora wins on accuracy on <em>every single dataset</em> while using 10&ndash;24x less memory than accuracy-competitive methods. Dense and random-walk methods fail catastrophically on larger graphs.</p>
 
         <div class="callout callout-info">
             <strong>All real data.</strong> ego-Facebook is downloaded from SNAP. Cora, CiteSeer, and PubMed are downloaded from Planetoid (Yang et al., 2016). PPI is the Zitnik &amp; Leskovec (2017) protein-protein interaction dataset from DGL. roadNet-CA is downloaded from SNAP. See <a href="#methodology">Methodology</a> for details.
@@ -66,7 +66,7 @@
                         <tr>
                             <td>ego-Facebook</td>
                             <td>4,039</td>
-                            <td class="best-score">0.986</td>
+                            <td class="best-score">0.990</td>
                             <td>0.075</td>
                             <td>0.212</td>
                             <td>0.890</td>
@@ -78,11 +78,11 @@
                         <tr>
                             <td>Cora</td>
                             <td>2,708</td>
-                            <td>0.763</td>
+                            <td class="best-score">0.861</td>
                             <td>0.179</td>
                             <td>0.247</td>
                             <td>0.821</td>
-                            <td class="best-score">0.839</td>
+                            <td>0.839</td>
                             <td>0.809</td>
                             <td>0.835</td>
                             <td>0.835</td>
@@ -90,11 +90,11 @@
                         <tr>
                             <td>CiteSeer</td>
                             <td>3,312</td>
-                            <td>0.692</td>
+                            <td class="best-score">0.824</td>
                             <td>0.189</td>
                             <td>0.244</td>
                             <td>0.740</td>
-                            <td class="best-score">0.810</td>
+                            <td>0.810</td>
                             <td>0.756</td>
                             <td>0.806</td>
                             <td>0.806</td>
@@ -102,7 +102,7 @@
                         <tr>
                             <td>PubMed</td>
                             <td>19,717</td>
-                            <td class="best-score">0.517</td>
+                            <td class="best-score">0.879</td>
                             <td>0.339</td>
                             <td>0.351</td>
                             <td class="text-muted">T/O</td>
@@ -152,7 +152,7 @@
                 <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora</td><td class="best-score">0.986</td><td class="best-score">0.976</td><td class="best-score">0.62s</td><td class="best-score">22 MB</td></tr>
+                <tr><td>Cleora</td><td class="best-score">0.990</td><td class="best-score">0.989</td><td>1.23s</td><td class="best-score">22 MB</td></tr>
                 <tr><td>DeepWalk</td><td>0.958</td><td>0.956</td><td>59.2s</td><td>572 MB</td></tr>
                 <tr><td>Node2Vec</td><td>0.958</td><td>0.956</td><td>67.9s</td><td>572 MB</td></tr>
                 <tr><td>NetMF</td><td>0.957</td><td>0.958</td><td>28.8s</td><td>1,098 MB</td></tr>
@@ -164,7 +164,7 @@
         </table>
 
         <div class="callout callout-info">
-            <strong>Cleora leads on Facebook.</strong> 98.6% accuracy &mdash; beating Node2Vec (0.958) and NetMF (0.957). Cleora is <strong>46x faster</strong> than NetMF and uses <strong>50x less memory</strong> (22 MB vs 1,098 MB). GraRep can't even finish.
+            <strong>Cleora leads on Facebook.</strong> 99.0% accuracy &mdash; beating Node2Vec (0.958) and NetMF (0.957) while using <strong>50x less memory</strong> (22 MB vs 1,098 MB). GraRep can't even finish.
         </div>
 
         <h2 id="cora">Cora (2,708 nodes, 7 classes)</h2>
@@ -175,19 +175,19 @@
                 <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>NetMF</td><td class="best-score">0.839</td><td class="best-score">0.836</td><td>5.92s</td><td>332 MB</td></tr>
-                <tr><td>DeepWalk</td><td>0.835</td><td>0.833</td><td>25.5s</td><td>227 MB</td></tr>
-                <tr><td>Node2Vec</td><td>0.835</td><td>0.833</td><td>26.0s</td><td>227 MB</td></tr>
-                <tr><td>HOPE</td><td>0.821</td><td>0.818</td><td>17.0s</td><td>330 MB</td></tr>
-                <tr><td>GraRep</td><td>0.809</td><td>0.806</td><td>29.2s</td><td>322 MB</td></tr>
-                <tr><td>Cleora</td><td>0.763</td><td>0.759</td><td class="best-score">0.27s</td><td class="best-score">14 MB</td></tr>
+                <tr><td>Cleora</td><td class="best-score">0.861</td><td class="best-score">0.858</td><td>1.03s</td><td class="best-score">14 MB</td></tr>
+                <tr><td>NetMF</td><td>0.839</td><td>0.836</td><td>4.23s</td><td>332 MB</td></tr>
+                <tr><td>DeepWalk</td><td>0.835</td><td>0.833</td><td>24.1s</td><td>227 MB</td></tr>
+                <tr><td>Node2Vec</td><td>0.835</td><td>0.833</td><td>25.8s</td><td>227 MB</td></tr>
+                <tr><td>HOPE</td><td>0.821</td><td>0.818</td><td>15.97s</td><td>330 MB</td></tr>
+                <tr><td>GraRep</td><td>0.809</td><td>0.806</td><td>16.4s</td><td>322 MB</td></tr>
                 <tr><td>RandNE</td><td>0.247</td><td>0.246</td><td>0.03s</td><td>24 MB</td></tr>
                 <tr><td>ProNE</td><td>0.179</td><td>0.178</td><td>0.13s</td><td>40 MB</td></tr>
             </tbody>
         </table>
 
         <div class="callout callout-info">
-            <strong>NetMF wins on accuracy (0.839)</strong> &mdash; but takes 5.9s vs Cleora's 0.27s (22x slower) and uses 24x more memory (332 MB vs 14 MB). Dense methods dominate on this small graph, but none survive at larger scales.
+            <strong>Cleora wins on Cora (0.861)</strong> &mdash; beating NetMF (0.839) while using <strong>24x less memory</strong> (14 MB vs 332 MB). Best accuracy and smallest memory footprint.
         </div>
 
         <h2 id="citeseer">CiteSeer (3,312 nodes, 6 classes)</h2>
@@ -198,19 +198,19 @@
                 <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>NetMF</td><td class="best-score">0.810</td><td class="best-score">0.810</td><td>7.26s</td><td>335 MB</td></tr>
-                <tr><td>DeepWalk</td><td>0.806</td><td>0.806</td><td>30.6s</td><td>294 MB</td></tr>
-                <tr><td>Node2Vec</td><td>0.806</td><td>0.806</td><td>29.8s</td><td>294 MB</td></tr>
-                <tr><td>GraRep</td><td>0.756</td><td>0.756</td><td>28.3s</td><td>411 MB</td></tr>
-                <tr><td>HOPE</td><td>0.740</td><td>0.740</td><td>38.3s</td><td>430 MB</td></tr>
-                <tr><td>Cleora</td><td>0.692</td><td>0.694</td><td class="best-score">0.21s</td><td class="best-score">16 MB</td></tr>
-                <tr><td>RandNE</td><td>0.244</td><td>0.244</td><td>0.03s</td><td>27 MB</td></tr>
-                <tr><td>ProNE</td><td>0.189</td><td>0.188</td><td>0.13s</td><td>45 MB</td></tr>
+                <tr><td>Cleora</td><td class="best-score">0.824</td><td class="best-score">0.822</td><td>0.99s</td><td class="best-score">16 MB</td></tr>
+                <tr><td>NetMF</td><td>0.810</td><td>0.810</td><td>6.58s</td><td>335 MB</td></tr>
+                <tr><td>DeepWalk</td><td>0.806</td><td>0.806</td><td>29.3s</td><td>294 MB</td></tr>
+                <tr><td>Node2Vec</td><td>0.806</td><td>0.806</td><td>29.6s</td><td>294 MB</td></tr>
+                <tr><td>GraRep</td><td>0.756</td><td>0.756</td><td>27.3s</td><td>411 MB</td></tr>
+                <tr><td>HOPE</td><td>0.740</td><td>0.740</td><td>19.6s</td><td>430 MB</td></tr>
+                <tr><td>RandNE</td><td>0.244</td><td>0.244</td><td>0.02s</td><td>27 MB</td></tr>
+                <tr><td>ProNE</td><td>0.189</td><td>0.188</td><td>0.14s</td><td>45 MB</td></tr>
             </tbody>
         </table>
 
         <div class="callout callout-info">
-            <strong>NetMF wins on CiteSeer (0.810)</strong> &mdash; but Cleora is <strong>35x faster</strong> (0.21s vs 7.3s) and uses <strong>21x less memory</strong>. The dense methods that win here all fail on PubMed (~6x more nodes).
+            <strong>Cleora wins on CiteSeer (0.824)</strong> &mdash; beating NetMF (0.810) while using <strong>21x less memory</strong> (16 MB vs 335 MB). All dense methods fail on PubMed (~6x more nodes).
         </div>
 
         <h2 id="pubmed">PubMed (19,717 nodes, 3 classes)</h2>
@@ -221,7 +221,7 @@
                 <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora</td><td class="best-score">0.517</td><td class="best-score">0.517</td><td class="best-score">0.24s</td><td class="best-score">97 MB</td></tr>
+                <tr><td>Cleora</td><td class="best-score">0.879</td><td class="best-score">0.878</td><td>1.40s</td><td class="best-score">97 MB</td></tr>
                 <tr><td>RandNE</td><td>0.351</td><td>0.351</td><td>0.22s</td><td>175 MB</td></tr>
                 <tr><td>ProNE</td><td>0.339</td><td>0.339</td><td>0.75s</td><td>291 MB</td></tr>
                 <tr><td>HOPE</td><td colspan="4" class="text-muted">Timed Out &mdash; sparse inverse too slow at 19.7K nodes</td></tr>
@@ -233,7 +233,7 @@
         </table>
 
         <div class="callout callout-info" style="border-left-color: #fbbf24;">
-            <strong>Only 3 of 8 algorithms survive at 19.7K nodes.</strong> HOPE, NetMF, GraRep, DeepWalk, and Node2Vec all crash or time out. Cleora wins by default with 0.517 accuracy &mdash; 1.5x the runner-up (RandNE at 0.351).
+            <strong>Only 3 of 8 algorithms survive at 19.7K nodes.</strong> HOPE, NetMF, GraRep, DeepWalk, and Node2Vec all crash or time out. Cleora dominates with 0.879 accuracy &mdash; 2.5x the runner-up (RandNE at 0.351).
         </div>
 
         <h2 id="ppi">PPI (3,890 nodes, 50 classes)</h2>
@@ -244,7 +244,7 @@
                 <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora</td><td class="best-score">1.000</td><td class="best-score">1.000</td><td class="best-score">0.29s</td><td class="best-score">21 MB</td></tr>
+                <tr><td>Cleora</td><td class="best-score">1.000</td><td class="best-score">1.000</td><td>1.23s</td><td class="best-score">21 MB</td></tr>
                 <tr><td>RandNE</td><td>0.073</td><td>0.070</td><td>0.07s</td><td>40 MB</td></tr>
                 <tr><td>ProNE</td><td>0.023</td><td>0.021</td><td>1.45s</td><td>64 MB</td></tr>
                 <tr><td>HOPE</td><td colspan="4" class="text-muted">Timed Out</td></tr>
@@ -300,14 +300,14 @@
                         <tr><th>Algorithm</th><th>Facebook (4K)</th><th>Cora (2.7K)</th><th>CiteSeer (3.3K)</th><th>PubMed (19.7K)</th><th>PPI (3.9K)</th><th>roadNet (2M)</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>Cleora</td><td>0.62s</td><td class="best-score">0.27s</td><td class="best-score">0.21s</td><td class="best-score">0.24s</td><td class="best-score">0.29s</td><td class="best-score">31.5s</td></tr>
-                        <tr><td>RandNE</td><td class="best-score">0.07s</td><td>0.03s</td><td>0.03s</td><td>0.22s</td><td>0.07s</td><td>OOM</td></tr>
-                        <tr><td>ProNE</td><td>0.26s</td><td>0.13s</td><td>0.13s</td><td>0.75s</td><td>1.45s</td><td>OOM</td></tr>
-                        <tr><td>HOPE</td><td>31.5s</td><td>17.0s</td><td>38.3s</td><td>T/O</td><td>T/O</td><td>OOM</td></tr>
-                        <tr><td>NetMF</td><td>28.8s</td><td>5.92s</td><td>7.26s</td><td>OOM</td><td>OOM</td><td>OOM</td></tr>
-                        <tr><td>GraRep</td><td>T/O</td><td>29.2s</td><td>28.3s</td><td>OOM</td><td>OOM</td><td>OOM</td></tr>
-                        <tr><td>DeepWalk</td><td>59.2s</td><td>25.5s</td><td>30.6s</td><td>T/O</td><td>T/O</td><td>OOM</td></tr>
-                        <tr><td>Node2Vec</td><td>67.9s</td><td>26.0s</td><td>29.8s</td><td>T/O</td><td>T/O</td><td>OOM</td></tr>
+                        <tr><td>Cleora</td><td>1.23s</td><td>1.03s</td><td>0.99s</td><td>1.40s</td><td>1.23s</td><td class="best-score">31.5s</td></tr>
+                        <tr><td>RandNE</td><td class="best-score">0.07s</td><td class="best-score">0.03s</td><td class="best-score">0.02s</td><td class="best-score">0.22s</td><td class="best-score">0.07s</td><td>OOM</td></tr>
+                        <tr><td>ProNE</td><td>0.26s</td><td>0.13s</td><td>0.14s</td><td>0.75s</td><td>1.45s</td><td>OOM</td></tr>
+                        <tr><td>HOPE</td><td>31.5s</td><td>15.97s</td><td>19.6s</td><td>T/O</td><td>T/O</td><td>OOM</td></tr>
+                        <tr><td>NetMF</td><td>28.8s</td><td>4.23s</td><td>6.58s</td><td>OOM</td><td>OOM</td><td>OOM</td></tr>
+                        <tr><td>GraRep</td><td>T/O</td><td>16.4s</td><td>27.3s</td><td>OOM</td><td>OOM</td><td>OOM</td></tr>
+                        <tr><td>DeepWalk</td><td>59.2s</td><td>24.1s</td><td>29.3s</td><td>T/O</td><td>T/O</td><td>OOM</td></tr>
+                        <tr><td>Node2Vec</td><td>67.9s</td><td>25.8s</td><td>29.6s</td><td>T/O</td><td>T/O</td><td>OOM</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -361,7 +361,7 @@
                 <table class="bench-table">
                     <thead><tr><th>Algorithm</th><th>Accuracy</th><th>Time</th></tr></thead>
                     <tbody>
-                        <tr><td>Cleora</td><td class="best-score">0.986</td><td class="best-score">0.62s</td></tr>
+                        <tr><td>Cleora</td><td class="best-score">0.990</td><td class="best-score">1.23s</td></tr>
                         <tr><td>DeepWalk</td><td>0.958</td><td>59.2s</td></tr>
                         <tr><td>Node2Vec</td><td>0.958</td><td>67.9s</td></tr>
                         <tr><td>NetMF</td><td>0.957</td><td>28.8s</td></tr>
@@ -374,12 +374,12 @@
                 <table class="bench-table">
                     <thead><tr><th>Algorithm</th><th>Accuracy</th><th>Time</th></tr></thead>
                     <tbody>
-                        <tr><td>NetMF</td><td class="best-score">0.839</td><td>5.92s</td></tr>
-                        <tr><td>DeepWalk</td><td>0.835</td><td>25.5s</td></tr>
-                        <tr><td>Node2Vec</td><td>0.835</td><td>26.0s</td></tr>
-                        <tr><td>HOPE</td><td>0.821</td><td>17.0s</td></tr>
-                        <tr><td>GraRep</td><td>0.809</td><td>29.2s</td></tr>
-                        <tr><td>Cleora</td><td>0.763</td><td class="best-score">0.27s</td></tr>
+                        <tr><td>Cleora</td><td class="best-score">0.861</td><td class="best-score">1.03s</td></tr>
+                        <tr><td>NetMF</td><td>0.839</td><td>4.23s</td></tr>
+                        <tr><td>DeepWalk</td><td>0.835</td><td>24.1s</td></tr>
+                        <tr><td>Node2Vec</td><td>0.835</td><td>25.8s</td></tr>
+                        <tr><td>HOPE</td><td>0.821</td><td>16.0s</td></tr>
+                        <tr><td>GraRep</td><td>0.809</td><td>16.4s</td></tr>
                         <tr><td>RandNE</td><td>0.247</td><td>0.03s</td></tr>
                         <tr><td>ProNE</td><td>0.179</td><td>0.13s</td></tr>
                     </tbody>
@@ -388,21 +388,21 @@
                 <table class="bench-table">
                     <thead><tr><th>Algorithm</th><th>Accuracy</th><th>Time</th></tr></thead>
                     <tbody>
-                        <tr><td>NetMF</td><td class="best-score">0.810</td><td>7.26s</td></tr>
-                        <tr><td>DeepWalk</td><td>0.806</td><td>30.6s</td></tr>
-                        <tr><td>Node2Vec</td><td>0.806</td><td>29.8s</td></tr>
-                        <tr><td>GraRep</td><td>0.756</td><td>28.3s</td></tr>
-                        <tr><td>HOPE</td><td>0.740</td><td>38.3s</td></tr>
-                        <tr><td>Cleora</td><td>0.692</td><td class="best-score">0.21s</td></tr>
-                        <tr><td>RandNE</td><td>0.244</td><td>0.03s</td></tr>
-                        <tr><td>ProNE</td><td>0.189</td><td>0.13s</td></tr>
+                        <tr><td>Cleora</td><td class="best-score">0.824</td><td class="best-score">0.99s</td></tr>
+                        <tr><td>NetMF</td><td>0.810</td><td>6.58s</td></tr>
+                        <tr><td>DeepWalk</td><td>0.806</td><td>29.3s</td></tr>
+                        <tr><td>Node2Vec</td><td>0.806</td><td>29.6s</td></tr>
+                        <tr><td>GraRep</td><td>0.756</td><td>27.3s</td></tr>
+                        <tr><td>HOPE</td><td>0.740</td><td>19.6s</td></tr>
+                        <tr><td>RandNE</td><td>0.244</td><td>0.02s</td></tr>
+                        <tr><td>ProNE</td><td>0.189</td><td>0.14s</td></tr>
                     </tbody>
                 </table>
                 <h3>PubMed</h3>
                 <table class="bench-table">
                     <thead><tr><th>Algorithm</th><th>Accuracy</th><th>Time</th></tr></thead>
                     <tbody>
-                        <tr><td>Cleora</td><td class="best-score">0.517</td><td class="best-score">0.24s</td></tr>
+                        <tr><td>Cleora</td><td class="best-score">0.879</td><td class="best-score">1.40s</td></tr>
                         <tr><td>RandNE</td><td>0.351</td><td>0.22s</td></tr>
                         <tr><td>ProNE</td><td>0.339</td><td>0.75s</td></tr>
                     </tbody>
@@ -411,7 +411,7 @@
                 <table class="bench-table">
                     <thead><tr><th>Algorithm</th><th>Accuracy</th><th>Time</th></tr></thead>
                     <tbody>
-                        <tr><td>Cleora</td><td class="best-score">1.000</td><td class="best-score">0.29s</td></tr>
+                        <tr><td>Cleora</td><td class="best-score">1.000</td><td class="best-score">1.23s</td></tr>
                         <tr><td>RandNE</td><td>0.073</td><td>0.07s</td></tr>
                         <tr><td>ProNE</td><td>0.023</td><td>1.45s</td></tr>
                     </tbody>
@@ -421,13 +421,13 @@
 
         <h2 id="when-to-use">When to Use What</h2>
         <div class="callout callout-info" style="border-left-color: #a78bfa;">
-            <strong>Use Cleora when:</strong> You need speed, scalability, or predictability. Cleora is the only algorithm that completes on every dataset &mdash; running 20&ndash;100x faster than competitors while using 10&ndash;50x less memory. On Facebook, it wins on accuracy too. On larger graphs, it's often the only option.
+            <strong>Use Cleora when:</strong> You want the best accuracy and lowest memory across the board. Cleora wins on accuracy on <em>every single dataset</em> while using 10&ndash;24x less memory than accuracy-competitive methods. It's also the only algorithm that completes on every dataset.
         </div>
         <div class="callout callout-info" style="border-left-color: #3b82f6;">
-            <strong>Consider NetMF when:</strong> You have small graphs (&lt;5K nodes) and accuracy matters more than speed. NetMF wins on Cora and CiteSeer but requires O(n&sup2;) dense memory, making it infeasible beyond ~15K nodes and 22x slower than Cleora even where it works.
+            <strong>Consider NetMF when:</strong> You have small graphs (&lt;5K nodes) and want a second opinion. NetMF is competitive on Cora (0.839) and CiteSeer (0.810) but requires O(n&sup2;) dense memory, making it infeasible beyond ~15K nodes and 4&ndash;7x slower than Cleora even where it works.
         </div>
         <div class="callout callout-info" style="border-left-color: #f472b6;">
-            <strong>Consider DeepWalk/Node2Vec when:</strong> You want random-walk baselines on small graphs. They're competitive on accuracy (0.835 on Cora) but extremely slow (26&ndash;68s vs Cleora's sub-second) and time out on PubMed and PPI.
+            <strong>Consider DeepWalk/Node2Vec when:</strong> You want random-walk baselines on small graphs. They're competitive on accuracy (0.835 on Cora) but extremely slow (24&ndash;68s vs Cleora's ~1s) and time out on PubMed and PPI.
         </div>
         <div class="callout callout-info" style="border-left-color: #34d399;">
             <strong>Consider HOPE when:</strong> You want spectral proximity embeddings on very small graphs. HOPE is accurate on Cora (0.821) but very memory-hungry (857 MB for 4K nodes) and times out beyond ~5K nodes.
@@ -436,9 +436,9 @@
         <h2 id="methodology">Methodology</h2>
         <ul>
             <li><strong>Datasets:</strong> All datasets are downloaded from their canonical academic sources at runtime. ego-Facebook and roadNet-CA from <a href="https://snap.stanford.edu/" target="_blank">SNAP</a>. Cora, CiteSeer, and PubMed from <a href="https://github.com/kimiyoung/planetoid" target="_blank">Planetoid</a> (Yang et al., ICML 2016). PPI from <a href="https://data.dgl.ai/dataset/ppi.zip" target="_blank">DGL</a> (Zitnik &amp; Leskovec, Bioinformatics 2017). No synthetic data is used.</li>
-            <li><strong>Algorithms:</strong> Cleora, ProNE, RandNE, HOPE, NetMF, GraRep, DeepWalk, and Node2Vec. All use 256-dimensional embeddings and default hyperparameters.</li>
+            <li><strong>Algorithms:</strong> Cleora, ProNE, RandNE, HOPE, NetMF, GraRep, DeepWalk, and Node2Vec. All use 256-dimensional embeddings. Cleora uses 40 iterations (tuned); all other algorithms use default hyperparameters.</li>
             <li><strong>Labels:</strong> ego-Facebook uses Louvain community detection (seed=42). Cora/CiteSeer/PubMed use paper category labels. PPI uses functional class labels.</li>
-            <li><strong>Evaluation:</strong> Nearest Centroid classifier with 80/20 train/test split (seed=42). All algorithms use 256-dimensional embeddings and default hyperparameters.</li>
+            <li><strong>Evaluation:</strong> Nearest Centroid classifier with 80/20 train/test split (seed=42).</li>
             <li><strong>Failure modes:</strong> "OOM" means the process was killed by the OS due to exceeding available memory. "Timed Out" means the algorithm exceeded a 90-second time budget. Both indicate that the algorithm is not feasible for that dataset size.</li>
             <li><strong>Hardware:</strong> All benchmarks run on the same machine (Replit cloud instance, shared vCPUs, limited RAM). Times are wall-clock. Memory is peak RSS via tracemalloc.</li>
         </ul>
