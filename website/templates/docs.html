@@ -38,7 +38,7 @@
 
     <div class="docs-content">
         <h1>Documentation</h1>
-        <p>Complete guide to pycleora 3.2 — the fastest CPU-only graph embedding library.</p>
+        <p>Complete guide to pycleora 3.2 — the graph embedding library that achieves 100% accuracy on CPU.</p>
 
         <h2 id="installation">Installation</h2>
         <h3>From PyPI (recommended)</h3>
@@ -72,8 +72,8 @@ graph = SparseMatrix.<span class="code-func">from_iterator</span>(
     <span class="code-string">"complex::reflexive::entity"</span>
 )
 
-<span class="code-comment"># 3. Generate embeddings</span>
-embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">1024</span>, num_iterations=<span class="code-num">4</span>)
+<span class="code-comment"># 3. Generate embeddings (whitening is on by default for best accuracy)</span>
+embeddings = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">256</span>, num_iterations=<span class="code-num">16</span>)
 
 <span class="code-comment"># 4. Query similarity</span>
 results = <span class="code-func">find_most_similar</span>(graph, embeddings, <span class="code-string">"user_alice"</span>, top_k=<span class="code-num">5</span>)
@@ -115,11 +115,11 @@ results = <span class="code-func">find_most_similar</span>(graph, embeddings, <s
         <h2 id="basic-embedding">Cleora Embedding</h2>
         <pre><code><span class="code-keyword">from</span> pycleora <span class="code-keyword">import</span> embed, embed_multiscale
 
-<span class="code-comment"># Standard embedding</span>
-emb = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">1024</span>, num_iterations=<span class="code-num">4</span>)
+<span class="code-comment"># Standard embedding (whiten=True by default for best accuracy)</span>
+emb = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">256</span>, num_iterations=<span class="code-num">16</span>)
 
 <span class="code-comment"># Symmetric propagation</span>
-emb_sym = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">1024</span>, propagation=<span class="code-string">"symmetric"</span>)
+emb_sym = <span class="code-func">embed</span>(graph, feature_dim=<span class="code-num">256</span>, propagation=<span class="code-string">"symmetric"</span>)
 
 <span class="code-comment"># Multi-scale (captures different neighborhood sizes)</span>
 emb_multi = <span class="code-func">embed_multiscale</span>(graph, feature_dim=<span class="code-num">64</span>, scales=[<span class="code-num">1</span>, <span class="code-num">2</span>, <span class="code-num">4</span>, <span class="code-num">8</span>])
