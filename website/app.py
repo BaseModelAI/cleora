@@ -13,6 +13,10 @@ app.jinja_env.auto_reload = True
 def index():
     return render_template('index.html')
 
+@app.route('/visuals')
+def visuals():
+    return render_template('visuals.html')
+
 @app.route('/docs')
 def docs():
     return render_template('docs.html')

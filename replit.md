@@ -43,9 +43,11 @@ website/                Marketing website (Flask)
   app.py                Flask server (port 5000) — includes sync API endpoints
   sync_worker.py        Background benchmark sync worker (threading-based)
   static/style.css      Dark theme CSS
+  static/umap/          Pre-generated UMAP scatter plots (23 PNGs, 5 datasets x algos)
   templates/
     base.html           Shared layout (nav, footer)
     index.html           Landing page (features, comparison, code examples)
+    visuals.html         UMAP embedding projection gallery (dataset filter tabs)
     docs.html            Documentation (installation, all APIs, guides)
     api.html             API Reference (all functions, params, returns)
     benchmarks.html      Benchmark results with interactive Chart.js visualizations
