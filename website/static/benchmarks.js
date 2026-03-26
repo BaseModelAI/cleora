@@ -21,76 +21,86 @@ const ALGO_COLORS = {
     'DeepWalk':         '#f472b6',
 };
 
-const DATASETS = ['ego-Facebook', 'PPI-large', 'Flickr', 'ogbn-arxiv', 'Yelp'];
+const DATASETS = ['ego-Facebook', 'Cora', 'CiteSeer', 'PubMed', 'PPI'];
 const ALGORITHMS = ['Cleora', 'ProNE', 'RandNE', 'NetMF', 'DeepWalk'];
 
 const SUMMARY_DATA = {
-    'Cleora':          [0.932, 1.000, 0.971, 0.994, null],
-    'ProNE':           [0.019, 0.008, 0.142, 0.026, null],
-    'RandNE':          [0.120, 0.014, 0.153, 0.032, null],
-    'NetMF':           [0.889, null,  null,  null,  null],
-    'DeepWalk':        [0.885, null,  null,  null,  null],
+    'Cleora':          [0.989, 0.816, 0.584, 0.802, 0.103],
+    'ProNE':           [0.062, 0.159, 0.140, 0.324, 0.042],
+    'RandNE':          [0.198, 0.280, 0.250, 0.357, 0.039],
+    'NetMF':           [0.979, 0.808, 0.579, null,  null],
+    'DeepWalk':        [0.969, 0.806, 0.587, null,  null],
 };
 
-const MLP_DATA = {
-    'Cleora':          [0.973, null, null, null, null],
-    'ProNE':           [0.130, null, null, null, null],
-    'RandNE':          [0.130, null, null, null, null],
-    'NetMF':           [0.639, null, null, null, null],
-    'DeepWalk':        [0.620, null, null, null, null],
+const FAILURE_STATUS = {
+    'NetMF':           [null, null, null, 'OOM', 'OOM'],
+    'DeepWalk':        [null, null, null, 'Timed Out', 'Timed Out'],
 };
 
 const SPEED_DATA = {
     algorithms: ['Cleora', 'RandNE', 'ProNE', 'NetMF', 'DeepWalk'],
-    facebook:   [0.430,    0.070,    0.264,   35.229,  50.093],
-    ppi_large:  [2.842,    1.863,    7.286,   null,    null],
-    flickr:     [3.676,    2.169,    10.732,  null,    null],
-    ogbn_arxiv: [5.222,    3.204,    15.725,  null,    null],
-    yelp:       [30.419,   null,     null,    null,    null],
+    facebook:   [0.77,     0.10,     2.78,    44.0,    46.9],
+    cora:       [0.27,     0.05,     0.36,    6.09,    58.8],
+    citeseer:   [0.25,     0.03,     0.12,    18.1,    24.6],
+    pubmed:     [0.65,     0.18,     1.21,    null,    null],
+    ppi:        [1.46,     0.77,     3.41,    null,    null],
     roadnet:    [31.500,   null,     null,    null,    null],
+};
+
+const SPEED_FAILURE = {
+    pubmed:     [null, null, null, 'OOM', 'Timed Out'],
+    ppi:        [null, null, null, 'OOM', 'Timed Out'],
+    roadnet:    [null, 'OOM', 'OOM', 'OOM', 'OOM'],
 };
 
 const MEMORY_DATA = {
     algorithms: ['Cleora', 'RandNE', 'ProNE', 'DeepWalk', 'NetMF'],
-    facebook:   [25.2,     39.8,     64.0,    540.8,      1047.4],
-    ppi_large:  [251.5,    541.0,    875.8,   null,        null],
-    flickr:     [338.7,    830.4,    1354.9,  null,        null],
-    ogbn_arxiv: [458.9,    1550.8,   2545.5,  null,        null],
-    yelp:       [1499.0,   null,     null,    null,        null],
-    roadnet:    [4129.0,   null,     null,    null,        null],
+    facebook:   [21,       40,       64,      538,        1047],
+    cora:       [15,       24,       41,      260,        313],
+    citeseer:   [18,       30,       50,      362,        374],
+    pubmed:     [98,       176,      293,     null,       null],
+    ppi:        [251,      540,      875,     null,       null],
+    roadnet:    [4129,     null,     null,    null,       null],
+};
+
+const MEMORY_FAILURE = {
+    pubmed:     [null, null, null, 'OOM', 'OOM'],
+    ppi:        [null, null, null, 'OOM', 'OOM'],
+    roadnet:    [null, 'OOM', 'OOM', 'OOM', 'OOM'],
 };
 
 const SCATTER_DATA = {
     'ego-Facebook': {
-        'Cleora':          { acc: 0.932, time: 0.430 },
-        'NetMF':           { acc: 0.889, time: 35.229 },
-        'DeepWalk':        { acc: 0.885, time: 50.093 },
-        'RandNE':          { acc: 0.120, time: 0.070 },
-        'ProNE':           { acc: 0.019, time: 0.264 },
+        'Cleora':          { acc: 0.989, time: 0.77 },
+        'NetMF':           { acc: 0.979, time: 44.0 },
+        'DeepWalk':        { acc: 0.969, time: 46.9 },
+        'RandNE':          { acc: 0.198, time: 0.10 },
+        'ProNE':           { acc: 0.062, time: 2.78 },
     },
-    'PPI-large': {
-        'Cleora':          { acc: 1.000, time: 2.842 },
-        'ProNE':           { acc: 0.008, time: 7.286 },
-        'RandNE':          { acc: 0.014, time: 1.863 },
+    'Cora': {
+        'Cleora':          { acc: 0.816, time: 0.27 },
+        'NetMF':           { acc: 0.808, time: 6.09 },
+        'DeepWalk':        { acc: 0.806, time: 58.8 },
+        'RandNE':          { acc: 0.280, time: 0.05 },
+        'ProNE':           { acc: 0.159, time: 0.36 },
     },
-    'Flickr': {
-        'Cleora':          { acc: 0.971, time: 3.676 },
-        'ProNE':           { acc: 0.142, time: 10.732 },
-        'RandNE':          { acc: 0.153, time: 2.169 },
+    'CiteSeer': {
+        'Cleora':          { acc: 0.584, time: 0.25 },
+        'NetMF':           { acc: 0.579, time: 18.1 },
+        'DeepWalk':        { acc: 0.587, time: 24.6 },
+        'RandNE':          { acc: 0.250, time: 0.03 },
+        'ProNE':           { acc: 0.140, time: 0.12 },
     },
-    'ogbn-arxiv': {
-        'Cleora':          { acc: 0.994, time: 5.222 },
-        'RandNE':          { acc: 0.032, time: 3.204 },
-        'ProNE':           { acc: 0.026, time: 15.725 },
+    'PubMed': {
+        'Cleora':          { acc: 0.802, time: 0.65 },
+        'RandNE':          { acc: 0.357, time: 0.18 },
+        'ProNE':           { acc: 0.324, time: 1.21 },
     },
-};
-
-const CV_DATA = {
-    datasets:     ['ego-Facebook', 'PPI-large', 'Flickr', 'ogbn-arxiv'],
-    meanAccuracy: [0.939, 1.000, 0.972, 0.994],
-    stdAccuracy:  [0.009, 0.000, 0.001, 0.000],
-    meanF1:       [0.705, 1.000, 0.972, 0.994],
-    stdF1:        [0.040, 0.000, 0.001, 0.000],
+    'PPI': {
+        'Cleora':          { acc: 0.103, time: 1.46 },
+        'ProNE':           { acc: 0.042, time: 3.41 },
+        'RandNE':          { acc: 0.039, time: 0.77 },
+    },
 };
 
 function chartDefaults() {
@@ -110,6 +120,110 @@ function chartDefaults() {
     Chart.defaults.plugins.legend.labels.padding = 16;
 }
 
+const failureBarPlugin = {
+    id: 'failureBars',
+    afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        const failureMap = chart.options._failureMap;
+        if (!failureMap) return;
+
+        const isHorizontal = chart.options.indexAxis === 'y';
+        const categoryScale = isHorizontal ? chart.scales.y : chart.scales.x;
+        const valueScale = isHorizontal ? chart.scales.x : chart.scales.y;
+        const numDatasets = chart.data.datasets.length;
+
+        chart.data.datasets.forEach((ds, dsIndex) => {
+            const algoOrKey = ds.label;
+            ds.data.forEach((val, dataIndex) => {
+                if (val !== null) return;
+
+                let failureText = null;
+                for (const [key, statuses] of Object.entries(failureMap)) {
+                    if (key === algoOrKey && statuses[dataIndex]) {
+                        failureText = statuses[dataIndex];
+                    }
+                }
+                if (!failureText) return;
+
+                const meta = chart.getDatasetMeta(dsIndex);
+                const bar = meta.data[dataIndex];
+                if (!bar) return;
+
+                const color = ds.borderColor || COLORS.textMuted;
+                const barX = bar.x;
+                const barY = bar.y;
+
+                let refBar = null;
+                for (let si = 0; si < numDatasets; si++) {
+                    const refMeta = chart.getDatasetMeta(si);
+                    const refEl = refMeta.data[dataIndex];
+                    if (refEl && chart.data.datasets[si].data[dataIndex] !== null) {
+                        refBar = refEl;
+                        break;
+                    }
+                }
+                if (!refBar) return;
+
+                const barWidth = refBar.width || 16;
+
+                ctx.save();
+                ctx.setLineDash([5, 4]);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 0.6;
+
+                if (isHorizontal) {
+                    const xStart = valueScale.getPixelForValue(0);
+                    const xEnd = valueScale.right - 20;
+                    const halfH = barWidth / 2;
+                    ctx.strokeRect(xStart, barY - halfH, xEnd - xStart, barWidth);
+
+                    for (let lx = xStart + 8; lx < xEnd; lx += 12) {
+                        ctx.beginPath();
+                        ctx.moveTo(lx, barY - halfH);
+                        ctx.lineTo(lx + 8, barY + halfH);
+                        ctx.stroke();
+                    }
+
+                    ctx.setLineDash([]);
+                    ctx.globalAlpha = 0.8;
+                    ctx.fillStyle = color;
+                    ctx.font = "bold 11px 'Graphik', sans-serif";
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(failureText, (xStart + xEnd) / 2, barY);
+                } else {
+                    const yBottom = valueScale.getPixelForValue(0);
+                    const yTop = valueScale.top + 20;
+                    const halfW = barWidth / 2;
+                    ctx.strokeRect(barX - halfW, yTop, barWidth, yBottom - yTop);
+
+                    for (let ly = yBottom - 8; ly > yTop; ly -= 12) {
+                        ctx.beginPath();
+                        ctx.moveTo(barX - halfW, ly);
+                        ctx.lineTo(barX + halfW, ly - 8);
+                        ctx.stroke();
+                    }
+
+                    ctx.setLineDash([]);
+                    ctx.globalAlpha = 0.8;
+                    ctx.fillStyle = color;
+                    ctx.font = "bold 11px 'Graphik', sans-serif";
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.save();
+                    ctx.translate(barX, (yTop + yBottom) / 2);
+                    ctx.rotate(-Math.PI / 2);
+                    ctx.fillText(failureText, 0, 0);
+                    ctx.restore();
+                }
+
+                ctx.restore();
+            });
+        });
+    }
+};
+
 function buildAccuracyChart() {
     const ctx = document.getElementById('chart-accuracy').getContext('2d');
     const datasets = ALGORITHMS.map(algo => ({
@@ -124,56 +238,23 @@ function buildAccuracyChart() {
     new Chart(ctx, {
         type: 'bar',
         data: { labels: DATASETS, datasets },
+        plugins: [failureBarPlugin],
         options: {
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
+            _failureMap: FAILURE_STATUS,
             plugins: {
-                title: { display: true, text: 'Node Classification Accuracy — Nearest Centroid, 256 dim', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Node Classification Accuracy — Real Datasets, Nearest Centroid, 256 dim', color: COLORS.text, font: { size: 14, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
                     callbacks: {
-                        label: ctx => {
-                            if (ctx.raw === null) return ctx.dataset.label + ': N/A';
-                            return ctx.dataset.label + ': ' + ctx.raw.toFixed(3);
-                        }
-                    }
-                },
-            },
-            scales: {
-                x: { grid: { display: false }, ticks: { color: COLORS.textMuted } },
-                y: { min: 0, max: 1.05, ticks: { color: COLORS.textMuted, callback: v => v.toFixed(1) }, grid: { color: COLORS.border + '60' } },
-            },
-        },
-    });
-}
-
-function buildMLPChart() {
-    const ctx = document.getElementById('chart-mlp');
-    if (!ctx) return;
-
-    const datasets = ALGORITHMS.map(algo => ({
-        label: algo,
-        data: [MLP_DATA[algo][0]],
-        backgroundColor: ALGO_COLORS[algo] + 'cc',
-        borderColor: ALGO_COLORS[algo],
-        borderWidth: 1,
-        borderRadius: 3,
-    }));
-
-    new Chart(ctx.getContext('2d'), {
-        type: 'bar',
-        data: { labels: ['ego-Facebook'], datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-                title: { display: true, text: 'MLP Classifier Accuracy — ego-Facebook, 256 dim', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => {
-                            if (ctx.raw === null) return ctx.dataset.label + ': N/A';
-                            return ctx.dataset.label + ': ' + ctx.raw.toFixed(3);
+                        label: tooltipCtx => {
+                            const algo = tooltipCtx.dataset.label;
+                            const idx = tooltipCtx.dataIndex;
+                            const status = FAILURE_STATUS[algo] && FAILURE_STATUS[algo][idx];
+                            if (status) return algo + ': ' + status;
+                            if (tooltipCtx.raw === null) return algo + ': N/A';
+                            return algo + ': ' + tooltipCtx.raw.toFixed(3);
                         }
                     }
                 },
@@ -192,10 +273,10 @@ function buildSpeedChart() {
 
     const dsConfigs = [
         { key: 'facebook',   label: 'ego-Facebook (4k)',   color: COLORS.accent },
-        { key: 'ppi_large',  label: 'PPI-large (57k)',     color: '#10b981' },
-        { key: 'flickr',     label: 'Flickr (89k)',        color: COLORS.orange },
-        { key: 'ogbn_arxiv', label: 'ogbn-arxiv (169k)',   color: COLORS.blue },
-        { key: 'yelp',       label: 'Yelp (717k)',         color: '#f472b6' },
+        { key: 'cora',       label: 'Cora (2.7k)',         color: '#10b981' },
+        { key: 'citeseer',   label: 'CiteSeer (3.3k)',     color: COLORS.orange },
+        { key: 'pubmed',     label: 'PubMed (19.7k)',      color: COLORS.blue },
+        { key: 'ppi',        label: 'PPI (57k)',           color: '#f472b6' },
         { key: 'roadnet',    label: 'roadNet-CA (2M)',     color: COLORS.green },
     ];
     const datasets = dsConfigs.map(d => ({
@@ -207,17 +288,32 @@ function buildSpeedChart() {
         borderRadius: 3,
     }));
 
+    const speedFailureMap = {};
+    dsConfigs.forEach(d => {
+        if (SPEED_FAILURE[d.key]) speedFailureMap[d.label] = SPEED_FAILURE[d.key];
+    });
+
     new Chart(ctx, {
         type: 'bar',
         data: { labels: algos, datasets },
+        plugins: [failureBarPlugin],
         options: {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
+            _failureMap: speedFailureMap,
             plugins: {
-                title: { display: true, text: 'Embedding Time (seconds) — Linear Scale', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Embedding Time (seconds) — Real Datasets, Linear Scale', color: COLORS.text, font: { size: 14, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
-                    callbacks: { label: ctx => ctx.raw !== null ? ctx.dataset.label + ': ' + ctx.raw + 's' : '' }
+                    callbacks: {
+                        label: tooltipCtx => {
+                            const dsLabel = tooltipCtx.dataset.label;
+                            const idx = tooltipCtx.dataIndex;
+                            const status = speedFailureMap[dsLabel] && speedFailureMap[dsLabel][idx];
+                            if (status) return dsLabel + ': ' + status;
+                            return tooltipCtx.raw !== null ? dsLabel + ': ' + tooltipCtx.raw + 's' : '';
+                        }
+                    }
                 },
             },
             scales: {
@@ -235,18 +331,25 @@ function buildMemoryChart() {
     const ctx = document.getElementById('chart-memory').getContext('2d');
     const algos = MEMORY_DATA.algorithms;
 
+    const dsConfigs = [
+        { key: 'facebook',   label: 'ego-Facebook (4k)',   color: COLORS.accent },
+        { key: 'cora',       label: 'Cora (2.7k)',         color: '#10b981' },
+        { key: 'citeseer',   label: 'CiteSeer (3.3k)',     color: COLORS.orange },
+        { key: 'pubmed',     label: 'PubMed (19.7k)',      color: COLORS.blue },
+        { key: 'ppi',        label: 'PPI (57k)',           color: '#f472b6' },
+        { key: 'roadnet',    label: 'roadNet-CA (2M)',     color: COLORS.green },
+    ];
+
+    const memFailureMap = {};
+    dsConfigs.forEach(d => {
+        if (MEMORY_FAILURE[d.key]) memFailureMap[d.label] = MEMORY_FAILURE[d.key];
+    });
+
     new Chart(ctx, {
         type: 'bar',
         data: {
             labels: algos,
-            datasets: [
-                { key: 'facebook',   label: 'ego-Facebook (4k)',   color: COLORS.accent },
-                { key: 'ppi_large',  label: 'PPI-large (57k)',     color: '#10b981' },
-                { key: 'flickr',     label: 'Flickr (89k)',        color: COLORS.orange },
-                { key: 'ogbn_arxiv', label: 'ogbn-arxiv (169k)',   color: COLORS.blue },
-                { key: 'yelp',       label: 'Yelp (717k)',         color: '#f472b6' },
-                { key: 'roadnet',    label: 'roadNet-CA (2M)',     color: COLORS.green },
-            ].map(d => ({
+            datasets: dsConfigs.map(d => ({
                 label: d.label,
                 data: MEMORY_DATA[d.key],
                 backgroundColor: d.color + 'cc',
@@ -255,13 +358,23 @@ function buildMemoryChart() {
                 borderRadius: 3,
             })),
         },
+        plugins: [failureBarPlugin],
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            _failureMap: memFailureMap,
             plugins: {
-                title: { display: true, text: 'Peak Memory Usage (MB) — Linear Scale', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Peak Memory Usage (MB) — Real Datasets, Linear Scale', color: COLORS.text, font: { size: 14, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
-                    callbacks: { label: ctx => ctx.raw !== null ? ctx.dataset.label + ': ' + ctx.raw + ' MB' : '' }
+                    callbacks: {
+                        label: tooltipCtx => {
+                            const dsLabel = tooltipCtx.dataset.label;
+                            const idx = tooltipCtx.dataIndex;
+                            const status = memFailureMap[dsLabel] && memFailureMap[dsLabel][idx];
+                            if (status) return dsLabel + ': ' + status;
+                            return tooltipCtx.raw !== null ? dsLabel + ': ' + tooltipCtx.raw + ' MB' : '';
+                        }
+                    }
                 },
             },
             scales: {
@@ -279,9 +392,10 @@ function buildScatterChart() {
     const ctx = document.getElementById('chart-scatter').getContext('2d');
     const datasetColors = {
         'ego-Facebook': COLORS.accent,
-        'PPI-large': '#10b981',
-        'Flickr': COLORS.orange,
-        'ogbn-arxiv': COLORS.blue,
+        'Cora': '#10b981',
+        'CiteSeer': COLORS.orange,
+        'PubMed': COLORS.blue,
+        'PPI': '#f472b6',
     };
 
     const datasets = Object.entries(SCATTER_DATA).map(([dsName, algos]) => ({
@@ -305,11 +419,11 @@ function buildScatterChart() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                title: { display: true, text: 'Accuracy vs Embedding Time — 256 dim', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Accuracy vs Embedding Time — Real Datasets, 256 dim', color: COLORS.text, font: { size: 14, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
                     callbacks: {
-                        label: ctx => {
-                            const p = ctx.raw;
+                        label: tooltipCtx => {
+                            const p = tooltipCtx.raw;
                             return p.algo + ' — Acc: ' + p.y.toFixed(3) + ', Time: ' + p.x + 's';
                         }
                     }
@@ -328,102 +442,6 @@ function buildScatterChart() {
                     grid: { color: COLORS.border + '60' },
                     ticks: { color: COLORS.textMuted, callback: v => v.toFixed(1) },
                 },
-            },
-        },
-    });
-}
-
-function buildCVChart() {
-    const ctx = document.getElementById('chart-cv').getContext('2d');
-    const errorBarsAccuracy = CV_DATA.datasets.map((_, i) => ({
-        min: CV_DATA.meanAccuracy[i] - CV_DATA.stdAccuracy[i],
-        max: CV_DATA.meanAccuracy[i] + CV_DATA.stdAccuracy[i],
-    }));
-    const errorBarsF1 = CV_DATA.datasets.map((_, i) => ({
-        min: CV_DATA.meanF1[i] - CV_DATA.stdF1[i],
-        max: CV_DATA.meanF1[i] + CV_DATA.stdF1[i],
-    }));
-
-    const errorBarPlugin = {
-        id: 'errorBars',
-        afterDatasetsDraw(chart) {
-            const { ctx: c } = chart;
-            chart.data.datasets.forEach((ds, dsIndex) => {
-                if (!ds.errorBars) return;
-                const meta = chart.getDatasetMeta(dsIndex);
-                meta.data.forEach((bar, i) => {
-                    const eb = ds.errorBars[i];
-                    if (!eb) return;
-                    const yScale = chart.scales.y;
-                    const yMin = yScale.getPixelForValue(eb.min);
-                    const yMax = yScale.getPixelForValue(eb.max);
-                    const x = bar.x;
-                    c.save();
-                    c.strokeStyle = ds.borderColor || COLORS.text;
-                    c.lineWidth = 2;
-                    c.beginPath();
-                    c.moveTo(x, yMin);
-                    c.lineTo(x, yMax);
-                    c.stroke();
-                    c.beginPath();
-                    c.moveTo(x - 4, yMin);
-                    c.lineTo(x + 4, yMin);
-                    c.stroke();
-                    c.beginPath();
-                    c.moveTo(x - 4, yMax);
-                    c.lineTo(x + 4, yMax);
-                    c.stroke();
-                    c.restore();
-                });
-            });
-        },
-    };
-
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: CV_DATA.datasets,
-            datasets: [
-                {
-                    label: 'Mean Accuracy',
-                    data: CV_DATA.meanAccuracy,
-                    backgroundColor: COLORS.accent + 'cc',
-                    borderColor: COLORS.accent,
-                    borderWidth: 1,
-                    borderRadius: 3,
-                    errorBars: errorBarsAccuracy,
-                },
-                {
-                    label: 'Mean F1',
-                    data: CV_DATA.meanF1,
-                    backgroundColor: COLORS.green + 'cc',
-                    borderColor: COLORS.green,
-                    borderWidth: 1,
-                    borderRadius: 3,
-                    errorBars: errorBarsF1,
-                },
-            ],
-        },
-        plugins: [errorBarPlugin],
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: { display: true, text: 'Cross-Validation: Cleora (16 iter, 256 dim)', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => {
-                            const i = ctx.dataIndex;
-                            const dsIdx = ctx.datasetIndex;
-                            if (dsIdx === 0) return 'Accuracy: ' + ctx.raw.toFixed(3) + ' \u00b1 ' + CV_DATA.stdAccuracy[i].toFixed(3);
-                            return 'F1: ' + ctx.raw.toFixed(3) + ' \u00b1 ' + CV_DATA.stdF1[i].toFixed(3);
-                        }
-                    }
-                },
-            },
-            scales: {
-                x: { grid: { display: false }, ticks: { color: COLORS.textMuted } },
-                y: { min: 0, max: 1.1, grid: { color: COLORS.border + '60' }, ticks: { color: COLORS.textMuted, callback: v => v.toFixed(1) } },
             },
         },
     });
@@ -470,9 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     chartDefaults();
     buildAccuracyChart();
-    buildMLPChart();
     buildSpeedChart();
     buildMemoryChart();
     buildScatterChart();
-    buildCVChart();
 });
