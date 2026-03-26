@@ -1470,7 +1470,7 @@ footer {
 .bench-bar-fill.bench-bar-short .bench-bar-value {
     position: absolute;
     left: calc(100% + 6px);
-    color: var(--text-dim);
+    color: var(--text);
 }
 
 .bench-bar-time {
