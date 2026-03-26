@@ -284,9 +284,33 @@ nav {
     font-size: 0.9rem;
     color: var(--green);
     text-align: left;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .install-block .prompt { color: var(--text-dim); }
+
+.copy-btn {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    padding: 6px;
+    cursor: pointer;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    margin-left: 12px;
+}
+.copy-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.05); }
+.copy-btn .check-icon { display: none; }
+.copy-btn.copied .copy-icon { display: none; }
+.copy-btn.copied .check-icon { display: block; }
+.copy-btn.copied { color: var(--green); border-color: var(--green); }
 
 /* SECTIONS */
 .section {
