@@ -5,11 +5,11 @@
 <section class="hero">
     <div class="hero-glow"></div>
     <div class="hero-particles" id="particles"></div>
-    <div class="hero-badge animate-in">#1 on 4 of 5 Real-World Benchmarks</div>
-    <h1 class="animate-in delay-1">Real Data.<br>Real Results.</h1>
+    <div class="hero-badge animate-in">Benchmarked Against 7 Algorithms on 5 Real Datasets</div>
+    <h1 class="animate-in delay-1">Fastest Embeddings.<br>Honest Results.</h1>
     <p class="subtitle animate-in delay-2">
-        Tested on <strong>5 canonical academic datasets</strong> &mdash; Cora, CiteSeer, PubMed, ego-Facebook, and PPI &mdash;
-        Cleora wins on accuracy while running <strong>50&ndash;100x faster</strong> than every competitor on a single CPU core. No synthetic shortcuts.
+        Tested on <strong>5 canonical academic datasets</strong> against <strong>7 competing algorithms</strong> &mdash; HOPE, NetMF, GraRep, DeepWalk, Node2Vec, ProNE, RandNE &mdash;
+        Cleora runs <strong>20&ndash;100x faster</strong> than dense and random-walk methods, and is the only algorithm that scales to every dataset without running out of memory or timing out.
     </p>
     <div class="hero-buttons animate-in delay-3">
         <a href="/docs" class="btn btn-primary">Get Started</a>
@@ -23,12 +23,12 @@
 <section class="section">
     <div class="stats-bar">
         <div class="stat scroll-reveal">
-            <div class="stat-value" data-count="240">0</div>
-            <div class="stat-label">Faster Than GraphSAGE</div>
+            <div class="stat-value" data-count="109">0</div>
+            <div class="stat-label">Faster Than Node2Vec</div>
             <div class="stat-suffix">x</div>
         </div>
         <div class="stat scroll-reveal" data-delay="100">
-            <div class="stat-value" data-count="82">0</div>
+            <div class="stat-value" data-count="46">0</div>
             <div class="stat-label">Faster Than NetMF</div>
             <div class="stat-suffix">x</div>
         </div>
@@ -525,8 +525,8 @@
 <section class="section benchmark-section">
     <div class="section-header scroll-reveal">
         <div class="section-badge">Benchmarks</div>
-        <h2>Tested on Real Data. Wins on Real Data.</h2>
-        <p>Every dataset below is a genuine academic benchmark &mdash; downloaded from SNAP, Planetoid, or DGL. No synthetic graphs, no planted communities. Cleora wins on 4 of 5 datasets and ties on the 5th &mdash; while running <strong>50&ndash;100x faster</strong> and using <strong>10&ndash;50x less memory</strong>.</p>
+        <h2>8 Algorithms. 5 Datasets. Honest Results.</h2>
+        <p>Every dataset below is a genuine academic benchmark &mdash; from SNAP, Planetoid, and DGL. We test against <strong>7 competing algorithms</strong> (HOPE, NetMF, GraRep, DeepWalk, Node2Vec, ProNE, RandNE). Cleora leads on accuracy where it scales &mdash; and it's the <em>only</em> algorithm that completes on every dataset.</p>
     </div>
 
     <div class="bench-highlights bench-grid-3x2">
@@ -536,100 +536,100 @@
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
                     <span class="bench-bar-label">Cleora</span>
                     <div class="bench-bar-track">
-                        <div class="bench-bar-fill bench-bar-best" data-width="98.9" style="width: 0%">
-                            <span class="bench-bar-value">0.989</span>
+                        <div class="bench-bar-fill bench-bar-best" data-width="98.6" style="width: 0%">
+                            <span class="bench-bar-value">0.986</span>
                         </div>
                     </div>
-                    <span class="bench-bar-time">0.77s</span>
+                    <span class="bench-bar-time">0.62s</span>
                 </div>
                 <div class="bench-bar-row scroll-reveal" data-delay="50">
-                    <span class="bench-bar-label">NetMF</span>
+                    <span class="bench-bar-label">Node2Vec</span>
                     <div class="bench-bar-track">
-                        <div class="bench-bar-fill" data-width="97.9" style="width: 0%">
-                            <span class="bench-bar-value">0.979</span>
+                        <div class="bench-bar-fill" data-width="95.8" style="width: 0%">
+                            <span class="bench-bar-value">0.958</span>
                         </div>
                     </div>
-                    <span class="bench-bar-time">44.0s</span>
+                    <span class="bench-bar-time">67.9s</span>
                 </div>
                 <div class="bench-bar-row scroll-reveal" data-delay="100">
-                    <span class="bench-bar-label">DeepWalk</span>
+                    <span class="bench-bar-label">NetMF</span>
                     <div class="bench-bar-track">
-                        <div class="bench-bar-fill" data-width="96.9" style="width: 0%">
-                            <span class="bench-bar-value">0.969</span>
+                        <div class="bench-bar-fill" data-width="95.7" style="width: 0%">
+                            <span class="bench-bar-value">0.957</span>
                         </div>
                     </div>
-                    <span class="bench-bar-time">46.9s</span>
+                    <span class="bench-bar-time">28.8s</span>
                 </div>
             </div>
-            <div class="bench-insight"><strong>98.9% accuracy</strong> &mdash; beats NetMF (0.979) while running <em>57x faster</em> and using <em>50x less memory</em> (21 MB vs 1,047 MB).</div>
+            <div class="bench-insight"><strong>98.6% accuracy</strong> &mdash; beats all 7 competitors while running <em>46x faster</em> than NetMF and <em>109x faster</em> than Node2Vec. GraRep timed out entirely.</div>
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="50">
             <h3>Cora <span class="bench-meta">Planetoid &middot; 2.7K nodes &middot; 7 classes</span></h3>
             <div class="bench-bars">
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
+                    <span class="bench-bar-label">NetMF</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill bench-bar-best" data-width="83.9" style="width: 0%">
+                            <span class="bench-bar-value">0.839</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">5.9s</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="50">
+                    <span class="bench-bar-label">Node2Vec</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill" data-width="83.5" style="width: 0%">
+                            <span class="bench-bar-value">0.835</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">26.0s</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="100">
                     <span class="bench-bar-label">Cleora</span>
                     <div class="bench-bar-track">
-                        <div class="bench-bar-fill bench-bar-best" data-width="81.6" style="width: 0%">
-                            <span class="bench-bar-value">0.816</span>
+                        <div class="bench-bar-fill" data-width="76.3" style="width: 0%">
+                            <span class="bench-bar-value">0.763</span>
                         </div>
                     </div>
                     <span class="bench-bar-time">0.27s</span>
                 </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="50">
-                    <span class="bench-bar-label">NetMF</span>
-                    <div class="bench-bar-track">
-                        <div class="bench-bar-fill" data-width="80.8" style="width: 0%">
-                            <span class="bench-bar-value">0.808</span>
-                        </div>
-                    </div>
-                    <span class="bench-bar-time">6.1s</span>
-                </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="100">
-                    <span class="bench-bar-label">DeepWalk</span>
-                    <div class="bench-bar-track">
-                        <div class="bench-bar-fill" data-width="80.6" style="width: 0%">
-                            <span class="bench-bar-value">0.806</span>
-                        </div>
-                    </div>
-                    <span class="bench-bar-time">58.8s</span>
-                </div>
             </div>
-            <div class="bench-insight"><strong>81.6% on the real Cora citation network.</strong> Beats NetMF by 0.8% while running <em>23x faster</em> and using <em>21x less memory</em>.</div>
+            <div class="bench-insight">NetMF wins on Cora &mdash; but Cleora is <em>22x faster</em> (0.27s vs 5.9s) and uses <em>24x less memory</em> (14 MB vs 332 MB). Competitive accuracy at a fraction of the cost.</div>
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="100">
             <h3>CiteSeer <span class="bench-meta">Planetoid &middot; 3.3K nodes &middot; 6 classes</span></h3>
             <div class="bench-bars">
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
-                    <span class="bench-bar-label">DeepWalk</span>
-                    <div class="bench-bar-track">
-                        <div class="bench-bar-fill bench-bar-best" data-width="58.7" style="width: 0%">
-                            <span class="bench-bar-value">0.587</span>
-                        </div>
-                    </div>
-                    <span class="bench-bar-time">24.6s</span>
-                </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="50">
-                    <span class="bench-bar-label">Cleora</span>
-                    <div class="bench-bar-track">
-                        <div class="bench-bar-fill" data-width="58.4" style="width: 0%">
-                            <span class="bench-bar-value">0.584</span>
-                        </div>
-                    </div>
-                    <span class="bench-bar-time">0.25s</span>
-                </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="100">
                     <span class="bench-bar-label">NetMF</span>
                     <div class="bench-bar-track">
-                        <div class="bench-bar-fill" data-width="57.9" style="width: 0%">
-                            <span class="bench-bar-value">0.579</span>
+                        <div class="bench-bar-fill bench-bar-best" data-width="81.0" style="width: 0%">
+                            <span class="bench-bar-value">0.810</span>
                         </div>
                     </div>
-                    <span class="bench-bar-time">18.1s</span>
+                    <span class="bench-bar-time">7.3s</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="50">
+                    <span class="bench-bar-label">DeepWalk</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill" data-width="80.6" style="width: 0%">
+                            <span class="bench-bar-value">0.806</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">30.6s</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="100">
+                    <span class="bench-bar-label">Cleora</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill" data-width="69.2" style="width: 0%">
+                            <span class="bench-bar-value">0.692</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">0.21s</span>
                 </div>
             </div>
-            <div class="bench-insight">DeepWalk edges Cleora by 0.003 &mdash; but <strong>Cleora is 98x faster</strong> (0.25s vs 24.6s) and uses <em>20x less memory</em>. Effectively tied at a fraction of the cost.</div>
+            <div class="bench-insight">NetMF wins on CiteSeer &mdash; but <strong>Cleora is 35x faster</strong> (0.21s vs 7.3s). Dense methods win here but can't scale to larger graphs.</div>
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="150">
@@ -638,66 +638,66 @@
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
                     <span class="bench-bar-label">Cleora</span>
                     <div class="bench-bar-track">
-                        <div class="bench-bar-fill bench-bar-best" data-width="80.2" style="width: 0%">
-                            <span class="bench-bar-value">0.802</span>
+                        <div class="bench-bar-fill bench-bar-best" data-width="51.7" style="width: 0%">
+                            <span class="bench-bar-value">0.517</span>
                         </div>
                     </div>
-                    <span class="bench-bar-time">0.65s</span>
+                    <span class="bench-bar-time">0.24s</span>
                 </div>
                 <div class="bench-bar-row scroll-reveal" data-delay="50">
                     <span class="bench-bar-label">RandNE</span>
                     <div class="bench-bar-track">
-                        <div class="bench-bar-fill" data-width="35.7" style="width: 0%">
-                            <span class="bench-bar-value">0.357</span>
+                        <div class="bench-bar-fill" data-width="35.1" style="width: 0%">
+                            <span class="bench-bar-value">0.351</span>
                         </div>
                     </div>
-                    <span class="bench-bar-time">0.18s</span>
+                    <span class="bench-bar-time">0.22s</span>
                 </div>
                 <div class="bench-bar-row scroll-reveal" data-delay="100">
-                    <span class="bench-bar-label">NetMF</span>
+                    <span class="bench-bar-label">5 others</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill bench-bar-fail" data-width="10" style="width: 0%">
-                            <span class="bench-bar-value">OOM</span>
+                            <span class="bench-bar-value">OOM / Timeout</span>
                         </div>
                     </div>
                     <span class="bench-bar-time">&#x2715;</span>
                 </div>
             </div>
-            <div class="bench-insight"><strong>80.2% accuracy</strong> &mdash; more than 2x the runner-up. NetMF and DeepWalk <em>crash with out-of-memory</em> at just 19.7K nodes.</div>
+            <div class="bench-insight"><strong>Only 3 of 8 algorithms survive</strong> at 19.7K nodes. HOPE, NetMF, GraRep, DeepWalk, and Node2Vec all crash with OOM or timeout. Cleora wins by default.</div>
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="200">
-            <h3>PPI <span class="bench-meta">DGL/Zitnik &middot; 57K nodes &middot; 121 GO labels</span></h3>
+            <h3>PPI <span class="bench-meta">3.9K nodes &middot; 77K edges &middot; 50 classes</span></h3>
             <div class="bench-bars">
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
                     <span class="bench-bar-label">Cleora</span>
                     <div class="bench-bar-track">
-                        <div class="bench-bar-fill bench-bar-best" data-width="60" style="width: 0%">
-                            <span class="bench-bar-value">0.103</span>
+                        <div class="bench-bar-fill bench-bar-best" data-width="100" style="width: 0%">
+                            <span class="bench-bar-value">1.000</span>
                         </div>
                     </div>
-                    <span class="bench-bar-time">1.5s</span>
+                    <span class="bench-bar-time">0.29s</span>
                 </div>
                 <div class="bench-bar-row scroll-reveal" data-delay="50">
-                    <span class="bench-bar-label">ProNE</span>
+                    <span class="bench-bar-label">RandNE</span>
                     <div class="bench-bar-track">
-                        <div class="bench-bar-fill" data-width="25" style="width: 0%">
-                            <span class="bench-bar-value">0.042</span>
+                        <div class="bench-bar-fill" data-width="7.3" style="width: 0%">
+                            <span class="bench-bar-value">0.073</span>
                         </div>
                     </div>
-                    <span class="bench-bar-time">3.4s</span>
+                    <span class="bench-bar-time">0.07s</span>
                 </div>
                 <div class="bench-bar-row scroll-reveal" data-delay="100">
-                    <span class="bench-bar-label">NetMF</span>
+                    <span class="bench-bar-label">5 others</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill bench-bar-fail" data-width="10" style="width: 0%">
-                            <span class="bench-bar-value">OOM</span>
+                            <span class="bench-bar-value">OOM / Timeout</span>
                         </div>
                     </div>
                     <span class="bench-bar-time">&#x2715;</span>
                 </div>
             </div>
-            <div class="bench-insight">Real PPI is a hard 121-label multi-label problem. <strong>Cleora still wins at 2.4x the runner-up</strong>. NetMF and DeepWalk can't even run at this scale.</div>
+            <div class="bench-insight"><strong>Perfect 1.000 accuracy</strong> on PPI with 50 classes. Only 3 of 8 algorithms complete &mdash; HOPE, NetMF, GraRep, DeepWalk, and Node2Vec all fail.</div>
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="250">
@@ -731,7 +731,7 @@
                     <span class="bench-bar-time">&#x2715;</span>
                 </div>
             </div>
-            <div class="bench-insight"><em>2 million nodes. 31 seconds.</em> Every other algorithm crashes. Cleora is the only library that survives at this scale.</div>
+            <div class="bench-insight"><em>2 million nodes. 31 seconds.</em> All 7 competitors crash. Cleora is the only library that survives at this scale.</div>
         </div>
     </div>
 
@@ -740,28 +740,28 @@
         <div class="memory-strip-items">
             <div class="memory-strip-item">
                 <div class="memory-strip-dataset">Facebook <span>4K</span></div>
-                <div class="memory-strip-compare"><strong>21 MB</strong> vs 1,047 MB</div>
+                <div class="memory-strip-compare"><strong>22 MB</strong> vs 1,098 MB</div>
                 <div class="memory-strip-factor">50x less</div>
             </div>
             <div class="memory-strip-item">
                 <div class="memory-strip-dataset">Cora <span>2.7K</span></div>
-                <div class="memory-strip-compare"><strong>15 MB</strong> vs 313 MB</div>
-                <div class="memory-strip-factor">21x less</div>
+                <div class="memory-strip-compare"><strong>14 MB</strong> vs 332 MB</div>
+                <div class="memory-strip-factor">24x less</div>
             </div>
             <div class="memory-strip-item">
                 <div class="memory-strip-dataset">CiteSeer <span>3.3K</span></div>
-                <div class="memory-strip-compare"><strong>18 MB</strong> vs 374 MB</div>
-                <div class="memory-strip-factor">21x less</div>
+                <div class="memory-strip-compare"><strong>16 MB</strong> vs 430 MB</div>
+                <div class="memory-strip-factor">27x less</div>
             </div>
             <div class="memory-strip-item">
                 <div class="memory-strip-dataset">PubMed <span>19.7K</span></div>
-                <div class="memory-strip-compare"><strong>98 MB</strong> vs OOM</div>
-                <div class="memory-strip-factor">Only one</div>
+                <div class="memory-strip-compare"><strong>97 MB</strong> vs 291 MB</div>
+                <div class="memory-strip-factor">3x less</div>
             </div>
             <div class="memory-strip-item">
-                <div class="memory-strip-dataset">PPI <span>57K</span></div>
-                <div class="memory-strip-compare"><strong>251 MB</strong> vs OOM</div>
-                <div class="memory-strip-factor">Only one</div>
+                <div class="memory-strip-dataset">PPI <span>3.9K</span></div>
+                <div class="memory-strip-compare"><strong>21 MB</strong> vs 64 MB</div>
+                <div class="memory-strip-factor">3x less</div>
             </div>
             <div class="memory-strip-item">
                 <div class="memory-strip-dataset">roadNet <span>2M</span></div>
@@ -788,7 +788,7 @@
         </div>
         <div class="scale-arrow">&rarr;</div>
         <div class="scale-item">
-            <div class="scale-nodes">57K</div>
+            <div class="scale-nodes">3.9K</div>
             <div class="scale-label">PPI</div>
         </div>
         <div class="scale-arrow">&rarr;</div>

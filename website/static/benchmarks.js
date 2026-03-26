@@ -19,87 +19,106 @@ const ALGO_COLORS = {
     'RandNE':           '#ef4444',
     'NetMF':            '#3b82f6',
     'DeepWalk':         '#f472b6',
+    'HOPE':             '#34d399',
+    'GraRep':           '#fb923c',
+    'Node2Vec':         '#22d3ee',
 };
 
 const DATASETS = ['ego-Facebook', 'Cora', 'CiteSeer', 'PubMed', 'PPI'];
-const ALGORITHMS = ['Cleora', 'ProNE', 'RandNE', 'NetMF', 'DeepWalk'];
+const ALGORITHMS = ['Cleora', 'ProNE', 'RandNE', 'HOPE', 'NetMF', 'GraRep', 'DeepWalk', 'Node2Vec'];
 
 const SUMMARY_DATA = {
-    'Cleora':          [0.989, 0.816, 0.584, 0.802, 0.103],
-    'ProNE':           [0.062, 0.159, 0.140, 0.324, 0.042],
-    'RandNE':          [0.198, 0.280, 0.250, 0.357, 0.039],
-    'NetMF':           [0.979, 0.808, 0.579, null,  null],
-    'DeepWalk':        [0.969, 0.806, 0.587, null,  null],
+    'Cleora':          [0.986, 0.763, 0.692, 0.517, 1.000],
+    'ProNE':           [0.075, 0.179, 0.189, 0.339, 0.023],
+    'RandNE':          [0.212, 0.247, 0.244, 0.351, 0.073],
+    'HOPE':            [0.890, 0.821, 0.740, null,  null],
+    'NetMF':           [0.957, 0.839, 0.810, null,  null],
+    'GraRep':          [null,  0.809, 0.756, null,  null],
+    'DeepWalk':        [0.958, 0.835, 0.806, null,  null],
+    'Node2Vec':        [0.958, 0.835, 0.806, null,  null],
 };
 
 const FAILURE_STATUS = {
-    'NetMF':           [null, null, null, 'OOM', 'OOM'],
-    'DeepWalk':        [null, null, null, 'Timed Out', 'Timed Out'],
+    'HOPE':            [null,         null, null, 'Timed Out', 'Timed Out'],
+    'NetMF':           [null,         null, null, 'OOM',       'OOM'],
+    'GraRep':          ['Timed Out',  null, null, 'OOM',       'OOM'],
+    'DeepWalk':        [null,         null, null, 'Timed Out', 'Timed Out'],
+    'Node2Vec':        [null,         null, null, 'Timed Out', 'Timed Out'],
 };
 
 const SPEED_DATA = {
-    algorithms: ['Cleora', 'RandNE', 'ProNE', 'NetMF', 'DeepWalk'],
-    facebook:   [0.77,     0.10,     2.78,    44.0,    46.9],
-    cora:       [0.27,     0.05,     0.36,    6.09,    58.8],
-    citeseer:   [0.25,     0.03,     0.12,    18.1,    24.6],
-    pubmed:     [0.65,     0.18,     1.21,    null,    null],
-    ppi:        [1.46,     0.77,     3.41,    null,    null],
-    roadnet:    [31.500,   null,     null,    null,    null],
+    algorithms: ['Cleora', 'RandNE', 'ProNE', 'HOPE', 'NetMF', 'GraRep', 'DeepWalk', 'Node2Vec'],
+    facebook:   [0.62,     0.07,     0.26,    31.48,  28.81,   null,     59.21,      67.90],
+    cora:       [0.27,     0.03,     0.13,    17.00,  5.92,    29.18,    25.52,      25.99],
+    citeseer:   [0.21,     0.03,     0.13,    38.27,  7.26,    28.26,    30.58,      29.77],
+    pubmed:     [0.24,     0.22,     0.75,    null,   null,    null,     null,       null],
+    ppi:        [0.29,     0.07,     1.45,    null,   null,    null,     null,       null],
+    roadnet:    [31.500,   null,     null,    null,   null,    null,     null,       null],
 };
 
 const SPEED_FAILURE = {
-    pubmed:     [null, null, null, 'OOM', 'Timed Out'],
-    ppi:        [null, null, null, 'OOM', 'Timed Out'],
-    roadnet:    [null, 'OOM', 'OOM', 'OOM', 'OOM'],
+    facebook:   [null, null, null, null,         null, 'Timed Out', null,         null],
+    pubmed:     [null, null, null, 'Timed Out',  'OOM', 'OOM',     'Timed Out',  'Timed Out'],
+    ppi:        [null, null, null, 'Timed Out',  'OOM', 'OOM',     'Timed Out',  'Timed Out'],
+    roadnet:    [null, 'OOM', 'OOM', 'OOM',      'OOM', 'OOM',    'OOM',        'OOM'],
 };
 
 const MEMORY_DATA = {
-    algorithms: ['Cleora', 'RandNE', 'ProNE', 'DeepWalk', 'NetMF'],
-    facebook:   [21,       40,       64,      538,        1047],
-    cora:       [15,       24,       41,      260,        313],
-    citeseer:   [18,       30,       50,      362,        374],
-    pubmed:     [98,       176,      293,     null,       null],
-    ppi:        [251,      540,      875,     null,       null],
-    roadnet:    [4129,     null,     null,    null,       null],
+    algorithms: ['Cleora', 'RandNE', 'ProNE', 'HOPE', 'NetMF', 'GraRep', 'DeepWalk', 'Node2Vec'],
+    facebook:   [22,       42,       67,      857,    1098,    null,     572,        572],
+    cora:       [14,       24,       40,      330,    332,     322,      227,        227],
+    citeseer:   [16,       27,       45,      430,    335,     411,      294,        294],
+    pubmed:     [97,       175,      291,     null,   null,    null,     null,       null],
+    ppi:        [21,       40,       64,      null,   null,    null,     null,       null],
+    roadnet:    [4129,     null,     null,    null,   null,    null,     null,       null],
 };
 
 const MEMORY_FAILURE = {
-    pubmed:     [null, null, null, 'OOM', 'OOM'],
-    ppi:        [null, null, null, 'OOM', 'OOM'],
-    roadnet:    [null, 'OOM', 'OOM', 'OOM', 'OOM'],
+    facebook:   [null, null, null, null,         null, 'Timed Out', null,         null],
+    pubmed:     [null, null, null, 'Timed Out',  'OOM', 'OOM',     'Timed Out',  'Timed Out'],
+    ppi:        [null, null, null, 'Timed Out',  'OOM', 'OOM',     'Timed Out',  'Timed Out'],
+    roadnet:    [null, 'OOM', 'OOM', 'OOM',      'OOM', 'OOM',    'OOM',        'OOM'],
 };
 
 const SCATTER_DATA = {
     'ego-Facebook': {
-        'Cleora':          { acc: 0.989, time: 0.77 },
-        'NetMF':           { acc: 0.979, time: 44.0 },
-        'DeepWalk':        { acc: 0.969, time: 46.9 },
-        'RandNE':          { acc: 0.198, time: 0.10 },
-        'ProNE':           { acc: 0.062, time: 2.78 },
+        'Cleora':          { acc: 0.986, time: 0.62 },
+        'ProNE':           { acc: 0.075, time: 0.26 },
+        'RandNE':          { acc: 0.212, time: 0.07 },
+        'HOPE':            { acc: 0.890, time: 31.48 },
+        'NetMF':           { acc: 0.957, time: 28.81 },
+        'DeepWalk':        { acc: 0.958, time: 59.21 },
+        'Node2Vec':        { acc: 0.958, time: 67.90 },
     },
     'Cora': {
-        'Cleora':          { acc: 0.816, time: 0.27 },
-        'NetMF':           { acc: 0.808, time: 6.09 },
-        'DeepWalk':        { acc: 0.806, time: 58.8 },
-        'RandNE':          { acc: 0.280, time: 0.05 },
-        'ProNE':           { acc: 0.159, time: 0.36 },
+        'Cleora':          { acc: 0.763, time: 0.27 },
+        'ProNE':           { acc: 0.179, time: 0.13 },
+        'RandNE':          { acc: 0.247, time: 0.03 },
+        'HOPE':            { acc: 0.821, time: 17.00 },
+        'NetMF':           { acc: 0.839, time: 5.92 },
+        'GraRep':          { acc: 0.809, time: 29.18 },
+        'DeepWalk':        { acc: 0.835, time: 25.52 },
+        'Node2Vec':        { acc: 0.835, time: 25.99 },
     },
     'CiteSeer': {
-        'Cleora':          { acc: 0.584, time: 0.25 },
-        'NetMF':           { acc: 0.579, time: 18.1 },
-        'DeepWalk':        { acc: 0.587, time: 24.6 },
-        'RandNE':          { acc: 0.250, time: 0.03 },
-        'ProNE':           { acc: 0.140, time: 0.12 },
+        'Cleora':          { acc: 0.692, time: 0.21 },
+        'ProNE':           { acc: 0.189, time: 0.13 },
+        'RandNE':          { acc: 0.244, time: 0.03 },
+        'HOPE':            { acc: 0.740, time: 38.27 },
+        'NetMF':           { acc: 0.810, time: 7.26 },
+        'GraRep':          { acc: 0.756, time: 28.26 },
+        'DeepWalk':        { acc: 0.806, time: 30.58 },
+        'Node2Vec':        { acc: 0.806, time: 29.77 },
     },
     'PubMed': {
-        'Cleora':          { acc: 0.802, time: 0.65 },
-        'RandNE':          { acc: 0.357, time: 0.18 },
-        'ProNE':           { acc: 0.324, time: 1.21 },
+        'Cleora':          { acc: 0.517, time: 0.24 },
+        'ProNE':           { acc: 0.339, time: 0.75 },
+        'RandNE':          { acc: 0.351, time: 0.22 },
     },
     'PPI': {
-        'Cleora':          { acc: 0.103, time: 1.46 },
-        'ProNE':           { acc: 0.042, time: 3.41 },
-        'RandNE':          { acc: 0.039, time: 0.77 },
+        'Cleora':          { acc: 1.000, time: 0.29 },
+        'ProNE':           { acc: 0.023, time: 1.45 },
+        'RandNE':          { acc: 0.073, time: 0.07 },
     },
 };
 
@@ -173,7 +192,7 @@ const failureBarPlugin = {
                 ctx.globalAlpha = 0.6;
 
                 if (isHorizontal) {
-                    const xStart = valueScale.getPixelForValue(0);
+                    const xStart = valueScale.type === 'logarithmic' ? valueScale.left : valueScale.getPixelForValue(0);
                     const xEnd = valueScale.right - 20;
                     const halfH = barWidth / 2;
                     ctx.strokeRect(xStart, barY - halfH, xEnd - xStart, barWidth);
@@ -193,7 +212,7 @@ const failureBarPlugin = {
                     ctx.textBaseline = 'middle';
                     ctx.fillText(failureText, (xStart + xEnd) / 2, barY);
                 } else {
-                    const yBottom = valueScale.getPixelForValue(0);
+                    const yBottom = valueScale.type === 'logarithmic' ? valueScale.bottom : valueScale.getPixelForValue(0);
                     const yTop = valueScale.top + 20;
                     const halfW = barWidth / 2;
                     ctx.strokeRect(barX - halfW, yTop, barWidth, yBottom - yTop);
