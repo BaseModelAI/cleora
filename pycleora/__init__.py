@@ -62,7 +62,7 @@ def embed(
     callback: Optional[Callable[[int, np.ndarray], None]] = None,
     residual_weight: float = 0.0,
     convergence_threshold: float = 0.0,
-    whiten: bool = False,
+    whiten: bool = True,
 ) -> np.ndarray:
     if isinstance(num_iterations, str):
         if num_iterations == "auto":
@@ -126,9 +126,20 @@ def embed(
 
 
 def whiten_embeddings(embeddings: np.ndarray, n_components: Optional[int] = None) -> np.ndarray:
-    mean = embeddings.mean(axis=0)
-    centered = embeddings - mean
-    cov = np.cov(centered, rowvar=False)
+    n, d = embeddings.shape
+    if n <= 1:
+        return embeddings.copy()
+    chunk = 50000
+
+    mean = embeddings.mean(axis=0, dtype=np.float64)
+
+    cov = np.zeros((d, d), dtype=np.float64)
+    for i in range(0, n, chunk):
+        end = min(i + chunk, n)
+        block = embeddings[i:end].astype(np.float64) - mean
+        cov += block.T @ block
+    cov *= 1.0 / (n - 1)
+
     eigenvalues, eigenvectors = np.linalg.eigh(cov)
 
     idx = np.argsort(eigenvalues)[::-1]
@@ -139,9 +150,16 @@ def whiten_embeddings(embeddings: np.ndarray, n_components: Optional[int] = None
         eigenvalues = eigenvalues[:n_components]
         eigenvectors = eigenvectors[:, :n_components]
 
-    inv_sqrt = np.diag(1.0 / np.sqrt(np.maximum(eigenvalues, 1e-10)))
-    whitened = centered @ eigenvectors @ inv_sqrt
-    return whitened.astype(np.float32)
+    scale = 1.0 / np.sqrt(np.maximum(eigenvalues, 1e-10))
+    transform = (eigenvectors * scale).astype(np.float32)
+    mean_f32 = mean.astype(np.float32)
+
+    out = np.empty((n, transform.shape[1]), dtype=np.float32)
+    for i in range(0, n, chunk):
+        end = min(i + chunk, n)
+        block = embeddings[i:end] - mean_f32
+        np.dot(block, transform, out=out[i:end])
+    return out
 
 
 def embed_with_node_features(
@@ -263,7 +281,7 @@ def embed_multiscale(
     normalization: str = "l2",
     seed: int = 0,
     num_workers: Optional[int] = None,
-    whiten: bool = False,
+    whiten: bool = True,
 ) -> np.ndarray:
     propagate_fn = _get_propagate_fn(graph, propagation)
 

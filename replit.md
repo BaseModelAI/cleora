@@ -129,10 +129,11 @@ cp ~/.pythonlibs/lib/python3.12/site-packages/pycleora/pycleora.cpython-312-x86_
 - `pycleora benchmark` - Run benchmarks
 - `pycleora similar` - Find similar entities
 
-### High-Dimension Optimization
-- `embed(..., whiten=True)` — PCA whitening post-processing. Critical for high dims (512+). At 1024d on ego-Facebook: 0.964 acc (vs 0.355 without).
-- `embed(..., num_iterations="auto")` — Auto-selects iterations: 4 for dim≤256, 8 for dim≤512, 16 for dim>512.
-- `embed_multiscale(..., whiten=True)` — Each scale whitened before concatenation. 2×512 [8,16] whiten → 0.942 acc.
+### Whitening (Default: Enabled)
+- `embed()` and `embed_multiscale()` now default to `whiten=True`. Memory-efficient chunked implementation avoids OOM on large graphs.
+- Best config: `embed(graph, 256, num_iterations=16, whiten=True)` — achieves 0.932 (Facebook), 1.000 (PPI-large), 0.971 (Flickr), 0.994 (ogbn-arxiv).
+- Whitening now works on ALL datasets including Yelp (717K nodes, 1.5GB) and roadNet-CA (2M nodes, 4.1GB).
+- `whiten_embeddings()` uses chunked float64 covariance computation — peak memory ~2x embedding size instead of 3-4x.
 
 ## Architecture Notes
 

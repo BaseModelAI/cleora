@@ -84,15 +84,15 @@
 
         <h2 id="embed">pycleora.embed()</h2>
         <div class="api-method">
-            <h3>embed(graph, feature_dim=1024, num_iterations=4, propagation="left", normalization="l2", whiten=False)</h3>
-            <p>Generate Cleora embeddings via Markov propagation. Use <code>whiten=True</code> for highest accuracy at high dimensions (1024+). Use <code>num_iterations="auto"</code> to automatically scale iterations based on dimension.</p>
+            <h3>embed(graph, feature_dim=128, num_iterations=4, propagation="left", normalization="l2", whiten=True)</h3>
+            <p>Generate Cleora embeddings via Markov propagation. Whitening is enabled by default &mdash; it dramatically improves accuracy at all dimensions. Use <code>num_iterations="auto"</code> to automatically scale iterations based on dimension.</p>
             <div class="api-params">
                 <p><code>graph</code> : <em>SparseMatrix</em> — Input graph</p>
-                <p><code>feature_dim</code> : <em>int</em> — Embedding dimensionality (default: 1024)</p>
+                <p><code>feature_dim</code> : <em>int</em> — Embedding dimensionality (default: 128)</p>
                 <p><code>num_iterations</code> : <em>int or "auto"</em> — Propagation iterations (default: 4). <code>"auto"</code> selects 4 for dim &le;256, 8 for dim &le;512, 16 for dim &gt;512</p>
                 <p><code>propagation</code> : <em>str</em> — <code>"left"</code> or <code>"symmetric"</code> (default: "left")</p>
                 <p><code>normalization</code> : <em>str</em> — <code>"l2"</code>, <code>"l1"</code>, <code>"spectral"</code>, or <code>"none"</code></p>
-                <p><code>whiten</code> : <em>bool</em> — Apply PCA whitening post-processing (default: False). Dramatically improves accuracy at high dims</p>
+                <p><code>whiten</code> : <em>bool</em> — Apply PCA whitening post-processing (default: True). Dramatically improves accuracy by decorrelating and standardizing dimensions</p>
                 <p><strong>Returns:</strong> <code>np.ndarray</code> — Shape (n_entities, feature_dim)</p>
             </div>
         </div>
@@ -112,12 +112,12 @@
 
         <h2 id="embed-multiscale">pycleora.embed_multiscale()</h2>
         <div class="api-method">
-            <h3>embed_multiscale(graph, feature_dim=128, scales=[1, 2, 4, 8], whiten=False)</h3>
-            <p>Generate multi-scale embeddings by concatenating embeddings at different propagation depths. Each scale captures a different neighborhood radius. Use <code>whiten=True</code> for best accuracy.</p>
+            <h3>embed_multiscale(graph, feature_dim=128, scales=[1, 2, 4, 8], whiten=True)</h3>
+            <p>Generate multi-scale embeddings by concatenating embeddings at different propagation depths. Each scale captures a different neighborhood radius. Whitening is enabled by default.</p>
             <div class="api-params">
                 <p><code>feature_dim</code> : <em>int</em> — Dimension per scale (total output = feature_dim &times; len(scales))</p>
                 <p><code>scales</code> : <em>List[int]</em> — Iteration counts per scale (default: [1, 2, 4, 8])</p>
-                <p><code>whiten</code> : <em>bool</em> — Apply PCA whitening to each scale before concatenation (default: False)</p>
+                <p><code>whiten</code> : <em>bool</em> — Apply PCA whitening to each scale before concatenation (default: True)</p>
                 <p><strong>Returns:</strong> <code>np.ndarray</code> — Shape (n_entities, feature_dim &times; len(scales))</p>
             </div>
         </div>
