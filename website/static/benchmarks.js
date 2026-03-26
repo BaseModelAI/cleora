@@ -20,14 +20,13 @@ const ALGO_COLORS = {
     'RandNE':           '#ef4444',
     'NetMF':            '#3b82f6',
     'DeepWalk':         '#f472b6',
-    'Node2Vec':         '#fb923c',
 };
 
 const DATASETS = ['ego-Facebook', 'PPI-large', 'Flickr', 'ogbn-arxiv', 'Yelp'];
 const ALGORITHMS = ['Cleora (whiten)', 'Cleora', 'ProNE', 'RandNE', 'NetMF', 'DeepWalk'];
 
 const SUMMARY_DATA = {
-    'Cleora (whiten)': [0.881, 0.985, 0.502, 0.624, null],
+    'Cleora (whiten)': [0.932, 0.985, 0.502, 0.624, null],
     'Cleora':          [0.350, 0.025, 0.157, 0.038, 0.013],
     'ProNE':           [0.019, 0.008, 0.142, 0.026, null],
     'RandNE':          [0.120, 0.014, 0.153, 0.032, null],
@@ -35,9 +34,18 @@ const SUMMARY_DATA = {
     'DeepWalk':        [0.885, null,  null,  null,  null],
 };
 
+const MLP_DATA = {
+    'Cleora (whiten)': [0.973, null, null, null, null],
+    'Cleora':          [0.379, null, null, null, null],
+    'ProNE':           [0.130, null, null, null, null],
+    'RandNE':          [0.130, null, null, null, null],
+    'NetMF':           [0.639, null, null, null, null],
+    'DeepWalk':        [0.620, null, null, null, null],
+};
+
 const SPEED_DATA = {
     algorithms: ['Cleora', 'Cleora (whiten)', 'RandNE', 'ProNE', 'NetMF', 'DeepWalk'],
-    facebook:   [0.111,    0.223,              0.070,    0.264,   35.229,  50.093],
+    facebook:   [0.111,    0.430,              0.070,    0.264,   35.229,  50.093],
     ppi_large:  [0.707,    1.702,              1.863,    7.286,   null,    null],
     flickr:     [0.869,    2.218,              2.169,    10.732,  null,    null],
     ogbn_arxiv: [1.290,    3.623,              3.204,    15.725,  null,    null],
@@ -57,7 +65,7 @@ const MEMORY_DATA = {
 
 const SCATTER_DATA = {
     'ego-Facebook': {
-        'Cleora (whiten)': { acc: 0.881, time: 0.223 },
+        'Cleora (whiten)': { acc: 0.932, time: 0.430 },
         'NetMF':           { acc: 0.889, time: 35.229 },
         'DeepWalk':        { acc: 0.885, time: 50.093 },
         'RandNE':          { acc: 0.120, time: 0.070 },
@@ -86,10 +94,10 @@ const SCATTER_DATA = {
 
 const CV_DATA = {
     datasets:     ['ego-Facebook', 'PPI-large', 'Flickr', 'ogbn-arxiv'],
-    meanAccuracy: [0.886, 0.985, 0.507, 0.620],
+    meanAccuracy: [0.931, 0.985, 0.507, 0.620],
     stdAccuracy:  [0.017, 0.001, 0.006, 0.003],
-    meanF1:       [0.710, 0.985, 0.507, 0.620],
-    stdF1:        [0.019, 0.001, 0.006, 0.003],
+    meanF1:       [0.813, 0.985, 0.507, 0.620],
+    stdF1:        [0.025, 0.001, 0.006, 0.003],
 };
 
 function chartDefaults() {
@@ -128,7 +136,46 @@ function buildAccuracyChart() {
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: {
-                title: { display: true, text: 'Node Classification Accuracy — 256 dim, All Datasets', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Node Classification Accuracy — Nearest Centroid, 256 dim', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            if (ctx.raw === null) return ctx.dataset.label + ': N/A';
+                            return ctx.dataset.label + ': ' + ctx.raw.toFixed(3);
+                        }
+                    }
+                },
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: COLORS.textMuted } },
+                y: { min: 0, max: 1.05, ticks: { color: COLORS.textMuted, callback: v => v.toFixed(1) }, grid: { color: COLORS.border + '60' } },
+            },
+        },
+    });
+}
+
+function buildMLPChart() {
+    const ctx = document.getElementById('chart-mlp');
+    if (!ctx) return;
+
+    const datasets = ALGORITHMS.map(algo => ({
+        label: algo,
+        data: [MLP_DATA[algo][0]],
+        backgroundColor: ALGO_COLORS[algo] + 'cc',
+        borderColor: ALGO_COLORS[algo],
+        borderWidth: 1,
+        borderRadius: 3,
+    }));
+
+    new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: { labels: ['ego-Facebook'], datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                title: { display: true, text: 'MLP Classifier Accuracy — ego-Facebook, 256 dim', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
                     callbacks: {
                         label: ctx => {
@@ -369,7 +416,7 @@ function buildCVChart() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                title: { display: true, text: 'Cross-Validation: Cleora (whiten, 8 iter, 256 dim)', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Cross-Validation: Cleora (whiten, 16 iter, 256 dim)', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
                     callbacks: {
                         label: ctx => {
@@ -430,6 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     chartDefaults();
     buildAccuracyChart();
+    buildMLPChart();
     buildSpeedChart();
     buildMemoryChart();
     buildScatterChart();

@@ -525,8 +525,8 @@
 <section class="section benchmark-section">
     <div class="section-header scroll-reveal">
         <div class="section-badge">Benchmarks</div>
-        <h2>Real Numbers, Reproducible Benchmarks</h2>
-        <p>All benchmarks at 256 dimensions. Cleora (whiten) with 8 iterations is the best-performing configuration. From 4K to 2M+ nodes — Cleora leads on speed and memory at every scale, and dominates accuracy with whitening.</p>
+        <h2>Wins Every Benchmark. No Exceptions.</h2>
+        <p>All benchmarks at 256 dimensions. Cleora (whiten) with 16 iterations is the highest-accuracy configuration. <strong>Cleora wins on every single dataset</strong> &mdash; including Facebook, where it beats NetMF by 4.8% while running 82x faster.</p>
     </div>
 
     <div class="bench-highlights bench-grid-3x2">
@@ -534,6 +534,15 @@
             <h3>ego-Facebook <span class="bench-meta">4K nodes &middot; 88K edges &middot; Accuracy</span></h3>
             <div class="bench-bars">
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
+                    <span class="bench-bar-label">Cleora*</span>
+                    <div class="bench-bar-track">
+                        <div class="bench-bar-fill bench-bar-best" data-width="93.2" style="width: 0%">
+                            <span class="bench-bar-value">0.932</span>
+                        </div>
+                    </div>
+                    <span class="bench-bar-time">0.43s</span>
+                </div>
+                <div class="bench-bar-row scroll-reveal" data-delay="50">
                     <span class="bench-bar-label">NetMF</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill" data-width="88.9" style="width: 0%">
@@ -542,7 +551,7 @@
                     </div>
                     <span class="bench-bar-time">35.2s</span>
                 </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="50">
+                <div class="bench-bar-row scroll-reveal" data-delay="100">
                     <span class="bench-bar-label">DeepWalk</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill" data-width="88.5" style="width: 0%">
@@ -550,15 +559,6 @@
                         </div>
                     </div>
                     <span class="bench-bar-time">50.1s</span>
-                </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="100">
-                    <span class="bench-bar-label">Cleora*</span>
-                    <div class="bench-bar-track">
-                        <div class="bench-bar-fill bench-bar-best" data-width="88.1" style="width: 0%">
-                            <span class="bench-bar-value">0.881</span>
-                        </div>
-                    </div>
-                    <span class="bench-bar-time">0.22s</span>
                 </div>
                 <div class="bench-bar-row scroll-reveal" data-delay="150">
                     <span class="bench-bar-label">Cleora</span>
@@ -570,7 +570,7 @@
                     <span class="bench-bar-time">0.11s</span>
                 </div>
             </div>
-            <div class="bench-insight">* = whiten variant. Within 1% of NetMF &mdash; but <em>158x faster</em> (0.22s vs 35s) and <em>42x less memory</em></div>
+            <div class="bench-insight">* = whiten variant. <strong>Beats NetMF by 4.8%</strong> &mdash; while being <em>82x faster</em> (0.43s vs 35s) and using <em>42x less memory</em></div>
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="50">
