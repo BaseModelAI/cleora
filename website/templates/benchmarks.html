@@ -436,7 +436,7 @@
         <h2 id="methodology">Methodology</h2>
         <ul>
             <li><strong>Datasets:</strong> All datasets are downloaded from their canonical academic sources at runtime. ego-Facebook and roadNet-CA from <a href="https://snap.stanford.edu/" target="_blank">SNAP</a>. Cora, CiteSeer, and PubMed from <a href="https://github.com/kimiyoung/planetoid" target="_blank">Planetoid</a> (Yang et al., ICML 2016). PPI from <a href="https://data.dgl.ai/dataset/ppi.zip" target="_blank">DGL</a> (Zitnik &amp; Leskovec, Bioinformatics 2017). No synthetic data is used.</li>
-            <li><strong>Algorithms:</strong> Cleora, ProNE, RandNE, HOPE, NetMF, GraRep, DeepWalk, and Node2Vec. All use 256-dimensional embeddings. Cleora uses 40 iterations (tuned); all other algorithms use default hyperparameters.</li>
+            <li><strong>Algorithms:</strong> Cleora, ProNE, RandNE, HOPE, NetMF, GraRep, DeepWalk, and Node2Vec. All use 256-dimensional embeddings. Cleora uses 40 iterations; all other algorithms use default hyperparameters.</li>
             <li><strong>Labels:</strong> ego-Facebook uses Louvain community detection (seed=42). Cora/CiteSeer/PubMed use paper category labels. PPI uses functional class labels.</li>
             <li><strong>Evaluation:</strong> Nearest Centroid classifier with 80/20 train/test split (seed=42).</li>
             <li><strong>Failure modes:</strong> "OOM" means the process was killed by the OS due to exceeding available memory. "Timed Out" means the algorithm exceeded a 90-second time budget. Both indicate that the algorithm is not feasible for that dataset size.</li>
