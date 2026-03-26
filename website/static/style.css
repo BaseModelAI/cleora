@@ -1432,6 +1432,10 @@ footer {
     position: relative;
 }
 
+.bench-bar-track.bench-bar-track-overflow {
+    overflow: visible;
+}
+
 .bench-bar-fill {
     height: 100%;
     background: var(--accent);
@@ -1442,6 +1446,8 @@ footer {
     padding-right: 8px;
     min-width: 0;
     transition: width 1s ease;
+    position: relative;
+    overflow: visible;
 }
 
 .bench-bar-fill.bench-bar-best {
@@ -1459,6 +1465,12 @@ footer {
     color: #fff;
     font-weight: 600;
     white-space: nowrap;
+}
+
+.bench-bar-fill.bench-bar-short .bench-bar-value {
+    position: absolute;
+    left: calc(100% + 6px);
+    color: var(--text-dim);
 }
 
 .bench-bar-time {

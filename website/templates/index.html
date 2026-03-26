@@ -1309,7 +1309,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (entry.isIntersecting) {
                 const bars = entry.target.querySelectorAll('.bench-bar-fill');
                 bars.forEach((bar, i) => {
-                    const w = bar.dataset.width;
+                    const w = parseFloat(bar.dataset.width);
+                    if (w < 40) {
+                        bar.classList.add('bench-bar-short');
+                        bar.parentElement.classList.add('bench-bar-track-overflow');
+                    }
                     setTimeout(() => {
                         bar.style.width = w + '%';
                         bar.style.transition = 'width 1s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
