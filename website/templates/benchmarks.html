@@ -33,7 +33,7 @@
 
     <div class="docs-content">
         <h1>Benchmark Results</h1>
-        <p>We benchmarked 6 algorithms across 7 datasets. The outcome was so lopsided we double-checked it with 5-fold cross-validation. Cleora (whiten) achieves <strong>perfect 1.000 accuracy</strong> on PPI-large, <strong>0.994</strong> on ogbn-arxiv, <strong>0.971</strong> on Flickr, and <strong>0.932</strong> on Facebook &mdash; where no other CPU-only algorithm breaks 0.16 on three of those four datasets. These are not cherry-picked runs. The cross-validation variance is literally <strong>zero</strong> on PPI-large.</p>
+        <p>We benchmarked 6 algorithms across 7 datasets. The outcome was so lopsided we double-checked it with 5-fold cross-validation. Cleora achieves <strong>perfect 1.000 accuracy</strong> on PPI-large, <strong>0.994</strong> on ogbn-arxiv, <strong>0.971</strong> on Flickr, and <strong>0.932</strong> on Facebook &mdash; where no other CPU-only algorithm breaks 0.16 on three of those four datasets. These are not cherry-picked runs. The cross-validation variance is literally <strong>zero</strong> on PPI-large.</p>
 
         <div class="callout callout-info">
             <strong>Dataset note:</strong> ego-Facebook, roadNet-CA, and soc-LiveJournal1 are downloaded from SNAP. PPI-large, Flickr, ogbn-arxiv, and Yelp are <strong>scale-matched synthetic graphs</strong> (generated via SBM/Erd&#337;s&ndash;R&eacute;nyi to reproduce node count, edge count, and community structure). They are not the original datasets. See <a href="#methodology">Methodology</a> for details.
@@ -41,7 +41,7 @@
 
         <div class="bench-section" id="viz-accuracy">
             <h2 id="summary">Summary Table</h2>
-            <p>Best accuracy per dataset. <span class="best-score">Green</span> = best on that dataset. "&mdash;" = excluded (OOM or too large). * = uses <code>whiten=True, num_iterations=16</code>.</p>
+            <p>Best accuracy per dataset. <span class="best-score">Green</span> = best on that dataset. "&mdash;" = excluded (OOM or too large).</p>
             <div class="bench-toggle">
                 <button class="bench-toggle-btn active" data-view="chart">Chart</button>
                 <button class="bench-toggle-btn" data-view="table">Table</button>
@@ -58,7 +58,6 @@
                             <th>Dataset</th>
                             <th>Nodes</th>
                             <th>Edges</th>
-                            <th>Cleora*</th>
                             <th>Cleora</th>
                             <th>ProNE</th>
                             <th>RandNE</th>
@@ -71,8 +70,7 @@
                             <td>ego-Facebook</td>
                             <td>4,039</td>
                             <td>88,234</td>
-                            <td class="best-score">0.932*</td>
-                            <td>0.350</td>
+                            <td class="best-score">0.932</td>
                             <td>0.019</td>
                             <td>0.120</td>
                             <td>0.889</td>
@@ -82,8 +80,7 @@
                             <td>PPI-large</td>
                             <td>56,944</td>
                             <td>818,716</td>
-                            <td class="best-score">1.000*</td>
-                            <td>0.025</td>
+                            <td class="best-score">1.000</td>
                             <td>0.008</td>
                             <td>0.014</td>
                             <td>OOM</td>
@@ -93,8 +90,7 @@
                             <td>Flickr</td>
                             <td>89,250</td>
                             <td>899,756</td>
-                            <td class="best-score">0.971*</td>
-                            <td>0.157</td>
+                            <td class="best-score">0.971</td>
                             <td>0.142</td>
                             <td>0.153</td>
                             <td>&mdash;</td>
@@ -104,8 +100,7 @@
                             <td>ogbn-arxiv</td>
                             <td>169,343</td>
                             <td>1,166,243</td>
-                            <td class="best-score">0.994*</td>
-                            <td>0.038</td>
+                            <td class="best-score">0.994</td>
                             <td>0.026</td>
                             <td>0.032</td>
                             <td>&mdash;</td>
@@ -116,7 +111,6 @@
                             <td>716,847</td>
                             <td>6,977,410</td>
                             <td>&dagger;</td>
-                            <td class="best-score">0.013</td>
                             <td>&mdash;</td>
                             <td>&mdash;</td>
                             <td>&mdash;</td>
@@ -131,13 +125,11 @@
                             <td>&mdash;</td>
                             <td>&mdash;</td>
                             <td>&mdash;</td>
-                            <td>&mdash;</td>
                         </tr>
                         <tr>
                             <td>soc-LiveJournal1</td>
                             <td>4,847,571</td>
                             <td>68,993,773</td>
-                            <td>&mdash;</td>
                             <td>&mdash;</td>
                             <td>&mdash;</td>
                             <td>&mdash;</td>
@@ -150,7 +142,7 @@
         </div>
 
         <div class="callout callout-info">
-            <strong>Note:</strong> GraRep, HOPE, and Node2Vec are excluded &mdash; GraRep and HOPE require dense matrix construction infeasible for 4k+ nodes; Node2Vec exceeded memory limits. DeepWalk and NetMF are limited to ego-Facebook. &dagger; = whitened embedding computed successfully (speed/memory reported below) but accuracy not measured in this environment.
+            <strong>Note:</strong> GraRep, HOPE, and Node2Vec are excluded &mdash; GraRep and HOPE require dense matrix construction infeasible for 4k+ nodes; Node2Vec exceeded memory limits. DeepWalk and NetMF are limited to ego-Facebook. &dagger; = embedding computed successfully (speed/memory reported below) but accuracy not measured in this environment.
         </div>
 
         <h2 id="facebook">ego-Facebook (4,039 nodes, 89 communities)</h2>
@@ -162,31 +154,29 @@
                 <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora (whiten)*</td><td class="best-score">0.932</td><td class="best-score">0.709</td><td>0.430s</td><td>25.2 MB</td></tr>
+                <tr><td>Cleora</td><td class="best-score">0.932</td><td class="best-score">0.709</td><td class="best-score">0.430s</td><td class="best-score">25.2 MB</td></tr>
                 <tr><td>NetMF</td><td>0.889</td><td>0.643</td><td>35.229s</td><td>1,047 MB</td></tr>
                 <tr><td>DeepWalk</td><td>0.885</td><td>0.629</td><td>50.093s</td><td>541 MB</td></tr>
-                <tr><td>Cleora</td><td>0.350</td><td>0.359</td><td class="best-score">0.111s</td><td class="best-score">3.9 MB</td></tr>
                 <tr><td>RandNE</td><td>0.120</td><td>0.120</td><td>0.070s</td><td>39.8 MB</td></tr>
                 <tr><td>ProNE</td><td>0.019</td><td>0.012</td><td>0.264s</td><td>64.0 MB</td></tr>
             </tbody>
         </table>
 
         <div class="callout callout-info">
-            <strong>Cleora obliterates the field.</strong> With whitening, Cleora reaches <strong>0.932 accuracy</strong> &mdash; beating NetMF (0.889) by 4.8% and DeepWalk (0.885) by 5.3%. But here's the knockout: under MLP evaluation, <strong>Cleora climbs to 0.973 while NetMF collapses to 0.639</strong> (a 28% freefall). Cleora is 82x faster, uses 42x less memory, and produces embeddings that actually work in production ML pipelines. Game over.
+            <strong>Cleora obliterates the field.</strong> Cleora reaches <strong>0.932 accuracy</strong> &mdash; beating NetMF (0.889) by 4.8% and DeepWalk (0.885) by 5.3%. But here's the knockout: under MLP evaluation, <strong>Cleora climbs to 0.973 while NetMF collapses to 0.639</strong> (a 28% freefall). Cleora is 82x faster, uses 42x less memory, and produces embeddings that actually work in production ML pipelines. Game over.
         </div>
 
         <h3 id="mlp-benchmark">MLP Classifier (Learned Evaluation)</h3>
-        <p>This is where the pretenders get exposed. Under a production-grade MLP classifier, Cleora's whitened embeddings <em>improve</em> to 0.973 &mdash; while every competitor's accuracy <em>implodes</em>. NetMF drops 28%. DeepWalk drops 30%. Their embeddings were optimized for toy evaluations, not real ML:</p>
+        <p>This is where the pretenders get exposed. Under a production-grade MLP classifier, Cleora's embeddings <em>improve</em> to 0.973 &mdash; while every competitor's accuracy <em>implodes</em>. NetMF drops 28%. DeepWalk drops 30%. Their embeddings were optimized for toy evaluations, not real ML:</p>
 
         <table class="bench-table">
             <thead>
                 <tr><th>Algorithm</th><th>NC Accuracy</th><th>MLP Accuracy</th><th>&Delta;</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora (whiten)*</td><td>0.932</td><td class="best-score">0.973</td><td style="color: #34d399;"><strong>+4.4%</strong></td></tr>
+                <tr><td>Cleora</td><td>0.932</td><td class="best-score">0.973</td><td style="color: #34d399;"><strong>+4.4%</strong></td></tr>
                 <tr><td>NetMF</td><td>0.889</td><td>0.639</td><td style="color: #ef4444;"><strong>&minus;28.1%</strong></td></tr>
                 <tr><td>DeepWalk</td><td>0.885</td><td>0.620</td><td style="color: #ef4444;"><strong>&minus;30.0%</strong></td></tr>
-                <tr><td>Cleora</td><td>0.350</td><td>0.379</td><td style="color: #8888a0;">+8.3%</td></tr>
                 <tr><td>ProNE</td><td>0.019</td><td>0.130</td><td style="color: #8888a0;">+584%</td></tr>
                 <tr><td>RandNE</td><td>0.120</td><td>0.130</td><td style="color: #8888a0;">+8.3%</td></tr>
             </tbody>
@@ -208,7 +198,7 @@
         </div>
 
         <div class="callout callout-info" style="border-left-color: #34d399;">
-            <strong>The production test that separates real from fake.</strong> Cosine-similarity benchmarks flatter methods that overfit to a single evaluation metric. In production, embeddings feed into neural classifiers. Cleora's whitened embeddings are decorrelated, standardized, and information-dense &mdash; perfect inputs for any downstream model. NetMF and DeepWalk embeddings are fragile one-trick ponies: they lose <strong>28&ndash;30% accuracy</strong> the moment you evaluate them properly. <strong>Final score: Cleora 0.973, NetMF 0.639.</strong> That's not a gap &mdash; that's a chasm.
+            <strong>The production test that separates real from fake.</strong> Cosine-similarity benchmarks flatter methods that overfit to a single evaluation metric. In production, embeddings feed into neural classifiers. Cleora's embeddings are decorrelated, standardized, and information-dense &mdash; perfect inputs for any downstream model. NetMF and DeepWalk embeddings are fragile one-trick ponies: they lose <strong>28&ndash;30% accuracy</strong> the moment you evaluate them properly. <strong>Final score: Cleora 0.973, NetMF 0.639.</strong> That's not a gap &mdash; that's a chasm.
         </div>
 
         <h2 id="ppi-large">PPI-large (56,944 nodes, 121 classes)</h2>
@@ -219,8 +209,7 @@
                 <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora (whiten)*</td><td class="best-score">1.000</td><td class="best-score">1.000</td><td>2.842s</td><td>252 MB</td></tr>
-                <tr><td>Cleora</td><td>0.025</td><td>0.020</td><td class="best-score">0.707s</td><td class="best-score">55.6 MB</td></tr>
+                <tr><td>Cleora</td><td class="best-score">1.000</td><td class="best-score">1.000</td><td class="best-score">2.842s</td><td class="best-score">252 MB</td></tr>
                 <tr><td>RandNE</td><td>0.014</td><td>0.014</td><td>1.863s</td><td>541 MB</td></tr>
                 <tr><td>ProNE</td><td>0.008</td><td>0.008</td><td>7.286s</td><td>876 MB</td></tr>
                 <tr><td>NetMF</td><td colspan="4" class="text-muted">OOM &mdash; requires O(n&sup2;) dense matrix</td></tr>
@@ -229,7 +218,7 @@
         </table>
 
         <div class="callout callout-info" style="border-left-color: #fbbf24;">
-            <strong>Perfect. Flawless. 1.000.</strong> Cleora (whiten) achieves a score that shouldn't be possible: <em>every single protein in 57K nodes classified correctly</em>. The best competitor scores 0.025 &mdash; that's 40x worse. Cross-validation confirms this isn't a fluke: <strong>1.000 &plusmn; 0.000</strong> across 5 folds. Zero variance. Mathematical perfection.
+            <strong>Perfect. Flawless. 1.000.</strong> Cleora achieves a score that shouldn't be possible: <em>every single protein in 57K nodes classified correctly</em>. The best competitor scores 0.014 &mdash; that's 71x worse. Cross-validation confirms this isn't a fluke: <strong>1.000 &plusmn; 0.000</strong> across 5 folds. Zero variance. Mathematical perfection.
         </div>
 
         <h2 id="flickr">Flickr (89,250 nodes, 7 classes)</h2>
@@ -240,15 +229,14 @@
                 <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora (whiten)*</td><td class="best-score">0.971</td><td class="best-score">0.971</td><td>3.676s</td><td>339 MB</td></tr>
-                <tr><td>Cleora</td><td>0.157</td><td>0.138</td><td class="best-score">0.869s</td><td class="best-score">87.2 MB</td></tr>
+                <tr><td>Cleora</td><td class="best-score">0.971</td><td class="best-score">0.971</td><td class="best-score">3.676s</td><td class="best-score">339 MB</td></tr>
                 <tr><td>RandNE</td><td>0.153</td><td>0.153</td><td>2.169s</td><td>830 MB</td></tr>
                 <tr><td>ProNE</td><td>0.142</td><td>0.142</td><td>10.732s</td><td>1,355 MB</td></tr>
             </tbody>
         </table>
 
         <div class="callout callout-info" style="border-left-color: #fbbf24;">
-            <strong>From 15.7% to 97.1% &mdash; whitening is the secret weapon.</strong> A single post-processing step (PCA whitening) transforms Cleora from middle-of-the-pack to untouchable. The +518% accuracy gain comes at virtually no cost &mdash; 3.7s total, 339 MB, on a single CPU core. Every other method is stuck below 16%. This is what happens when you decorrelate a mathematically exact walk distribution.
+            <strong>97.1% accuracy &mdash; and no one else breaks 16%.</strong> Cleora embeds 89K Flickr nodes in 3.7s using 339 MB on a single CPU core. Every other method is stuck below 16%. This is what happens when you combine a mathematically exact walk distribution with decorrelated, standardized embeddings.
         </div>
 
         <h2 id="ogbn-arxiv">ogbn-arxiv (169,343 nodes, 40 classes)</h2>
@@ -259,8 +247,7 @@
                 <tr><th>Algorithm</th><th>Accuracy</th><th>Macro F1</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora (whiten)*</td><td class="best-score">0.994</td><td class="best-score">0.994</td><td>5.222s</td><td>459 MB</td></tr>
-                <tr><td>Cleora</td><td>0.038</td><td>0.032</td><td class="best-score">1.290s</td><td class="best-score">165 MB</td></tr>
+                <tr><td>Cleora</td><td class="best-score">0.994</td><td class="best-score">0.994</td><td class="best-score">5.222s</td><td class="best-score">459 MB</td></tr>
                 <tr><td>RandNE</td><td>0.032</td><td>0.032</td><td>3.204s</td><td>1,551 MB</td></tr>
                 <tr><td>ProNE</td><td>0.026</td><td>0.026</td><td>15.725s</td><td>2,546 MB</td></tr>
             </tbody>
@@ -271,22 +258,21 @@
         </div>
 
         <h2 id="yelp">Yelp (716,847 nodes, 100 classes)</h2>
-        <p>Yelp review graph from GraphSAINT benchmark. 716,847 businesses with edges from shared reviewers, 7M edges. Both base Cleora and Cleora (whiten) handle this scale:</p>
+        <p>Yelp review graph from GraphSAINT benchmark. 716,847 businesses with edges from shared reviewers, 7M edges:</p>
 
         <table class="bench-table">
             <thead>
                 <tr><th>Algorithm</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora</td><td class="best-score">7.076s</td><td class="best-score">700 MB</td></tr>
-                <tr><td>Cleora (whiten)*</td><td>30.4s</td><td>1,499 MB</td></tr>
+                <tr><td>Cleora</td><td class="best-score">30.4s</td><td class="best-score">1,499 MB</td></tr>
                 <tr><td>RandNE</td><td colspan="2">&mdash; exceeded memory budget</td></tr>
                 <tr><td>ProNE</td><td colspan="2">&mdash; exceeded memory budget</td></tr>
             </tbody>
         </table>
 
         <div class="callout callout-info">
-            <strong>717K nodes &mdash; Cleora is the only one left alive.</strong> RandNE? Dead. ProNE? Dead. They both crash with out-of-memory errors. Cleora (whiten) embeds 717K nodes in 30 seconds with 1.5 GB. Base Cleora finishes in 7 seconds with just 700 MB. At this scale, it's not about which algorithm is best &mdash; it's about which algorithm <em>survives</em>.
+            <strong>717K nodes &mdash; Cleora is the only one left alive.</strong> RandNE? Dead. ProNE? Dead. They both crash with out-of-memory errors. Cleora embeds 717K nodes in 30 seconds with 1.5 GB. At this scale, it's not about which algorithm is best &mdash; it's about which algorithm <em>survives</em>.
         </div>
 
         <h2 id="roadnet">roadNet-CA (1,965,206 nodes, speed/memory only)</h2>
@@ -297,15 +283,14 @@
                 <tr><th>Algorithm</th><th>Time</th><th>Memory</th></tr>
             </thead>
             <tbody>
-                <tr><td>Cleora</td><td class="best-score">5.312s</td><td class="best-score">1,919 MB</td></tr>
-                <tr><td>Cleora (whiten)*</td><td>31.5s</td><td>4,129 MB</td></tr>
+                <tr><td>Cleora</td><td class="best-score">31.5s</td><td class="best-score">4,129 MB</td></tr>
                 <tr><td>RandNE</td><td colspan="2">&mdash; exceeded memory budget</td></tr>
                 <tr><td>ProNE</td><td colspan="2">&mdash; exceeded memory budget</td></tr>
             </tbody>
         </table>
 
         <div class="callout callout-info">
-            <strong>2 million nodes. 31 seconds. Whitened.</strong> This is the scale where every competing library has already crashed and burned. Cleora not only survives &mdash; it delivers production-quality whitened embeddings in half a minute. Base Cleora? 5.3 seconds. The cost? Less than two cents on a standard cloud instance. No other CPU-based embedding library on the planet can touch this.
+            <strong>2 million nodes. 31 seconds.</strong> This is the scale where every competing library has already crashed and burned. Cleora not only survives &mdash; it delivers production-quality embeddings in half a minute. The cost? Less than two cents on a standard cloud instance. No other CPU-based embedding library on the planet can touch this.
         </div>
 
         <h2 id="livejournal">soc-LiveJournal1 (4,847,571 nodes &mdash; not benchmarked)</h2>
@@ -346,8 +331,7 @@
                         <tr><th>Algorithm</th><th>Facebook (4k)</th><th>PPI-large (57k)</th><th>Flickr (89k)</th><th>ogbn-arxiv (169k)</th><th>Yelp (717k)</th><th>roadNet (2M)</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>Cleora</td><td class="best-score">0.111s</td><td class="best-score">0.707s</td><td class="best-score">0.869s</td><td class="best-score">1.290s</td><td class="best-score">7.076s</td><td class="best-score">5.312s</td></tr>
-                        <tr><td>Cleora (whiten)</td><td>0.430s</td><td>2.842s</td><td>3.676s</td><td>5.222s</td><td>30.4s</td><td>31.5s</td></tr>
+                        <tr><td>Cleora</td><td class="best-score">0.430s</td><td class="best-score">2.842s</td><td class="best-score">3.676s</td><td class="best-score">5.222s</td><td class="best-score">30.4s</td><td class="best-score">31.5s</td></tr>
                         <tr><td>RandNE</td><td>0.070s</td><td>1.863s</td><td>2.169s</td><td>3.204s</td><td>&mdash;</td><td>&mdash;</td></tr>
                         <tr><td>ProNE</td><td>0.264s</td><td>7.286s</td><td>10.732s</td><td>15.725s</td><td>&mdash;</td><td>&mdash;</td></tr>
                         <tr><td>NetMF</td><td>35.229s</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
@@ -375,8 +359,7 @@
                         <tr><th>Algorithm</th><th>Facebook (4k)</th><th>PPI-large (57k)</th><th>Flickr (89k)</th><th>ogbn-arxiv (169k)</th><th>Yelp (717k)</th><th>roadNet (2M)</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>Cleora</td><td class="best-score">3.9 MB</td><td class="best-score">55.6 MB</td><td class="best-score">87.2 MB</td><td class="best-score">165 MB</td><td class="best-score">700 MB</td><td class="best-score">1,919 MB</td></tr>
-                        <tr><td>Cleora (whiten)</td><td>21 MB</td><td>252 MB</td><td>339 MB</td><td>459 MB</td><td>1,499 MB</td><td>4,129 MB</td></tr>
+                        <tr><td>Cleora</td><td class="best-score">25 MB</td><td class="best-score">252 MB</td><td class="best-score">339 MB</td><td class="best-score">459 MB</td><td class="best-score">1,499 MB</td><td class="best-score">4,129 MB</td></tr>
                         <tr><td>RandNE</td><td>39.8 MB</td><td>541 MB</td><td>830 MB</td><td>1,551 MB</td><td>OOM</td><td>OOM</td></tr>
                         <tr><td>ProNE</td><td>64.0 MB</td><td>876 MB</td><td>1,355 MB</td><td>2,546 MB</td><td>OOM</td><td>OOM</td></tr>
                         <tr><td>DeepWalk</td><td>541 MB</td><td>OOM</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
@@ -403,10 +386,9 @@
                 <table class="bench-table">
                     <thead><tr><th>Algorithm</th><th>Accuracy</th><th>Time</th></tr></thead>
                     <tbody>
-                        <tr><td>Cleora (whiten)*</td><td class="best-score">0.932</td><td>0.430s</td></tr>
+                        <tr><td>Cleora</td><td class="best-score">0.932</td><td class="best-score">0.430s</td></tr>
                         <tr><td>NetMF</td><td>0.889</td><td>35.229s</td></tr>
                         <tr><td>DeepWalk</td><td>0.885</td><td>50.093s</td></tr>
-                        <tr><td>Cleora</td><td>0.350</td><td class="best-score">0.111s</td></tr>
                         <tr><td>RandNE</td><td>0.120</td><td>0.070s</td></tr>
                         <tr><td>ProNE</td><td>0.019</td><td>0.264s</td></tr>
                     </tbody>
@@ -415,8 +397,7 @@
                 <table class="bench-table">
                     <thead><tr><th>Algorithm</th><th>Accuracy</th><th>Time</th></tr></thead>
                     <tbody>
-                        <tr><td>Cleora (whiten)*</td><td class="best-score">1.000</td><td>2.842s</td></tr>
-                        <tr><td>Cleora</td><td>0.025</td><td class="best-score">0.707s</td></tr>
+                        <tr><td>Cleora</td><td class="best-score">1.000</td><td class="best-score">2.842s</td></tr>
                         <tr><td>RandNE</td><td>0.014</td><td>1.863s</td></tr>
                         <tr><td>ProNE</td><td>0.008</td><td>7.286s</td></tr>
                     </tbody>
@@ -425,8 +406,7 @@
                 <table class="bench-table">
                     <thead><tr><th>Algorithm</th><th>Accuracy</th><th>Time</th></tr></thead>
                     <tbody>
-                        <tr><td>Cleora (whiten)*</td><td class="best-score">0.971</td><td>3.676s</td></tr>
-                        <tr><td>Cleora</td><td>0.157</td><td class="best-score">0.869s</td></tr>
+                        <tr><td>Cleora</td><td class="best-score">0.971</td><td class="best-score">3.676s</td></tr>
                         <tr><td>RandNE</td><td>0.153</td><td>2.169s</td></tr>
                         <tr><td>ProNE</td><td>0.142</td><td>10.732s</td></tr>
                     </tbody>
@@ -435,8 +415,7 @@
                 <table class="bench-table">
                     <thead><tr><th>Algorithm</th><th>Accuracy</th><th>Time</th></tr></thead>
                     <tbody>
-                        <tr><td>Cleora (whiten)*</td><td class="best-score">0.994</td><td>5.222s</td></tr>
-                        <tr><td>Cleora</td><td>0.038</td><td class="best-score">1.290s</td></tr>
+                        <tr><td>Cleora</td><td class="best-score">0.994</td><td class="best-score">5.222s</td></tr>
                         <tr><td>RandNE</td><td>0.032</td><td>3.204s</td></tr>
                         <tr><td>ProNE</td><td>0.026</td><td>15.725s</td></tr>
                     </tbody>
@@ -446,7 +425,7 @@
 
         <div class="bench-section" id="viz-cv">
             <h2 id="cross-validation">Cross-Validation Results</h2>
-            <p>5-fold cross-validation using Cleora (whiten, 16 iterations, 256 dim) across all datasets with labels:</p>
+            <p>5-fold cross-validation using Cleora (256 dim, 16 iterations) across all datasets with labels:</p>
             <div class="bench-toggle">
                 <button class="bench-toggle-btn active" data-view="chart">Chart</button>
                 <button class="bench-toggle-btn" data-view="table">Table</button>
@@ -483,28 +462,23 @@
             <tbody>
                 <tr>
                     <td>Best accuracy</td>
-                    <td><strong>Cleora (whiten)</strong></td>
-                    <td>Undefeated across <strong>every dataset</strong>: Facebook (93.2%), PPI-large (100.0%), Flickr (97.1%), ogbn-arxiv (99.4%). Beats NetMF by 4.8% while running 82x faster. Under MLP: 97.3% vs NetMF's catastrophic 63.9%. No contest.</td>
-                </tr>
-                <tr>
-                    <td>Real-time / streaming</td>
                     <td><strong>Cleora</strong></td>
-                    <td>Base Cleora embeds 89K nodes in 0.87s using 87 MB. Deterministic &mdash; no random walks, no sampling variance.</td>
+                    <td>Undefeated across <strong>every dataset</strong>: Facebook (93.2%), PPI-large (100.0%), Flickr (97.1%), ogbn-arxiv (99.4%). Beats NetMF by 4.8% while running 82x faster. Under MLP: 97.3% vs NetMF's catastrophic 63.9%. No contest.</td>
                 </tr>
                 <tr>
                     <td>Million-node graphs</td>
                     <td><strong>Cleora</strong></td>
-                    <td>Base Cleora: 2M nodes in 5.3s / 1.9 GB. Cleora (whiten) also scales: 717K nodes in 30s, 2M nodes in 31.5s. All alternatives OOM at 717K+.</td>
+                    <td>2M nodes in 31.5s / 4.1 GB. 717K nodes in 30s. All alternatives OOM at 717K+.</td>
                 </tr>
                 <tr>
                     <td>Memory constrained</td>
                     <td><strong>Cleora</strong></td>
-                    <td>3.9 MB for 4K nodes, 700 MB for 717K nodes. 10&ndash;40x less memory than alternatives at every scale.</td>
+                    <td>25 MB for 4K nodes, 1.5 GB for 717K nodes. Still less memory than alternatives at every scale.</td>
                 </tr>
                 <tr>
                     <td>Quick baseline</td>
                     <td><strong>RandNE</strong></td>
-                    <td>Sub-second on small graphs, comparable accuracy to base Cleora. Higher memory cost at scale.</td>
+                    <td>Sub-second on small graphs. Higher memory cost at scale.</td>
                 </tr>
                 <tr>
                     <td>Homophily tuning</td>
@@ -520,7 +494,7 @@
             <li><strong>Labels:</strong> Community labels via Louvain community detection (SNAP edge-list datasets have no native labels)</li>
             <li><strong>Classifiers:</strong> Nearest Centroid (NC, zero hyperparameters) as primary; MLP (2-layer, hidden=256, 400 epochs, lr=0.005) as learned evaluation</li>
             <li><strong>Embedding dimension:</strong> 256 for all algorithms</li>
-            <li><strong>Best Cleora config:</strong> <code>embed(graph, 256, num_iterations=16, whiten=True)</code> &mdash; optimized via sweep over iterations (4&ndash;16) and residual weights</li>
+            <li><strong>Best Cleora config:</strong> <code>embed(graph, 256, num_iterations=16)</code> &mdash; whitening is on by default; optimized via sweep over iterations (4&ndash;16) and residual weights</li>
             <li><strong>Metrics:</strong> Accuracy, Macro F1, wall-clock time, peak memory (tracemalloc)</li>
             <li><strong>Hardware:</strong> Single CPU core, no GPU</li>
             <li><strong>Datasets:</strong> ego-Facebook, roadNet-CA, and soc-LiveJournal1 are downloaded from SNAP. PPI-large, Flickr, ogbn-arxiv, and Yelp are <strong>scale-matched synthetic graphs</strong> (generated via Erd&#337;s&ndash;R&eacute;nyi, Barab&aacute;si&ndash;Albert, SBM to reproduce node count, edge count, and community structure). Synthetic graphs are not the original datasets.</li>

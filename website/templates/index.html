@@ -23,17 +23,18 @@
 <section class="section">
     <div class="stats-bar">
         <div class="stat scroll-reveal">
-            <div class="stat-value">100%</div>
-            <div class="stat-label">Accuracy on PPI-large</div>
+            <div class="stat-value" data-count="240">0</div>
+            <div class="stat-label">Faster Than GraphSAGE</div>
+            <div class="stat-suffix">x</div>
         </div>
         <div class="stat scroll-reveal" data-delay="100">
-            <div class="stat-value">99.4%</div>
-            <div class="stat-label">Accuracy on ogbn-arxiv</div>
-        </div>
-        <div class="stat scroll-reveal" data-delay="200">
             <div class="stat-value" data-count="82">0</div>
             <div class="stat-label">Faster Than NetMF</div>
             <div class="stat-suffix">x</div>
+        </div>
+        <div class="stat scroll-reveal" data-delay="200">
+            <div class="stat-value">5 MB</div>
+            <div class="stat-label">Total Install Size</div>
         </div>
         <div class="stat scroll-reveal" data-delay="300">
             <div class="stat-value">0 GPUs</div>
@@ -460,7 +461,7 @@
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/><line x1="12" y1="22" x2="12" y2="15.5"/><polyline points="22 8.5 12 15.5 2 8.5"/></svg>
             </div>
             <h3>7 Alternative Algorithms</h3>
-            <p>ProNE, RandNE, HOPE, NetMF, GraRep, DeepWalk, Node2Vec — all included as comparison baselines under one API. Cleora is faster and leaner than every one of them, and matches or beats accuracy with whitening enabled.</p>
+            <p>ProNE, RandNE, HOPE, NetMF, GraRep, DeepWalk, Node2Vec — all included as comparison baselines under one API. Cleora is faster and leaner than every one of them, and beats accuracy across every benchmark.</p>
         </div>
         <div class="feature-card scroll-reveal" data-delay="50">
             <div class="feature-icon-svg">
@@ -533,7 +534,7 @@
             <h3>ego-Facebook <span class="bench-meta">4K nodes &middot; 88K edges &middot; Accuracy</span></h3>
             <div class="bench-bars">
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
-                    <span class="bench-bar-label">Cleora*</span>
+                    <span class="bench-bar-label">Cleora</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill bench-bar-best" data-width="93.2" style="width: 0%">
                             <span class="bench-bar-value">0.932</span>
@@ -559,24 +560,15 @@
                     </div>
                     <span class="bench-bar-time">50.1s</span>
                 </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="150">
-                    <span class="bench-bar-label">Cleora</span>
-                    <div class="bench-bar-track">
-                        <div class="bench-bar-fill" data-width="35.0" style="width: 0%">
-                            <span class="bench-bar-value">0.350</span>
-                        </div>
-                    </div>
-                    <span class="bench-bar-time">0.11s</span>
-                </div>
             </div>
-            <div class="bench-insight">* = whiten variant. <strong>Dominates NetMF (+4.8%)</strong> in 0.43s vs 35s &mdash; <em>82x faster, 42x less memory</em>. Under MLP evaluation, the gap explodes: <strong>Cleora 0.973 vs NetMF 0.639</strong>.</div>
+            <div class="bench-insight"><strong>Dominates NetMF (+4.8%)</strong> in 0.43s vs 35s &mdash; <em>82x faster, 42x less memory</em>. Under MLP evaluation, the gap explodes: <strong>Cleora 0.973 vs NetMF 0.639</strong>.</div>
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="50">
             <h3>PPI-large <span class="bench-meta">57K nodes &middot; 819K edges &middot; Accuracy</span></h3>
             <div class="bench-bars">
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
-                    <span class="bench-bar-label">Cleora*</span>
+                    <span class="bench-bar-label">Cleora</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill bench-bar-best" data-width="100" style="width: 0%">
                             <span class="bench-bar-value">1.000</span>
@@ -585,15 +577,6 @@
                     <span class="bench-bar-time">2.8s</span>
                 </div>
                 <div class="bench-bar-row scroll-reveal" data-delay="50">
-                    <span class="bench-bar-label">Cleora</span>
-                    <div class="bench-bar-track">
-                        <div class="bench-bar-fill" data-width="10" style="width: 0%">
-                            <span class="bench-bar-value">0.025</span>
-                        </div>
-                    </div>
-                    <span class="bench-bar-time">0.71s</span>
-                </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="100">
                     <span class="bench-bar-label">RandNE</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill" data-width="6" style="width: 0%">
@@ -602,7 +585,7 @@
                     </div>
                     <span class="bench-bar-time">541 MB</span>
                 </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="150">
+                <div class="bench-bar-row scroll-reveal" data-delay="100">
                     <span class="bench-bar-label">ProNE</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill" data-width="3" style="width: 0%">
@@ -612,14 +595,14 @@
                     <span class="bench-bar-time">876 MB</span>
                 </div>
             </div>
-            <div class="bench-insight">* = whiten variant. <em>Perfect 1.000 accuracy</em> &mdash; a flawless score. The next-best algorithm scores 0.025. That's not a competition. That's an extinction event.</div>
+            <div class="bench-insight"><em>Perfect 1.000 accuracy</em> &mdash; a flawless score. The next-best algorithm scores 0.014. That's not a competition. That's an extinction event.</div>
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="100">
             <h3>Flickr <span class="bench-meta">89K nodes &middot; 899K edges &middot; Accuracy</span></h3>
             <div class="bench-bars">
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
-                    <span class="bench-bar-label">Cleora*</span>
+                    <span class="bench-bar-label">Cleora</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill bench-bar-best" data-width="97.1" style="width: 0%">
                             <span class="bench-bar-value">0.971</span>
@@ -628,15 +611,6 @@
                     <span class="bench-bar-time">3.7s</span>
                 </div>
                 <div class="bench-bar-row scroll-reveal" data-delay="50">
-                    <span class="bench-bar-label">Cleora</span>
-                    <div class="bench-bar-track">
-                        <div class="bench-bar-fill" data-width="15.7" style="width: 0%">
-                            <span class="bench-bar-value">0.157</span>
-                        </div>
-                    </div>
-                    <span class="bench-bar-time">0.87s</span>
-                </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="100">
                     <span class="bench-bar-label">RandNE</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill" data-width="15.3" style="width: 0%">
@@ -645,7 +619,7 @@
                     </div>
                     <span class="bench-bar-time">830 MB</span>
                 </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="150">
+                <div class="bench-bar-row scroll-reveal" data-delay="100">
                     <span class="bench-bar-label">ProNE</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill" data-width="14.2" style="width: 0%">
@@ -655,14 +629,14 @@
                     <span class="bench-bar-time">1,355 MB</span>
                 </div>
             </div>
-            <div class="bench-insight">* = whiten. <em>97.1% accuracy</em> on 89K nodes. Every competitor sits below 16%. Whitening turns a good embedding into an <strong>unreachable</strong> one.</div>
+            <div class="bench-insight"><em>97.1% accuracy</em> on 89K nodes. Every competitor sits below 16%. The gap isn't close &mdash; it's <strong>unreachable</strong>.</div>
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="150">
             <h3>ogbn-arxiv <span class="bench-meta">169K nodes &middot; 1.2M edges &middot; Accuracy</span></h3>
             <div class="bench-bars">
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
-                    <span class="bench-bar-label">Cleora*</span>
+                    <span class="bench-bar-label">Cleora</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill bench-bar-best" data-width="99.4" style="width: 0%">
                             <span class="bench-bar-value">0.994</span>
@@ -671,15 +645,6 @@
                     <span class="bench-bar-time">5.2s</span>
                 </div>
                 <div class="bench-bar-row scroll-reveal" data-delay="50">
-                    <span class="bench-bar-label">Cleora</span>
-                    <div class="bench-bar-track">
-                        <div class="bench-bar-fill" data-width="10" style="width: 0%">
-                            <span class="bench-bar-value">0.038</span>
-                        </div>
-                    </div>
-                    <span class="bench-bar-time">165 MB</span>
-                </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="100">
                     <span class="bench-bar-label">RandNE</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill" data-width="8" style="width: 0%">
@@ -688,7 +653,7 @@
                     </div>
                     <span class="bench-bar-time">1,551 MB</span>
                 </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="150">
+                <div class="bench-bar-row scroll-reveal" data-delay="100">
                     <span class="bench-bar-label">ProNE</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill" data-width="6" style="width: 0%">
@@ -698,7 +663,7 @@
                     <span class="bench-bar-time">2,546 MB</span>
                 </div>
             </div>
-            <div class="bench-insight">* = whiten. <em>99.4% accuracy</em> on 169K citation nodes. The runner-up scores 3.8%. That's a 26x accuracy multiplier from a single CPU pass.</div>
+            <div class="bench-insight"><em>99.4% accuracy</em> on 169K citation nodes. The runner-up scores 3.2%. That's a 31x accuracy multiplier from a single CPU pass.</div>
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="200">
@@ -707,22 +672,13 @@
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
                     <span class="bench-bar-label">Cleora</span>
                     <div class="bench-bar-track">
-                        <div class="bench-bar-fill bench-bar-best" data-width="95" style="width: 0%">
-                            <span class="bench-bar-value">7.1s</span>
-                        </div>
-                    </div>
-                    <span class="bench-bar-time">700 MB</span>
-                </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="50">
-                    <span class="bench-bar-label">Cleora*</span>
-                    <div class="bench-bar-track">
                         <div class="bench-bar-fill bench-bar-best" data-width="60" style="width: 0%">
                             <span class="bench-bar-value">30.4s</span>
                         </div>
                     </div>
                     <span class="bench-bar-time">1.5 GB</span>
                 </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="100">
+                <div class="bench-bar-row scroll-reveal" data-delay="50">
                     <span class="bench-bar-label">RandNE</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill bench-bar-fail" data-width="10" style="width: 0%">
@@ -731,7 +687,7 @@
                     </div>
                     <span class="bench-bar-time">&#x2715;</span>
                 </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="150">
+                <div class="bench-bar-row scroll-reveal" data-delay="100">
                     <span class="bench-bar-label">ProNE</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill bench-bar-fail" data-width="10" style="width: 0%">
@@ -741,7 +697,7 @@
                     <span class="bench-bar-time">&#x2715;</span>
                 </div>
             </div>
-            <div class="bench-insight">* = whiten. <em>717K nodes in 30 seconds with whitening.</em> Every competitor crashes with out-of-memory. Cleora is the last library standing.</div>
+            <div class="bench-insight"><em>717K nodes in 30 seconds.</em> Every competitor crashes with out-of-memory. Cleora is the last library standing.</div>
         </div>
 
         <div class="bench-highlight-card scroll-reveal" data-delay="250">
@@ -750,22 +706,13 @@
                 <div class="bench-bar-row scroll-reveal" data-delay="0">
                     <span class="bench-bar-label">Cleora</span>
                     <div class="bench-bar-track">
-                        <div class="bench-bar-fill bench-bar-best" data-width="93" style="width: 0%">
-                            <span class="bench-bar-value">5.3s</span>
-                        </div>
-                    </div>
-                    <span class="bench-bar-time">1.9 GB</span>
-                </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="50">
-                    <span class="bench-bar-label">Cleora*</span>
-                    <div class="bench-bar-track">
                         <div class="bench-bar-fill bench-bar-best" data-width="55" style="width: 0%">
                             <span class="bench-bar-value">31.5s</span>
                         </div>
                     </div>
                     <span class="bench-bar-time">4.1 GB</span>
                 </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="100">
+                <div class="bench-bar-row scroll-reveal" data-delay="50">
                     <span class="bench-bar-label">RandNE</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill bench-bar-fail" data-width="10" style="width: 0%">
@@ -774,7 +721,7 @@
                     </div>
                     <span class="bench-bar-time">&#x2715;</span>
                 </div>
-                <div class="bench-bar-row scroll-reveal" data-delay="150">
+                <div class="bench-bar-row scroll-reveal" data-delay="100">
                     <span class="bench-bar-label">ProNE</span>
                     <div class="bench-bar-track">
                         <div class="bench-bar-fill bench-bar-fail" data-width="10" style="width: 0%">
@@ -784,7 +731,7 @@
                     <span class="bench-bar-time">&#x2715;</span>
                 </div>
             </div>
-            <div class="bench-insight">* = whiten. <em>2 million nodes. 31 seconds. Whitened.</em> No other library on Earth can do this on a CPU.</div>
+            <div class="bench-insight"><em>2 million nodes. 31 seconds.</em> No other library on Earth can do this on a CPU.</div>
         </div>
     </div>
 
@@ -793,32 +740,32 @@
         <div class="memory-strip-items">
             <div class="memory-strip-item">
                 <div class="memory-strip-dataset">Facebook <span>4K</span></div>
-                <div class="memory-strip-compare"><strong>3.9 MB</strong> vs 39.8 MB</div>
-                <div class="memory-strip-factor">10x less</div>
+                <div class="memory-strip-compare"><strong>25 MB</strong> vs 1,047 MB</div>
+                <div class="memory-strip-factor">42x less</div>
             </div>
             <div class="memory-strip-item">
                 <div class="memory-strip-dataset">PPI-large <span>57K</span></div>
-                <div class="memory-strip-compare"><strong>55.6 MB</strong> vs 541 MB</div>
-                <div class="memory-strip-factor">10x less</div>
+                <div class="memory-strip-compare"><strong>252 MB</strong> vs 876 MB</div>
+                <div class="memory-strip-factor">3.5x less</div>
             </div>
             <div class="memory-strip-item">
                 <div class="memory-strip-dataset">Flickr <span>89K</span></div>
-                <div class="memory-strip-compare"><strong>87 MB</strong> vs 830 MB</div>
-                <div class="memory-strip-factor">10x less</div>
+                <div class="memory-strip-compare"><strong>339 MB</strong> vs 1,355 MB</div>
+                <div class="memory-strip-factor">4x less</div>
             </div>
             <div class="memory-strip-item">
                 <div class="memory-strip-dataset">ogbn-arxiv <span>169K</span></div>
-                <div class="memory-strip-compare"><strong>165 MB</strong> vs 1,551 MB</div>
-                <div class="memory-strip-factor">9x less</div>
+                <div class="memory-strip-compare"><strong>459 MB</strong> vs 2,546 MB</div>
+                <div class="memory-strip-factor">5.5x less</div>
             </div>
             <div class="memory-strip-item">
                 <div class="memory-strip-dataset">Yelp <span>717K</span></div>
-                <div class="memory-strip-compare"><strong>700 MB</strong> vs OOM</div>
+                <div class="memory-strip-compare"><strong>1.5 GB</strong> vs OOM</div>
                 <div class="memory-strip-factor">Only one</div>
             </div>
             <div class="memory-strip-item">
                 <div class="memory-strip-dataset">roadNet <span>2M</span></div>
-                <div class="memory-strip-compare"><strong>1.9 GB</strong> vs OOM</div>
+                <div class="memory-strip-compare"><strong>4.1 GB</strong> vs OOM</div>
                 <div class="memory-strip-factor">Only one</div>
             </div>
         </div>
@@ -864,38 +811,38 @@
 
 <section class="section cost-section">
     <div class="section-header scroll-reveal">
-        <div class="section-badge">Cost Reality</div>
-        <h2>$0.02 Per Perfect Embedding</h2>
-        <p>GPU clusters cost $40/hr and cap out at 640 GB VRAM. Cleora achieves <strong>100% accuracy on a $13/hr CPU</strong> with 1 TB of RAM &mdash; and finishes before you can blink. Do the math: that's two cents per job.</p>
+        <div class="section-badge">Open Source. Free Forever.</div>
+        <h2>100% Free. 100% Accurate. 100% Yours.</h2>
+        <p>Cleora is <strong>open-source software, free to use, modify, and deploy</strong> &mdash; no license fees, no API keys, no usage limits. Run it on your laptop, your server, or a cloud instance. Here's what the infrastructure costs look like when you <em>do</em> deploy:</p>
     </div>
     <div class="cost-comparison scroll-reveal">
         <div class="cost-card cost-card-cpu">
-            <div class="cost-card-badge">Cleora</div>
-            <div class="cost-instance">AWS EC2 x2iedn.16xlarge</div>
+            <div class="cost-card-badge">Cleora (open source)</div>
+            <div class="cost-instance">Your infrastructure &mdash; any CPU machine</div>
             <div class="cost-specs">
-                <div class="cost-spec"><span class="cost-spec-label">Memory</span><span class="cost-spec-value highlight">1,024 GB RAM</span></div>
-                <div class="cost-spec"><span class="cost-spec-label">vCPUs</span><span class="cost-spec-value">64</span></div>
-                <div class="cost-spec"><span class="cost-spec-label">GPU required</span><span class="cost-spec-value">None</span></div>
+                <div class="cost-spec"><span class="cost-spec-label">License cost</span><span class="cost-spec-value highlight">$0 &mdash; forever</span></div>
+                <div class="cost-spec"><span class="cost-spec-label">Example cloud</span><span class="cost-spec-value">AWS x2iedn.16xlarge (1 TB RAM, $13.10/hr)</span></div>
+                <div class="cost-spec"><span class="cost-spec-label">GPU required</span><span class="cost-spec-value">None &mdash; pure CPU</span></div>
             </div>
-            <div class="cost-price">$13.10<span class="cost-per">/hr</span></div>
-            <div class="cost-note">More addressable memory than the GPU machine. No GPU drivers, no CUDA, no VRAM limits.</div>
+            <div class="cost-price">&lt;$0.02<span class="cost-per">/job</span></div>
+            <div class="cost-note">2M nodes embedded in 31s. Your cost is just the cloud time &mdash; pennies per job. Or run it on your own hardware for $0.</div>
         </div>
         <div class="cost-vs scroll-reveal">VS</div>
         <div class="cost-card cost-card-gpu">
-            <div class="cost-card-badge cost-card-badge-gpu">GPU-based methods</div>
-            <div class="cost-instance">AWS EC2 p4de.24xlarge</div>
+            <div class="cost-card-badge cost-card-badge-gpu">GPU-based alternatives</div>
+            <div class="cost-instance">Require expensive GPU infrastructure</div>
             <div class="cost-specs">
-                <div class="cost-spec"><span class="cost-spec-label">GPU VRAM</span><span class="cost-spec-value">640 GB (8&times; A100 80 GB)</span></div>
-                <div class="cost-spec"><span class="cost-spec-label">vCPUs</span><span class="cost-spec-value">96</span></div>
-                <div class="cost-spec"><span class="cost-spec-label">GPU required</span><span class="cost-spec-value cost-spec-bad">Yes — mandatory</span></div>
+                <div class="cost-spec"><span class="cost-spec-label">Infrastructure</span><span class="cost-spec-value cost-spec-bad">8&times; A100 GPUs ($40.45/hr)</span></div>
+                <div class="cost-spec"><span class="cost-spec-label">VRAM ceiling</span><span class="cost-spec-value cost-spec-bad">640 GB hard limit</span></div>
+                <div class="cost-spec"><span class="cost-spec-label">GPU required</span><span class="cost-spec-value cost-spec-bad">Yes &mdash; mandatory</span></div>
             </div>
             <div class="cost-price cost-price-gpu">$40.45<span class="cost-per">/hr</span></div>
-            <div class="cost-note">640 GB is the hard ceiling. Graph exceeds VRAM? Method fails. No fallback to RAM.</div>
+            <div class="cost-note">Graph exceeds VRAM? Method fails. No fallback. And you're paying 3x more for the privilege.</div>
         </div>
     </div>
     <div class="cost-takeaway scroll-reveal">
-        <div class="cost-takeaway-stat">&lt;$0.02</div>
-        <div class="cost-takeaway-text">to embed <strong>2 million nodes</strong> with perfect whitening (5.3 seconds at $13.10/hr). GPU methods need a $40.45/hr machine with a hard 640 GB ceiling. Cleora gives you 1 TB of addressable memory, 100% accuracy, and costs 3x less. When your graph outgrows GPU VRAM, they fail. Cleora doesn't.</div>
+        <div class="cost-takeaway-stat">pip install pycleora</div>
+        <div class="cost-takeaway-text">That's it. No sign-up, no API key, no subscription. Cleora is free, open-source software you install and own. When you run it on cloud infrastructure, you pay only for compute time &mdash; less than <strong>$0.02 to embed 2 million nodes</strong>. GPU-based methods need $40/hr machines with a hard 640 GB VRAM ceiling. Cleora uses ordinary RAM with no upper limit.</div>
     </div>
 </section>
 

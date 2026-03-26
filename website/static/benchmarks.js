@@ -14,8 +14,7 @@ const COLORS = {
 };
 
 const ALGO_COLORS = {
-    'Cleora (whiten)':  '#a78bfa',
-    'Cleora':           '#6c63ff',
+    'Cleora':           '#a78bfa',
     'ProNE':            '#f59e0b',
     'RandNE':           '#ef4444',
     'NetMF':            '#3b82f6',
@@ -23,11 +22,10 @@ const ALGO_COLORS = {
 };
 
 const DATASETS = ['ego-Facebook', 'PPI-large', 'Flickr', 'ogbn-arxiv', 'Yelp'];
-const ALGORITHMS = ['Cleora (whiten)', 'Cleora', 'ProNE', 'RandNE', 'NetMF', 'DeepWalk'];
+const ALGORITHMS = ['Cleora', 'ProNE', 'RandNE', 'NetMF', 'DeepWalk'];
 
 const SUMMARY_DATA = {
-    'Cleora (whiten)': [0.932, 1.000, 0.971, 0.994, null],
-    'Cleora':          [0.350, 0.025, 0.157, 0.038, 0.013],
+    'Cleora':          [0.932, 1.000, 0.971, 0.994, null],
     'ProNE':           [0.019, 0.008, 0.142, 0.026, null],
     'RandNE':          [0.120, 0.014, 0.153, 0.032, null],
     'NetMF':           [0.889, null,  null,  null,  null],
@@ -35,8 +33,7 @@ const SUMMARY_DATA = {
 };
 
 const MLP_DATA = {
-    'Cleora (whiten)': [0.973, null, null, null, null],
-    'Cleora':          [0.379, null, null, null, null],
+    'Cleora':          [0.973, null, null, null, null],
     'ProNE':           [0.130, null, null, null, null],
     'RandNE':          [0.130, null, null, null, null],
     'NetMF':           [0.639, null, null, null, null],
@@ -44,49 +41,45 @@ const MLP_DATA = {
 };
 
 const SPEED_DATA = {
-    algorithms: ['Cleora', 'Cleora (whiten)', 'RandNE', 'ProNE', 'NetMF', 'DeepWalk'],
-    facebook:   [0.111,    0.430,              0.070,    0.264,   35.229,  50.093],
-    ppi_large:  [0.707,    2.842,              1.863,    7.286,   null,    null],
-    flickr:     [0.869,    3.676,              2.169,    10.732,  null,    null],
-    ogbn_arxiv: [1.290,    5.222,              3.204,    15.725,  null,    null],
-    yelp:       [7.076,    30.419,             null,     null,    null,    null],
-    roadnet:    [5.312,    31.500,             null,     null,    null,    null],
+    algorithms: ['Cleora', 'RandNE', 'ProNE', 'NetMF', 'DeepWalk'],
+    facebook:   [0.430,    0.070,    0.264,   35.229,  50.093],
+    ppi_large:  [2.842,    1.863,    7.286,   null,    null],
+    flickr:     [3.676,    2.169,    10.732,  null,    null],
+    ogbn_arxiv: [5.222,    3.204,    15.725,  null,    null],
+    yelp:       [30.419,   null,     null,    null,    null],
+    roadnet:    [31.500,   null,     null,    null,    null],
 };
 
 const MEMORY_DATA = {
-    algorithms: ['Cleora', 'Cleora (whiten)', 'RandNE', 'ProNE', 'DeepWalk', 'NetMF'],
-    facebook:   [3.9,      21.0,               39.8,     64.0,    540.8,      1047.4],
-    ppi_large:  [55.6,     251.5,              541.0,    875.8,   null,        null],
-    flickr:     [87.2,     338.7,              830.4,    1354.9,  null,        null],
-    ogbn_arxiv: [165.4,    458.9,              1550.8,   2545.5,  null,        null],
-    yelp:       [700.0,    1499.0,             null,     null,    null,        null],
-    roadnet:    [1919.1,   4129.0,             null,     null,    null,        null],
+    algorithms: ['Cleora', 'RandNE', 'ProNE', 'DeepWalk', 'NetMF'],
+    facebook:   [25.2,     39.8,     64.0,    540.8,      1047.4],
+    ppi_large:  [251.5,    541.0,    875.8,   null,        null],
+    flickr:     [338.7,    830.4,    1354.9,  null,        null],
+    ogbn_arxiv: [458.9,    1550.8,   2545.5,  null,        null],
+    yelp:       [1499.0,   null,     null,    null,        null],
+    roadnet:    [4129.0,   null,     null,    null,        null],
 };
 
 const SCATTER_DATA = {
     'ego-Facebook': {
-        'Cleora (whiten)': { acc: 0.932, time: 0.430 },
+        'Cleora':          { acc: 0.932, time: 0.430 },
         'NetMF':           { acc: 0.889, time: 35.229 },
         'DeepWalk':        { acc: 0.885, time: 50.093 },
         'RandNE':          { acc: 0.120, time: 0.070 },
         'ProNE':           { acc: 0.019, time: 0.264 },
-        'Cleora':          { acc: 0.350, time: 0.111 },
     },
     'PPI-large': {
-        'Cleora (whiten)': { acc: 1.000, time: 2.842 },
-        'Cleora':          { acc: 0.025, time: 0.707 },
+        'Cleora':          { acc: 1.000, time: 2.842 },
         'ProNE':           { acc: 0.008, time: 7.286 },
         'RandNE':          { acc: 0.014, time: 1.863 },
     },
     'Flickr': {
-        'Cleora (whiten)': { acc: 0.971, time: 3.676 },
-        'Cleora':          { acc: 0.157, time: 0.869 },
+        'Cleora':          { acc: 0.971, time: 3.676 },
         'ProNE':           { acc: 0.142, time: 10.732 },
         'RandNE':          { acc: 0.153, time: 2.169 },
     },
     'ogbn-arxiv': {
-        'Cleora (whiten)': { acc: 0.994, time: 5.222 },
-        'Cleora':          { acc: 0.038, time: 1.290 },
+        'Cleora':          { acc: 0.994, time: 5.222 },
         'RandNE':          { acc: 0.032, time: 3.204 },
         'ProNE':           { acc: 0.026, time: 15.725 },
     },
@@ -416,7 +409,7 @@ function buildCVChart() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                title: { display: true, text: 'Cross-Validation: Cleora (whiten, 16 iter, 256 dim)', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Cross-Validation: Cleora (16 iter, 256 dim)', color: COLORS.text, font: { size: 16, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
                     callbacks: {
                         label: ctx => {
