@@ -149,7 +149,7 @@ const failureBarPlugin = {
                 const bar = meta.data[dataIndex];
                 if (!bar) return;
 
-                const color = ds.borderColor || COLORS.textMuted;
+                const color = '#666680';
                 const barX = bar.x;
                 const barY = bar.y;
 
@@ -269,59 +269,59 @@ function buildAccuracyChart() {
 
 function buildSpeedChart() {
     const ctx = document.getElementById('chart-speed').getContext('2d');
-    const algos = SPEED_DATA.algorithms;
 
-    const dsConfigs = [
-        { key: 'facebook',   label: 'ego-Facebook (4k)',   color: COLORS.accent },
-        { key: 'cora',       label: 'Cora (2.7k)',         color: '#10b981' },
-        { key: 'citeseer',   label: 'CiteSeer (3.3k)',     color: COLORS.orange },
-        { key: 'pubmed',     label: 'PubMed (19.7k)',      color: COLORS.blue },
-        { key: 'ppi',        label: 'PPI (57k)',           color: '#f472b6' },
-        { key: 'roadnet',    label: 'roadNet-CA (2M)',     color: COLORS.green },
-    ];
-    const datasets = dsConfigs.map(d => ({
-        label: d.label,
-        data: SPEED_DATA[d.key],
-        backgroundColor: d.color + 'cc',
-        borderColor: d.color,
-        borderWidth: 1,
-        borderRadius: 3,
-    }));
+    const datasets_labels = ['ego-Facebook', 'Cora', 'CiteSeer', 'PubMed', 'PPI'];
+    const algos = SPEED_DATA.algorithms;
+    const dsKeys = ['facebook', 'cora', 'citeseer', 'pubmed', 'ppi'];
+
+    const algoDatasets = algos.map(algo => {
+        const algoIdx = SPEED_DATA.algorithms.indexOf(algo);
+        return {
+            label: algo,
+            data: dsKeys.map(k => SPEED_DATA[k][algoIdx]),
+            backgroundColor: ALGO_COLORS[algo] + 'cc',
+            borderColor: ALGO_COLORS[algo],
+            borderWidth: 1,
+            borderRadius: 3,
+        };
+    });
 
     const speedFailureMap = {};
-    dsConfigs.forEach(d => {
-        if (SPEED_FAILURE[d.key]) speedFailureMap[d.label] = SPEED_FAILURE[d.key];
+    algos.forEach(algo => {
+        const algoIdx = SPEED_DATA.algorithms.indexOf(algo);
+        const statuses = dsKeys.map(k => SPEED_FAILURE[k] ? SPEED_FAILURE[k][algoIdx] : null);
+        if (statuses.some(s => s)) speedFailureMap[algo] = statuses;
     });
 
     new Chart(ctx, {
         type: 'bar',
-        data: { labels: algos, datasets },
+        data: { labels: datasets_labels, datasets: algoDatasets },
         plugins: [failureBarPlugin],
         options: {
-            indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
             _failureMap: speedFailureMap,
             plugins: {
-                title: { display: true, text: 'Embedding Time (seconds) — Real Datasets, Linear Scale', color: COLORS.text, font: { size: 14, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Embedding Time (seconds) — Real Datasets, Log Scale', color: COLORS.text, font: { size: 14, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
                     callbacks: {
                         label: tooltipCtx => {
-                            const dsLabel = tooltipCtx.dataset.label;
+                            const algo = tooltipCtx.dataset.label;
                             const idx = tooltipCtx.dataIndex;
-                            const status = speedFailureMap[dsLabel] && speedFailureMap[dsLabel][idx];
-                            if (status) return dsLabel + ': ' + status;
-                            return tooltipCtx.raw !== null ? dsLabel + ': ' + tooltipCtx.raw + 's' : '';
+                            const status = speedFailureMap[algo] && speedFailureMap[algo][idx];
+                            if (status) return algo + ': ' + status;
+                            return tooltipCtx.raw !== null ? algo + ': ' + tooltipCtx.raw + 's' : '';
                         }
                     }
                 },
             },
             scales: {
-                x: {
+                x: { grid: { display: false }, ticks: { color: COLORS.textMuted } },
+                y: {
+                    type: 'logarithmic',
                     grid: { color: COLORS.border + '60' },
                     ticks: { color: COLORS.textMuted, callback: v => v + 's' },
                 },
-                y: { grid: { display: false }, ticks: { color: COLORS.textMuted } },
             },
         },
     });
@@ -331,48 +331,46 @@ function buildMemoryChart() {
     const ctx = document.getElementById('chart-memory').getContext('2d');
     const algos = MEMORY_DATA.algorithms;
 
-    const dsConfigs = [
-        { key: 'facebook',   label: 'ego-Facebook (4k)',   color: COLORS.accent },
-        { key: 'cora',       label: 'Cora (2.7k)',         color: '#10b981' },
-        { key: 'citeseer',   label: 'CiteSeer (3.3k)',     color: COLORS.orange },
-        { key: 'pubmed',     label: 'PubMed (19.7k)',      color: COLORS.blue },
-        { key: 'ppi',        label: 'PPI (57k)',           color: '#f472b6' },
-        { key: 'roadnet',    label: 'roadNet-CA (2M)',     color: COLORS.green },
-    ];
+    const datasets_labels = ['ego-Facebook', 'Cora', 'CiteSeer', 'PubMed', 'PPI'];
+    const dsKeys = ['facebook', 'cora', 'citeseer', 'pubmed', 'ppi'];
+
+    const algoDatasets = algos.map(algo => {
+        const algoIdx = MEMORY_DATA.algorithms.indexOf(algo);
+        return {
+            label: algo,
+            data: dsKeys.map(k => MEMORY_DATA[k][algoIdx]),
+            backgroundColor: ALGO_COLORS[algo] + 'cc',
+            borderColor: ALGO_COLORS[algo],
+            borderWidth: 1,
+            borderRadius: 3,
+        };
+    });
 
     const memFailureMap = {};
-    dsConfigs.forEach(d => {
-        if (MEMORY_FAILURE[d.key]) memFailureMap[d.label] = MEMORY_FAILURE[d.key];
+    algos.forEach(algo => {
+        const algoIdx = MEMORY_DATA.algorithms.indexOf(algo);
+        const statuses = dsKeys.map(k => MEMORY_FAILURE[k] ? MEMORY_FAILURE[k][algoIdx] : null);
+        if (statuses.some(s => s)) memFailureMap[algo] = statuses;
     });
 
     new Chart(ctx, {
         type: 'bar',
-        data: {
-            labels: algos,
-            datasets: dsConfigs.map(d => ({
-                label: d.label,
-                data: MEMORY_DATA[d.key],
-                backgroundColor: d.color + 'cc',
-                borderColor: d.color,
-                borderWidth: 1,
-                borderRadius: 3,
-            })),
-        },
+        data: { labels: datasets_labels, datasets: algoDatasets },
         plugins: [failureBarPlugin],
         options: {
             responsive: true,
             maintainAspectRatio: false,
             _failureMap: memFailureMap,
             plugins: {
-                title: { display: true, text: 'Peak Memory Usage (MB) — Real Datasets, Linear Scale', color: COLORS.text, font: { size: 14, weight: 500 }, padding: { bottom: 20 } },
+                title: { display: true, text: 'Peak Memory Usage (MB) — Real Datasets, Log Scale', color: COLORS.text, font: { size: 14, weight: 500 }, padding: { bottom: 20 } },
                 tooltip: {
                     callbacks: {
                         label: tooltipCtx => {
-                            const dsLabel = tooltipCtx.dataset.label;
+                            const algo = tooltipCtx.dataset.label;
                             const idx = tooltipCtx.dataIndex;
-                            const status = memFailureMap[dsLabel] && memFailureMap[dsLabel][idx];
-                            if (status) return dsLabel + ': ' + status;
-                            return tooltipCtx.raw !== null ? dsLabel + ': ' + tooltipCtx.raw + ' MB' : '';
+                            const status = memFailureMap[algo] && memFailureMap[algo][idx];
+                            if (status) return algo + ': ' + status;
+                            return tooltipCtx.raw !== null ? algo + ': ' + tooltipCtx.raw + ' MB' : '';
                         }
                     }
                 },
@@ -380,8 +378,9 @@ function buildMemoryChart() {
             scales: {
                 x: { grid: { display: false }, ticks: { color: COLORS.textMuted } },
                 y: {
+                    type: 'logarithmic',
                     grid: { color: COLORS.border + '60' },
-                    ticks: { color: COLORS.textMuted, callback: v => v + ' MB' },
+                    ticks: { color: COLORS.textMuted, callback: v => v >= 1000 ? (v/1000).toFixed(1) + ' GB' : v + ' MB' },
                 },
             },
         },
