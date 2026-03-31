@@ -1,12 +1,12 @@
 [package]
 name = "pycleora"
-version = "2.1.0"
+version = "3.2.0"
 edition = "2018"
 license-file = "LICENSE"
 readme = "README.md"
-documentation = "https://github.com/synerise/cleora"
-homepage = "https://github.com/synerise/cleora"
-repository = "https://github.com/synerise/cleora"
+documentation = "https://cleora.ai/docs"
+homepage = "https://cleora.ai"
+repository = "https://github.com/BaseModelAI/cleora"
 description = """
 Sparse hypergraph structure and markov-propagation for node embeddings embeddings exposed via Python bindings.
 """

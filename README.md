@@ -59,7 +59,7 @@ from pycleora import SparseMatrix, embed, find_most_similar
 edges = ["alice item_laptop", "alice item_mouse", "bob item_keyboard"]
 graph = SparseMatrix.from_iterator(iter(edges), "complex::reflexive::product")
 
-embeddings = embed(graph, feature_dim=1024, num_iterations=4)
+embeddings = embed(graph, feature_dim=256, num_iterations=40)
 
 similar = find_most_similar(graph, embeddings, "alice", top_k=5)
 for r in similar:
@@ -92,11 +92,11 @@ mat = SparseMatrix.from_iterator(cleora_input, columns='complex::reflexive::prod
 
 print(mat.entity_ids)
 
-embeddings = mat.initialize_deterministically(1024)
+embeddings = mat.initialize_deterministically(256)
 
-NUM_WALKS = 3   # 3-4 for co-occurrence, 7+ for contextual similarity
+NUM_ITERATIONS = 40
 
-for i in range(NUM_WALKS):
+for i in range(NUM_ITERATIONS):
     embeddings = mat.left_markov_propagate(embeddings)
     embeddings /= np.linalg.norm(embeddings, ord=2, axis=-1, keepdims=True)
 
@@ -109,7 +109,7 @@ print(np.dot(embeddings[0], embeddings[1]))
 ### CLI
 
 ```bash
-pycleora embed --input graph.tsv --output embeddings.npz --dim 1024
+pycleora embed --input graph.tsv --output embeddings.npz --dim 256 --iterations 40
 pycleora info --input graph.tsv
 pycleora similar --input graph.tsv --entity alice --top-k 10
 pycleora benchmark --dataset karate_club
