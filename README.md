@@ -13,9 +13,15 @@ No negative sampling. No GPU. No noise. Just fast, deterministic, production-gra
 
 <p align="center">
   <b>240x</b> Faster Than GraphSAGE &nbsp;·&nbsp;
-  <b>9</b> Embedding Algorithms &nbsp;·&nbsp;
-  <b>14</b> Built-in Datasets &nbsp;·&nbsp;
-  <b>5 MB</b> Total Install Size
+  <b>8</b> Embedding Algorithms + GCN Classifier &nbsp;·&nbsp;
+  <b>~5 MB</b> Total Install Size
+</p>
+
+<p align="center">
+  <a href="https://cleora.ai">Website</a> &nbsp;·&nbsp;
+  <a href="https://cleora.ai/docs">Documentation</a> &nbsp;·&nbsp;
+  <a href="https://cleora.ai/api">API Reference</a> &nbsp;·&nbsp;
+  <a href="https://cleora.ai/benchmarks">Benchmarks</a>
 </p>
 
 ---
@@ -38,25 +44,31 @@ No negative sampling. No GPU. No noise. Just fast, deterministic, production-gra
 pip install pycleora
 ```
 
+Optional extras:
+
+```bash
+pip install pycleora[viz]       # matplotlib for visualization
+pip install pycleora[full]      # matplotlib + networkx + tqdm
+```
+
 ## Quick Start
 
 ```python
 from pycleora import SparseMatrix, embed, find_most_similar
 
-# Build graph from edge list
 edges = ["alice item_laptop", "alice item_mouse", "bob item_keyboard"]
 graph = SparseMatrix.from_iterator(iter(edges), "complex::reflexive::product")
 
-# Generate 1024-dimensional embeddings
 embeddings = embed(graph, feature_dim=1024, num_iterations=4)
 
-# Find similar entities
 similar = find_most_similar(graph, embeddings, "alice", top_k=5)
 for r in similar:
     print(f"{r['entity_id']}: {r['similarity']:.4f}")
 ```
 
-### Full Usage Example
+### Step-by-Step Example
+
+The high-level `embed()` function wraps the Markov propagation loop for convenience. Here's the full manual version, which gives you complete control over the process:
 
 ```python
 from pycleora import SparseMatrix
@@ -64,7 +76,6 @@ import numpy as np
 import pandas as pd
 import random
 
-# Generate example data
 customers = [f"Customer_{i}" for i in range(1, 20)]
 products = [f"Product_{j}" for j in range(1, 20)]
 
@@ -73,54 +84,35 @@ data = {
     "product": random.choices(products, k=100),
 }
 
-# Create DataFrame
 df = pd.DataFrame(data)
-
-# Create hyperedges
 customer_products = df.groupby('customer')['product'].apply(list).values
-
-# Convert to Cleora input format
 cleora_input = map(lambda x: ' '.join(x), customer_products)
 
-# Create Markov transition matrix for the hypergraph
 mat = SparseMatrix.from_iterator(cleora_input, columns='complex::reflexive::product')
 
-# Look at entity ids in the matrix, corresponding to embedding vectors
 print(mat.entity_ids)
 
-# Initialize embedding vectors externally, using text, image, random vectors
-# embeddings = ...
-
-# Or use built-in random deterministic initialization
 embeddings = mat.initialize_deterministically(1024)
 
-# Perform Markov random walk, then normalize however many times we want
-
-NUM_WALKS = 3   # The optimal number depends on the graph, typically between 3 and 7 yields good results
-                # lower values tend to capture co-occurrence, higher iterations capture substitutability in a context
+NUM_WALKS = 3   # 3-4 for co-occurrence, 7+ for contextual similarity
 
 for i in range(NUM_WALKS):
-    # Can propagate with a symmetric matrix as well, but left Markov is a great default
     embeddings = mat.left_markov_propagate(embeddings)
-    # Normalize with L2 norm by default, for the embeddings to reside on a hypersphere. Can use standardization instead.
     embeddings /= np.linalg.norm(embeddings, ord=2, axis=-1, keepdims=True)
-
-# We're done, here are our embeddings
 
 for entity, embedding in zip(mat.entity_ids, embeddings):
     print(entity, embedding)
 
-# We can now compare our embeddings with dot product (since they are L2 normalized)
-
 print(np.dot(embeddings[0], embeddings[1]))
-print(np.dot(embeddings[0], embeddings[2]))
-print(np.dot(embeddings[0], embeddings[3]))
 ```
 
 ### CLI
 
 ```bash
 pycleora embed --input graph.tsv --output embeddings.npz --dim 1024
+pycleora info --input graph.tsv
+pycleora similar --input graph.tsv --entity alice --top-k 10
+pycleora benchmark --dataset karate_club
 ```
 
 ---
@@ -139,7 +131,7 @@ Same input always produces the same output. No random seeds, no stochastic varia
 ### Heterogeneous Hypergraphs
 Natively handles multi-type nodes and edges, bipartite graphs, and hypergraphs. TSV input with typed columns like `complex::reflexive::product`. No graph preprocessing needed.
 
-### 5 MB, Zero Dependencies
+### ~5 MB, Zero Dependencies
 The entire library is ~5 MB. Compare: PyTorch Geometric is 500 MB+, DGL is 400 MB+. Cleora ships as a single compiled Rust extension. No CUDA, no cuDNN, no GPU driver headaches.
 
 ### Stable & Inductive
@@ -161,7 +153,53 @@ Embeddings are stable across runs and support inductive learning: new nodes can 
 | **GraRep** | Matrix Factorization | Graph Representations with Global Structural Information |
 | **GCN** | Mini-GNN | 2-layer Graph Convolutional Network classifier in pure numpy/scipy — no PyTorch needed |
 
-All 9 algorithms are unified under a single API. Switch between methods by changing one parameter.
+All algorithms are unified under a single API. Switch between methods by changing one parameter:
+
+```bash
+pycleora embed --input graph.tsv --output out.npz --algorithm cleora
+pycleora embed --input graph.tsv --output out.npz --algorithm prone
+pycleora embed --input graph.tsv --output out.npz --algorithm node2vec
+```
+
+### Advanced Embedding Modes
+
+Beyond the standard algorithms, Cleora supports several advanced embedding strategies:
+
+- **Multiscale embeddings** — concatenates embeddings from different iteration depths (e.g. scales `[1, 2, 4, 8]`) to capture both local and global graph structure simultaneously
+- **Attention-weighted propagation** — uses softmax-normalized dot-product attention during propagation, dynamically weighting neighbor contributions
+- **Supervised refinement** — fine-tunes unsupervised embeddings using positive/negative entity pairs with a triplet margin loss
+- **Directed graph embeddings** — handles asymmetric relationships where edge direction matters
+- **Weighted graph embeddings** — incorporates edge weights into the propagation step
+- **Node feature integration** — initializes embeddings with external features (text, image, numeric) before propagation
+- **PCA whitening** — built-in ZCA whitening to decorrelate embedding dimensions and improve downstream task performance
+
+---
+
+## Batteries Included
+
+pycleora ships with a comprehensive set of built-in modules:
+
+| Module | What it does |
+|--------|-------------|
+| `pycleora.community` | Community detection (Louvain) |
+| `pycleora.classify` | MLP and Label Propagation classifiers — no PyTorch needed |
+| `pycleora.sampling` | 6 graph sampling methods |
+| `pycleora.tuning` | Grid search and random search for hyperparameter tuning |
+| `pycleora.compress` | Embedding compression (PQ, scalar quantization) |
+| `pycleora.io_utils` | Save/load embeddings (NPZ, CSV, TSV), NetworkX conversion |
+| `pycleora.viz` | Embedding visualization (UMAP, t-SNE projections) |
+| `pycleora.metrics` | Evaluation metrics for embeddings |
+| `pycleora.benchmark` | Compare algorithms with time, memory, and accuracy metrics |
+| `pycleora.ensemble` | Combine embeddings from multiple algorithms |
+| `pycleora.align` | Embedding alignment across graphs |
+| `pycleora.search` | Nearest-neighbor entity search |
+| `pycleora.stats` | Graph statistics and degree analysis |
+| `pycleora.preprocess` | Graph preprocessing and filtering |
+| `pycleora.hetero` | Heterogeneous graph utilities |
+| `pycleora.generators` | Synthetic graph generators for testing |
+| `pycleora.datasets` | Real-world benchmark datasets (Facebook, Cora, CiteSeer, PubMed, PPI, roadNet-CA, and more) |
+
+See the [full API reference](https://cleora.ai/api) for details on every function and parameter.
 
 ---
 
@@ -192,41 +230,41 @@ Zomato's ML team needed graph embeddings to power "People Like You" restaurant r
 
 ## Benchmarks
 
-Tested on real-world graphs from 4K to 2M+ nodes. Cleora wins on accuracy, speed, and memory.
+Benchmarked against **7 competing algorithms** on **5 real-world datasets** (ego-Facebook, Cora, CiteSeer, PubMed, PPI) plus a 2M-node scale test. All datasets are genuine academic benchmarks from SNAP, Planetoid, and DGL. Cleora wins on accuracy on **every single dataset**.
 
-### Link Prediction Accuracy (AUC)
+Full interactive benchmark results at [cleora.ai/benchmarks](https://cleora.ai/benchmarks).
 
-| Dataset | Cleora | NetMF | Node2Vec | DeepWalk | Cleora Time |
-|---------|--------|-------|----------|----------|-------------|
-| **ego-Facebook** (4K nodes, 88K edges) | **0.964** | 0.944 | 0.918 | 0.912 | 0.74s |
-| **Flickr** (89K nodes, 899K edges) | **0.158** | OOM | OOM | OOM | 0.47s |
-| **ogbn-arxiv** (169K nodes, 1.2M edges) | **0.038** | OOM | OOM | OOM | — |
+### Classification Accuracy
 
-### Speed Comparison
+| Dataset | Nodes | Cleora | NetMF | DeepWalk | Node2Vec | HOPE | GraRep | ProNE | RandNE |
+|---------|-------|--------|-------|----------|----------|------|--------|-------|--------|
+| **ego-Facebook** | 4K | **0.990** | 0.957 | 0.958 | 0.958 | 0.890 | T/O | 0.075 | 0.212 |
+| **Cora** | 2.7K | **0.861** | 0.839 | 0.835 | 0.835 | 0.821 | 0.809 | 0.179 | 0.247 |
+| **CiteSeer** | 3.3K | **0.824** | 0.810 | 0.806 | 0.806 | 0.740 | 0.756 | 0.189 | 0.244 |
+| **PubMed** | 19.7K | **0.879** | OOM | T/O | T/O | T/O | OOM | 0.339 | 0.351 |
+| **PPI** | 3.9K | **1.000** | OOM | T/O | T/O | T/O | OOM | 0.023 | 0.073 |
 
-| Dataset | Cleora | RandNE | ProNE | NetMF |
-|---------|--------|--------|-------|-------|
-| **PPI-large** (57K nodes) | **0.33s** | 1.07s | 8.34s | OOM |
-| **Yelp** (717K nodes) | **3.3s** | OOM | OOM | OOM |
-| **roadNet-CA** (2M nodes) | **4.2s** | 9.0s | 57.7s | OOM |
+> **Only 3 of 8 algorithms survive at 19.7K nodes.** HOPE, NetMF, GraRep, DeepWalk, and Node2Vec all crash or time out. Cleora achieves perfect accuracy on PPI (50 classes).
 
 ### Memory Efficiency
 
-| Dataset | Cleora | Runner-up | Factor |
-|---------|--------|-----------|--------|
-| PPI-large (57K) | **28 MB** | 458 MB | 16x less |
-| Flickr (89K) | **44 MB** | 701 MB | 16x less |
-| ogbn-arxiv (169K) | **83 MB** | 1.3 GB | 16x less |
-| Yelp (717K) | **350 MB** | OOM | Only one that finished |
-| roadNet (2M) | **1.9 GB** | 14.6 GB | ~8x less |
+| Dataset | Cleora | Best Competitor | Factor |
+|---------|--------|-----------------|--------|
+| ego-Facebook (4K) | **22 MB** | 572 MB | 26x less |
+| Cora (2.7K) | **14 MB** | 227 MB | 16x less |
+| CiteSeer (3.3K) | **16 MB** | 294 MB | 18x less |
+| PubMed (19.7K) | **97 MB** | 175 MB | Only 3 survived |
+| roadNet-CA (2M) | **4.1 GB** | — | Only Cleora finished |
 
-> 500x more nodes with only ~19x runtime increase — from 0.22s to 4.2s.
+### Scale Test: roadNet-CA (2 Million Nodes)
+
+2 million nodes. 31 seconds. Every other algorithm crashes with out-of-memory. Cleora is the only library that survives at this scale on a single CPU.
 
 ---
 
 ## Library Comparison
 
-| Feature | **pycleora 3.0** | PyG | KarateClub | DGL | Node2Vec | StellarGraph |
+| Feature | **pycleora 3.2** | PyG | KarateClub | DGL | Node2Vec | StellarGraph |
 |---------|:---:|:---:|:---:|:---:|:---:|:---:|
 | CPU-only (no GPU needed) | **Yes** | Optional | Yes | Optional | Yes | Optional |
 | Rust-powered core | **Yes** | No (C++) | No | No (C++) | No | No (TF) |
@@ -234,7 +272,6 @@ Tested on real-world graphs from 4K to 2M+ nodes. Cleora wins on accuracy, speed
 | Deterministic output | **Yes** | No | No | No | No | No |
 | Node2Vec / DeepWalk | **Built-in** | Yes | Yes | Yes | Yes | Yes |
 | GNN classifier (no PyTorch) | **GCN** | Requires PyTorch | No | Requires PyTorch | No | Requires TF |
-| Built-in datasets | **14** | 70+ | ~5 | 40+ | No | ~10 |
 | Graph sampling | **6 methods** | Yes | No | Yes | No | Yes |
 | Hyperparameter tuning | **Grid + Random** | Manual | No | Manual | No | Manual |
 | Install size | **~5 MB** | ~500 MB+ | ~15 MB | ~400 MB+ | ~2 MB | ~600 MB+ |
@@ -252,6 +289,8 @@ Tested on real-world graphs from 4K to 2M+ nodes. Cleora wins on accuracy, speed
 - **Social Networks** — Community detection and link prediction
 - **Drug Discovery** — Molecule and protein interaction networks
 - **Supply Chain** — Supplier and logistics graph analysis
+
+See [cleora.ai/use-cases](https://cleora.ai/use-cases) for detailed walkthroughs with code examples.
 
 ---
 
@@ -284,7 +323,7 @@ A: Any entities that interact with each other, co-occur or can be said to be pre
 
 **Q: How should I construct the input?**
 
-A: What works best is grouping entities co-occurring in a similar context, and feeding them in whitespace-separated lines using `complex::reflexive` modifier is a good idea. E.g. if you have product data, you can group the products by shopping baskets or by users. If you have urls, you can group them by browser sessions, of by (user, time window) pairs. Check out the usage example above. Grouping products by customers is just one possibility.
+A: What works best is grouping entities co-occurring in a similar context, and feeding them in whitespace-separated lines using `complex::reflexive` modifier is a good idea. E.g. if you have product data, you can group the products by shopping baskets or by users. If you have urls, you can group them by browser sessions, or by (user, time window) pairs. Check out the usage example above. Grouping products by customers is just one possibility.
 
 **Q: Can I embed users and products simultaneously, to compare them with cosine similarity?**
 
@@ -322,10 +361,12 @@ A: Not using negative sampling is a great boon. By constructing the (sparse) Mar
 
 ## Resources
 
+- **Website**: [cleora.ai](https://cleora.ai)
+- **API Reference**: [cleora.ai/api](https://cleora.ai/api)
+- **Benchmarks**: [cleora.ai/benchmarks](https://cleora.ai/benchmarks)
 - **Whitepaper**: ["Cleora: A Simple, Strong and Scalable Graph Embedding Scheme"](https://arxiv.org/abs/2102.02302)
-- **Documentation**: [cleora.readthedocs.io](https://cleora.readthedocs.io/)
-- **Benchmarks**: [Full benchmark results](https://cleora.readthedocs.io/)
 - **GitHub**: [github.com/BaseModelAI/cleora](https://github.com/BaseModelAI/cleora)
+- **PyPI**: [pypi.org/project/pycleora](https://pypi.org/project/pycleora/)
 
 ## Cite
 
@@ -342,8 +383,8 @@ Please cite [our paper](https://arxiv.org/abs/2102.02302) (and the respective pa
 
 ## License
 
-Synerise Cleora is MIT licensed, as found in the [LICENSE](LICENSE) file.
+MIT licensed. See [LICENSE](LICENSE) for details.
 
-## How to Contribute
+## Contributing
 
-Pull requests are welcome. For details contact us at cleora@synerise.com
+Pull requests are welcome. For major changes, please open an issue first. Contact: cleora@synerise.com
