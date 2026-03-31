@@ -4,17 +4,11 @@
 
 </p>
 
-<h3 align="center">Graph Embeddings. Blazing Fast.</h3>
+<h1 align="center">The Graph Embedding Engine</h1>
 
 <p align="center">
-The only graph embedding library that performs <b>all possible random walks in a single matrix multiplication</b>.<br>
+Cleora computes <b>all possible random walks in a single matrix multiplication</b>.<br>
 No negative sampling. No GPU. No noise. Just fast, deterministic, production-grade embeddings.
-</p>
-
-<p align="center">
-  <b>240x</b> Faster Than GraphSAGE &nbsp;·&nbsp;
-  <b>8</b> Embedding Algorithms + MLP Classifier &nbsp;·&nbsp;
-  <b>~5 MB</b> Total Install Size
 </p>
 
 <p align="center">
@@ -22,6 +16,24 @@ No negative sampling. No GPU. No noise. Just fast, deterministic, production-gra
   <a href="https://cleora.ai/docs">Documentation</a> &nbsp;·&nbsp;
   <a href="https://cleora.ai/api">API Reference</a> &nbsp;·&nbsp;
   <a href="https://cleora.ai/benchmarks">Benchmarks</a>
+</p>
+
+<p align="center">
+  <code>pip install pycleora</code>
+</p>
+
+---
+
+<p align="center">
+  <b>#1 Accuracy. Every Dataset.</b><br>
+  Tested on <b>5 canonical academic datasets</b> against <b>7 competing algorithms</b> — Cleora wins on accuracy on <b>every single dataset</b>,<br>and is the only algorithm that scales to every graph without crashing.
+</p>
+
+<p align="center">
+  <b>240x</b> Faster Than GraphSAGE &nbsp;·&nbsp;
+  <b>50x</b> Less Memory Than NetMF &nbsp;·&nbsp;
+  <b>~5 MB</b> Install &nbsp;·&nbsp;
+  <b>0</b> GPUs Required
 </p>
 
 ---
