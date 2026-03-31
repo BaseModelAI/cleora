@@ -13,7 +13,7 @@ No negative sampling. No GPU. No noise. Just fast, deterministic, production-gra
 
 <p align="center">
   <b>240x</b> Faster Than GraphSAGE &nbsp;·&nbsp;
-  <b>8</b> Embedding Algorithms + GCN Classifier &nbsp;·&nbsp;
+  <b>8</b> Embedding Algorithms + MLP Classifier &nbsp;·&nbsp;
   <b>~5 MB</b> Total Install Size
 </p>
 
@@ -151,7 +151,7 @@ Embeddings are stable across runs and support inductive learning: new nodes can 
 | **Node2Vec** | Random Walk | Biased random walks with tunable BFS/DFS exploration |
 | **HOPE** | Matrix Factorization | High-Order Proximity preserved Embedding |
 | **GraRep** | Matrix Factorization | Graph Representations with Global Structural Information |
-| **GCN** | Mini-GNN | 2-layer Graph Convolutional Network classifier in pure numpy/scipy — no PyTorch needed |
+| **MLP** | Neural Classifier | 2-layer MLP classifier in pure numpy/scipy — no PyTorch needed |
 
 All algorithms are unified under a single API. Switch between methods by changing one parameter:
 
@@ -271,7 +271,7 @@ Full interactive benchmark results at [cleora.ai/benchmarks](https://cleora.ai/b
 | No negative sampling needed | **Yes** | No | No | No | No | No |
 | Deterministic output | **Yes** | No | No | No | No | No |
 | Node2Vec / DeepWalk | **Built-in** | Yes | Yes | Yes | Yes | Yes |
-| GNN classifier (no PyTorch) | **GCN** | Requires PyTorch | No | Requires PyTorch | No | Requires TF |
+| MLP classifier (no PyTorch) | **MLP** | Requires PyTorch | No | Requires PyTorch | No | Requires TF |
 | Graph sampling | **6 methods** | Yes | No | Yes | No | Yes |
 | Hyperparameter tuning | **Grid + Random** | Manual | No | Manual | No | Manual |
 | Install size | **~5 MB** | ~500 MB+ | ~15 MB | ~400 MB+ | ~2 MB | ~600 MB+ |
