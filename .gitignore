@@ -5,3 +5,32 @@
 cleora-light-rust.iml
 *.out
 *.so
+
+# Website (deployed separately)
+website/
+
+# Replit-specific
+.replit
+replit.nix
+replit.md
+REPLIT.md
+.local/
+.cache/
+.upm/
+.config/
+.pythonlibs/
+__pycache__/
+*.pyc
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Benchmark/test outputs
+*.npz
+*.csv
+*.tsv
+umap_plots/
+benchmark_results/
