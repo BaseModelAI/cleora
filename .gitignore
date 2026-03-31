@@ -21,12 +21,28 @@ REPLIT.md
 .pythonlibs/
 __pycache__/
 *.pyc
+.agents/
 
 # Build artifacts
 *.egg-info/
 dist/
 build/
 .eggs/
+*.tar.gz
+
+# Benchmark/test scripts (internal)
+dom_*.py
+domination_*.py
+full_benchmark.py
+generate_umap_plots.py
+scale_whiten_test.py
+test_scale_whiten.py
+test_yelp_whiten.py
+benchmark_report.py
+tests_demo.py
+
+# Attached assets (Replit uploads)
+attached_assets/
 
 # Benchmark/test outputs
 *.npz
