@@ -9,12 +9,15 @@ from . import ensemble
 from . import search
 from . import compress
 
+DEFAULT_FEATURE_DIM = 256
+DEFAULT_NUM_ITERATIONS = 40
+
 
 def embed_using_baseline_cleora(graph, feature_dim: int, iter: int):
     embeddings = graph.initialize_deterministically(feature_dim)
     for i in range(iter):
         embeddings = graph.left_markov_propagate(embeddings)
-        embeddings /= np.linalg.norm(embeddings, ord=2, axis=-1, keepdims=True)
+        embeddings = _postprocess_iteration(embeddings, "l2", True)
     return embeddings
 
 
@@ -42,18 +45,13 @@ def _to_scipy_sparse(graph: SparseMatrix, markov_type: str = "left"):
 
 
 def _auto_iterations(feature_dim: int) -> int:
-    if feature_dim <= 256:
-        return 4
-    elif feature_dim <= 512:
-        return 8
-    else:
-        return 16
+    return DEFAULT_NUM_ITERATIONS
 
 
 def embed(
     graph: SparseMatrix,
-    feature_dim: int = 128,
-    num_iterations: Union[int, str] = 4,
+    feature_dim: int = DEFAULT_FEATURE_DIM,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     seed: int = 0,
@@ -73,6 +71,7 @@ def embed(
         initial_embeddings is None
         and callback is None
         and normalization == "l2"
+        and not whiten
     )
 
     if use_fast_path:
@@ -108,19 +107,22 @@ def embed(
             embeddings = graph.initialize_deterministically(feature_dim, seed)
 
         for i in range(num_iterations):
+            prev_embeddings = embeddings
             prev = embeddings if residual_weight > 0 else None
             embeddings = propagate_fn(embeddings, num_workers=num_workers)
 
             if residual_weight > 0 and prev is not None:
                 embeddings = (1 - residual_weight) * embeddings + residual_weight * prev
 
-            embeddings = _normalize(embeddings, normalization)
+            embeddings = _postprocess_iteration(embeddings, normalization, whiten)
 
             if callback is not None:
                 callback(i, embeddings)
 
-    if whiten:
-        embeddings = whiten_embeddings(embeddings)
+            if convergence_threshold > 0 and i > 0:
+                rmse = _compute_rmse(embeddings, prev_embeddings)
+                if rmse < convergence_threshold:
+                    break
 
     return embeddings
 
@@ -165,7 +167,7 @@ def whiten_embeddings(embeddings: np.ndarray, n_components: Optional[int] = None
 def embed_with_node_features(
     graph: SparseMatrix,
     node_features: Dict[str, np.ndarray],
-    num_iterations: int = 4,
+    num_iterations: int = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     feature_weight: float = 0.5,
@@ -203,14 +205,15 @@ def embed_with_node_features(
 
 def embed_with_attention(
     graph: SparseMatrix,
-    feature_dim: int = 128,
-    num_iterations: int = 4,
+    feature_dim: int = DEFAULT_FEATURE_DIM,
+    num_iterations: int = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     attention_temperature: float = 1.0,
     seed: int = 0,
     num_workers: Optional[int] = None,
     callback: Optional[Callable[[int, np.ndarray], None]] = None,
+    whiten: bool = True,
 ) -> np.ndarray:
     _validate_propagation(propagation)
 
@@ -224,7 +227,7 @@ def embed_with_attention(
     propagate_fn = _get_propagate_fn(graph, propagation)
 
     embeddings = propagate_fn(embeddings, num_workers=num_workers)
-    embeddings = _normalize(embeddings, normalization)
+    embeddings = _postprocess_iteration(embeddings, normalization, whiten)
 
     if callback is not None:
         callback(0, embeddings)
@@ -265,7 +268,7 @@ def embed_with_attention(
         weighted_adj = diags(1.0 / row_sums_w) @ weighted_adj
 
         embeddings = (weighted_adj @ embeddings).astype(np.float32)
-        embeddings = _normalize(embeddings, normalization)
+        embeddings = _postprocess_iteration(embeddings, normalization, whiten)
 
         if callback is not None:
             callback(i, embeddings)
@@ -275,7 +278,7 @@ def embed_with_attention(
 
 def embed_multiscale(
     graph: SparseMatrix,
-    feature_dim: int = 128,
+    feature_dim: int = DEFAULT_FEATURE_DIM,
     scales: List[int] = None,
     propagation: str = "left",
     normalization: str = "l2",
@@ -286,7 +289,7 @@ def embed_multiscale(
     propagate_fn = _get_propagate_fn(graph, propagation)
 
     if scales is None:
-        scales = [1, 2, 4, 8]
+        scales = [10, 20, 30, 40]
 
     if not scales or not all(isinstance(s, int) and s > 0 for s in scales):
         raise ValueError("scales must be a non-empty list of positive integers")
@@ -298,11 +301,9 @@ def embed_multiscale(
     for scale in sorted(scales):
         while current_iter < scale:
             embeddings = propagate_fn(embeddings, num_workers=num_workers)
-            embeddings = _normalize(embeddings, normalization)
+            embeddings = _postprocess_iteration(embeddings, normalization, whiten)
             current_iter += 1
         snapshot = embeddings.copy()
-        if whiten:
-            snapshot = whiten_embeddings(snapshot)
         all_embeddings.append(snapshot)
 
     return np.concatenate(all_embeddings, axis=1)
@@ -311,13 +312,14 @@ def embed_multiscale(
 def embed_weighted(
     edges_with_weights: List[Tuple[str, float]],
     columns: str,
-    feature_dim: int = 128,
-    num_iterations: int = 4,
+    feature_dim: int = DEFAULT_FEATURE_DIM,
+    num_iterations: int = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     seed: int = 0,
     hyperedge_trim_n: int = 16,
     num_workers: Optional[int] = None,
+    whiten: bool = True,
 ) -> Tuple[SparseMatrix, np.ndarray]:
     from scipy.sparse import csr_matrix, diags
 
@@ -352,7 +354,7 @@ def embed_weighted(
 
     for i in range(num_iterations):
         embeddings = (weighted_adj @ embeddings).astype(np.float32)
-        embeddings = _normalize(embeddings, normalization)
+        embeddings = _postprocess_iteration(embeddings, normalization, whiten)
 
     return graph, embeddings
 
@@ -360,12 +362,13 @@ def embed_weighted(
 def embed_directed(
     edges: List[str],
     columns: str,
-    feature_dim: int = 128,
-    num_iterations: int = 4,
+    feature_dim: int = DEFAULT_FEATURE_DIM,
+    num_iterations: int = DEFAULT_NUM_ITERATIONS,
     normalization: str = "l2",
     seed: int = 0,
     hyperedge_trim_n: int = 16,
     num_workers: Optional[int] = None,
+    whiten: bool = True,
 ) -> Tuple[SparseMatrix, np.ndarray]:
     from scipy.sparse import csr_matrix, diags
 
@@ -402,7 +405,7 @@ def embed_directed(
     embeddings = graph.initialize_deterministically(feature_dim, seed)
     for i in range(num_iterations):
         embeddings = (adj @ embeddings).astype(np.float32)
-        embeddings = _normalize(embeddings, normalization)
+        embeddings = _postprocess_iteration(embeddings, normalization, whiten)
 
     return graph, embeddings
 
@@ -540,7 +543,7 @@ def embed_inductive(
     existing_edges: List[str],
     new_edges: List[str],
     columns: str,
-    num_iterations: int = 4,
+    num_iterations: int = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     hyperedge_trim_n: int = 16,
@@ -580,8 +583,8 @@ def embed_inductive(
 def embed_streaming(
     edge_batches,
     columns: str,
-    feature_dim: int = 128,
-    num_iterations: int = 4,
+    feature_dim: int = DEFAULT_FEATURE_DIM,
+    num_iterations: int = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     hyperedge_trim_n: int = 16,
@@ -681,11 +684,12 @@ def predict_links(
 def propagate_gpu(
     graph: SparseMatrix,
     embeddings: np.ndarray,
-    num_iterations: int = 4,
+    num_iterations: int = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     device: str = "cuda",
     callback: Optional[Callable[[int, np.ndarray], None]] = None,
+    whiten: bool = True,
 ) -> np.ndarray:
     _validate_propagation(propagation)
 
@@ -725,6 +729,9 @@ def propagate_gpu(
         elif normalization == "l1":
             norms = torch.norm(emb, p=1, dim=1, keepdim=True).clamp(min=1e-10)
             emb = emb / norms
+
+        if whiten:
+            emb = _whiten_embeddings_torch(emb)
 
         if callback is not None:
             callback(i, emb.cpu().numpy())
@@ -777,12 +784,13 @@ def find_most_similar(
 def embed_edge_features(
     graph: SparseMatrix,
     edge_features: Dict[str, np.ndarray],
-    feature_dim: int = 128,
-    num_iterations: int = 4,
+    feature_dim: int = DEFAULT_FEATURE_DIM,
+    num_iterations: int = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     combine: str = "concat",
     num_workers: Optional[int] = None,
+    whiten: bool = True,
 ) -> np.ndarray:
     from scipy.sparse import csr_matrix, diags
 
@@ -791,6 +799,7 @@ def embed_edge_features(
     struct_emb = embed(
         graph, feature_dim=feature_dim, num_iterations=num_iterations,
         propagation=propagation, normalization=normalization, num_workers=num_workers,
+        whiten=whiten,
     )
 
     if not edge_features:
@@ -828,9 +837,7 @@ def embed_edge_features(
     H = node_feats
     for _ in range(num_iterations):
         H = (adj @ H)
-        feat_norms = np.linalg.norm(H, axis=1, keepdims=True)
-        feat_norms = np.maximum(feat_norms, 1e-10)
-        H = H / feat_norms
+        H = _postprocess_iteration(H.astype(np.float32), "l2", whiten).astype(np.float64)
 
     edge_emb = H.astype(np.float32)
 
@@ -848,14 +855,15 @@ def embed_edge_features(
 class CleoraEmbedder:
     def __init__(
         self,
-        feature_dim: int = 128,
-        num_iterations: int = 4,
+        feature_dim: int = DEFAULT_FEATURE_DIM,
+        num_iterations: int = DEFAULT_NUM_ITERATIONS,
         propagation: str = "left",
         normalization: str = "l2",
         columns: str = "complex::reflexive::node",
         seed: int = 0,
         hyperedge_trim_n: int = 16,
         num_workers: Optional[int] = None,
+        whiten: bool = True,
     ):
         self.feature_dim = feature_dim
         self.num_iterations = num_iterations
@@ -865,6 +873,7 @@ class CleoraEmbedder:
         self.seed = seed
         self.hyperedge_trim_n = hyperedge_trim_n
         self.num_workers = num_workers
+        self.whiten = whiten
         self.graph_ = None
         self.embeddings_ = None
         self.entity_ids_ = None
@@ -881,6 +890,7 @@ class CleoraEmbedder:
             normalization=self.normalization,
             seed=self.seed,
             num_workers=self.num_workers,
+            whiten=self.whiten,
         )
         self.entity_ids_ = list(self.graph_.entity_ids)
         return self
@@ -917,6 +927,7 @@ class CleoraEmbedder:
             "seed": self.seed,
             "hyperedge_trim_n": self.hyperedge_trim_n,
             "num_workers": self.num_workers,
+            "whiten": self.whiten,
         }
 
     def set_params(self, **params):
@@ -947,3 +958,40 @@ def _normalize(embeddings: np.ndarray, method: str) -> np.ndarray:
         return embeddings
     else:
         raise ValueError(f"Unknown normalization method: {method}. Use 'l2', 'l1', 'spectral', or 'none'.")
+
+
+def _postprocess_iteration(
+    embeddings: np.ndarray,
+    normalization: str,
+    whiten: bool,
+) -> np.ndarray:
+    embeddings = _normalize(embeddings, normalization)
+    if whiten:
+        embeddings = whiten_embeddings(embeddings)
+    return embeddings
+
+
+def _compute_rmse(current: np.ndarray, previous: np.ndarray) -> float:
+    diff = current.astype(np.float64, copy=False) - previous.astype(np.float64, copy=False)
+    return float(np.sqrt(np.mean(diff * diff)))
+
+
+def _whiten_embeddings_torch(embeddings):
+    import torch
+
+    n = embeddings.shape[0]
+    if n <= 1:
+        return embeddings.clone()
+
+    mean = embeddings.mean(dim=0, keepdim=True)
+    centered = embeddings - mean
+    cov = centered.transpose(0, 1).matmul(centered) / max(n - 1, 1)
+
+    eigenvalues, eigenvectors = torch.linalg.eigh(cov)
+    order = torch.argsort(eigenvalues, descending=True)
+    eigenvalues = eigenvalues[order]
+    eigenvectors = eigenvectors[:, order]
+
+    scale = torch.rsqrt(torch.clamp(eigenvalues, min=1e-10))
+    transform = eigenvectors * scale.unsqueeze(0)
+    return centered.matmul(transform)

@@ -1,7 +1,7 @@
 import time
 
 import numpy as np
-from pycleora import SparseMatrix
+from pycleora import SparseMatrix, whiten_embeddings
 
 import pickle
 
@@ -21,7 +21,9 @@ with open('graph.pkl', 'rb') as f:
 print(graph.entity_ids[:10])
 print(graph_reread.entity_ids[:10])
 
-embeddings = graph_reread.initialize_deterministically(feature_dim=128, seed=0)
+embeddings = graph_reread.initialize_deterministically(feature_dim=256, seed=0)
 embeddings = graph_reread.left_markov_propagate(embeddings)
+embeddings /= np.linalg.norm(embeddings, ord=2, axis=-1, keepdims=True)
+embeddings = whiten_embeddings(embeddings)
 
 print(embeddings)

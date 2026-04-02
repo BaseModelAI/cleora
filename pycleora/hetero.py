@@ -88,12 +88,13 @@ class HeteroGraph:
 
     def embed_per_relation(
         self,
-        feature_dim: int = 128,
-        num_iterations: int = 4,
+        feature_dim: int = 256,
+        num_iterations: int = 40,
         propagation: str = "left",
         normalization: str = "l2",
         combine: str = "concat",
         seed: int = 0,
+        whiten: bool = True,
     ) -> Tuple[Dict[str, SparseMatrix], Dict[str, np.ndarray], Optional[np.ndarray]]:
         from . import embed
 
@@ -114,7 +115,8 @@ class HeteroGraph:
 
             graph = SparseMatrix.from_iterator(iter(edge_strs), columns)
             emb = embed(graph, feature_dim=feature_dim, num_iterations=num_iterations,
-                       propagation=propagation, normalization=normalization, seed=seed)
+                       propagation=propagation, normalization=normalization, seed=seed,
+                       whiten=whiten)
 
             graphs[et_name] = graph
             embeddings[et_name] = emb
@@ -173,10 +175,11 @@ class HeteroGraph:
     def embed_metapath(
         self,
         metapath: List[str],
-        feature_dim: int = 128,
-        num_iterations: int = 4,
+        feature_dim: int = 256,
+        num_iterations: int = 40,
         normalization: str = "l2",
         seed: int = 0,
+        whiten: bool = True,
     ) -> Tuple[SparseMatrix, np.ndarray]:
         from . import embed
 
@@ -231,7 +234,7 @@ class HeteroGraph:
 
         graph = SparseMatrix.from_iterator(iter(edge_strs), columns)
         emb = embed(graph, feature_dim=feature_dim, num_iterations=num_iterations,
-                   normalization=normalization, seed=seed)
+                   normalization=normalization, seed=seed, whiten=whiten)
 
         return graph, emb
 

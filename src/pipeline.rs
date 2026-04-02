@@ -223,9 +223,15 @@ where
 fn parse_line(line: &str) -> Vec<SmallVec<[&str; SMALL_VECTOR_SIZE]>> {
     let trimmed = line.trim();
     if trimmed.contains('\t') {
-        trimmed.split('\t').map(|c| c.split(' ').collect()).collect()
+        trimmed
+            .split('\t')
+            .map(|c| c.split(' ').collect())
+            .collect()
     } else if trimmed.contains(',') {
-        trimmed.split(',').map(|c| c.trim().split(' ').collect()).collect()
+        trimmed
+            .split(',')
+            .map(|c| c.trim().split(' ').collect())
+            .collect()
     } else {
         let mut result = Vec::with_capacity(1);
         result.push(trimmed.split(' ').collect());

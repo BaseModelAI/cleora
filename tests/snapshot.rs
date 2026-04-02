@@ -8,8 +8,8 @@ mod tests {
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
 
-    use cleora::embedding::{MarkovType, NdArrayMatrix};
-    use cleora::sparse_matrix::SparseMatrix;
+    use pycleora::embedding::{MarkovType, NdArrayMatrix};
+    use pycleora::sparse_matrix::SparseMatrix;
 
     fn round(arr: Array2<f32>) -> Array2<i32> {
         arr.map(|v| (v * 1000.) as i32)

@@ -27,7 +27,13 @@ impl NdArrayMatrix {
             .unwrap();
 
         pool.install(|| {
-            Self::spmm_kernel(sparse_matrix_reader, other, &markov_type, dim, new_matrix.view_mut());
+            Self::spmm_kernel(
+                sparse_matrix_reader,
+                other,
+                &markov_type,
+                dim,
+                new_matrix.view_mut(),
+            );
         });
         new_matrix
     }

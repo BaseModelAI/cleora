@@ -63,7 +63,7 @@ def benchmark_algorithms(
 def benchmark_datasets(
     dataset_names: List[str],
     embed_fn: Callable,
-    feature_dim: int = 128,
+    feature_dim: int = 256,
     seed: int = 42,
 ) -> Dict:
     from .datasets import load_dataset

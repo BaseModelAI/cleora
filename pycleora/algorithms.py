@@ -22,7 +22,7 @@ def _graph_to_adjacency(graph):
 
 def embed_prone(
     graph,
-    feature_dim: int = 128,
+    feature_dim: int = 256,
     mu: float = 0.2,
     theta: float = 0.5,
     seed: int = 0,
@@ -66,8 +66,8 @@ def embed_prone(
 
 def embed_randne(
     graph,
-    feature_dim: int = 128,
-    num_iterations: int = 3,
+    feature_dim: int = 256,
+    num_iterations: int = 40,
     weights: Optional[List[float]] = None,
     seed: int = 0,
 ) -> np.ndarray:
@@ -102,7 +102,7 @@ def embed_randne(
 
 def embed_hope(
     graph,
-    feature_dim: int = 128,
+    feature_dim: int = 256,
     beta: float = 0.1,
 ) -> np.ndarray:
     n = graph.num_entities
@@ -151,7 +151,7 @@ def embed_hope(
 
 def embed_netmf(
     graph,
-    feature_dim: int = 128,
+    feature_dim: int = 256,
     window_size: int = 5,
     negative_samples: float = 1.0,
 ) -> np.ndarray:
@@ -200,7 +200,7 @@ def embed_netmf(
 
 def embed_grarep(
     graph,
-    feature_dim: int = 128,
+    feature_dim: int = 256,
     max_step: int = 4,
 ) -> np.ndarray:
     n = graph.num_entities
@@ -341,7 +341,7 @@ def _walks_to_embeddings(walks, n, feature_dim, window_size):
 
 def embed_deepwalk(
     graph,
-    feature_dim: int = 128,
+    feature_dim: int = 256,
     num_walks: int = 10,
     walk_length: int = 80,
     window_size: int = 5,
@@ -355,7 +355,7 @@ def embed_deepwalk(
 
 def embed_node2vec(
     graph,
-    feature_dim: int = 128,
+    feature_dim: int = 256,
     num_walks: int = 10,
     walk_length: int = 80,
     window_size: int = 5,
