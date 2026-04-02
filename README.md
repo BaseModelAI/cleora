@@ -78,12 +78,14 @@ for r in similar:
     print(f"{r['entity_id']}: {r['similarity']:.4f}")
 ```
 
+`embed()` defaults to `feature_dim=256`, `num_iterations=40`, and whitening after every propagation step.
+
 ### Step-by-Step Example
 
 The high-level `embed()` function wraps the Markov propagation loop for convenience. Here's the full manual version, which gives you complete control over the process:
 
 ```python
-from pycleora import SparseMatrix
+from pycleora import SparseMatrix, whiten_embeddings
 import numpy as np
 import pandas as pd
 import random
@@ -111,6 +113,7 @@ NUM_ITERATIONS = 40
 for i in range(NUM_ITERATIONS):
     embeddings = mat.left_markov_propagate(embeddings)
     embeddings /= np.linalg.norm(embeddings, ord=2, axis=-1, keepdims=True)
+    embeddings = whiten_embeddings(embeddings)
 
 for entity, embedding in zip(mat.entity_ids, embeddings):
     print(entity, embedding)
@@ -155,7 +158,7 @@ Embeddings are stable across runs and support inductive learning: new nodes can 
 
 | Algorithm | Type | Description |
 |-----------|------|-------------|
-| **Cleora** | Spectral / Random Walk | Iterative Markov propagation with L2 normalization — all random walks in one matrix multiplication |
+| **Cleora** | Spectral / Random Walk | Iterative Markov propagation with per-iteration whitening — all random walks in one matrix multiplication |
 | **ProNE** | Spectral | Fast spectral propagation with Chebyshev polynomial approximation |
 | **RandNE** | Random Projection | Gaussian random projection for very fast, approximate embeddings |
 | **NetMF** | Matrix Factorization | Network Matrix Factorization — factorizes the DeepWalk matrix explicitly |
@@ -177,13 +180,13 @@ pycleora embed --input graph.tsv --output out.npz --algorithm node2vec
 
 Beyond the standard algorithms, Cleora supports several advanced embedding strategies:
 
-- **Multiscale embeddings** — concatenates embeddings from different iteration depths (e.g. scales `[1, 2, 4, 8]`) to capture both local and global graph structure simultaneously
+- **Multiscale embeddings** — concatenates embeddings from different iteration depths (e.g. scales `[10, 20, 30, 40]`) to capture both local and global graph structure simultaneously
 - **Attention-weighted propagation** — uses softmax-normalized dot-product attention during propagation, dynamically weighting neighbor contributions
 - **Supervised refinement** — fine-tunes unsupervised embeddings using positive/negative entity pairs with a triplet margin loss
 - **Directed graph embeddings** — handles asymmetric relationships where edge direction matters
 - **Weighted graph embeddings** — incorporates edge weights into the propagation step
 - **Node feature integration** — initializes embeddings with external features (text, image, numeric) before propagation
-- **PCA whitening** — built-in ZCA whitening to decorrelate embedding dimensions and improve downstream task performance
+- **PCA whitening** — built-in whitening after every iteration by default to decorrelate embedding dimensions and improve downstream task performance
 
 ---
 
@@ -312,7 +315,7 @@ See [cleora.ai/use-cases](https://cleora.ai/use-cases) for detailed walkthroughs
 2. **Hypergraph Construction** — Builds a heterogeneous hypergraph where a single edge can connect multiple entities of different types.
 3. **Sparse Markov Matrix** — Constructs a sparse transition matrix (99%+ sparse). Rows normalized so each row sums to 1.
 4. **Single Matrix Multiplication = All Walks** — One sparse matrix multiplication captures *every possible random walk* of a given length. No sampling, no noise.
-5. **L2-Normalized Propagation** — Each iteration replaces every node's embedding with the L2-normalized average of its neighbors. 3-4 iterations for co-occurrence similarity, 7+ for contextual similarity.
+5. **L2-Normalized + Whitened Propagation** — Each iteration replaces every node's embedding with the L2-normalized average of its neighbors and then whitens the embedding space. The default configuration runs 40 iterations at 256 dimensions.
 6. **Embeddings Ready** — Dense, deterministic embedding vectors for every entity. Same input always yields same output.
 
 ---
@@ -343,15 +346,15 @@ A: No, this is a methodologically wrong approach, stemming from outdated matrix 
 
 **Q: What embedding dimensionality to use?**
 
-A: The more, the better, but we typically work from _1024_ to _4096_. Memory is cheap and machines are powerful, so don't skimp on embedding size.
+A: The default is **256**. For larger production systems we often work from _1024_ to _4096_, but `256` is the baseline shipped by the library.
 
 **Q: How many iterations of Markov propagation should I use?**
 
-A: Depends on what you want to achieve. Low iterations (3) tend to approximate the co-occurrence matrix, while high iterations (7+) tend to give contextual similarity (think skip-gram but much more accurate and faster).
+A: The default is **40** whitening-enhanced propagation steps. If you want more local, co-occurrence-style behavior you can dial that down manually; higher values bias more toward contextual similarity.
 
 **Q: How do I incorporate external information, e.g. entity metadata, images, texts into the embeddings?**
 
-A: Just initialize the embedding matrix with your own vectors coming from a VIT, sentence-transformers, or a random projection of your numeric features. In that scenario low numbers of Markov iterations (1 to 3) tend to work best.
+A: Just initialize the embedding matrix with your own vectors coming from a VIT, sentence-transformers, or a random projection of your numeric features. In that scenario fewer Markov iterations than the default `40` often work best.
 
 **Q: My embeddings don't fit in memory, what do I do?**
 
@@ -367,7 +370,7 @@ A: Cleora works best for relatively sparse hypergraphs. If all your hyperedges c
 
 **Q: How can Cleora be so fast and accurate at the same time?**
 
-A: Not using negative sampling is a great boon. By constructing the (sparse) Markov transition matrix, Cleora explicitly performs all possible random walks in a hypergraph in one big step (a single matrix multiplication). That's what we call a single _iteration_. We perform 3+ such iterations. Thanks to a highly efficient implementation in Rust, with special care for concurrency, memory layout and cache coherence, it is blazingly fast. Negative sampling or randomly selecting random walks tend to introduce a lot of noise - Cleora is free of those burdens.
+A: Not using negative sampling is a great boon. By constructing the (sparse) Markov transition matrix, Cleora explicitly performs all possible random walks in a hypergraph in one big step (a single matrix multiplication). That's what we call a single _iteration_. The default configuration performs 40 such iterations with whitening after every step. Negative sampling or randomly selecting random walks tend to introduce a lot of noise - Cleora is free of those burdens.
 
 ---
 

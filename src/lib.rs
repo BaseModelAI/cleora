@@ -1,6 +1,6 @@
+use rustc_hash::FxHasher;
 use std::collections::HashMap;
 use std::hash::Hasher;
-use rustc_hash::FxHasher;
 
 use bincode::{deserialize, serialize};
 use ndarray::{Array1, Array2, ArrayViewMut2, Axis, Ix1, Ix2};
@@ -53,8 +53,7 @@ impl SparseMatrix {
         num_workers: Option<usize>,
     ) -> Result<SparseMatrix, String> {
         let columns = configuration::parse_fields(columns)?;
-        let matrix_desc = create_sparse_matrix_descriptor(&columns)
-            .map_err(|e| e.to_string())?;
+        let matrix_desc = create_sparse_matrix_descriptor(&columns).map_err(|e| e.to_string())?;
         let workers = num_workers.unwrap_or_else(num_cpus::get).max(1);
         let config = Configuration {
             seed: None,
@@ -147,15 +146,18 @@ impl SparseMatrix {
             return Err(PyValueError::new_err("At least one file path is required"));
         }
         for filepath in filepaths.iter() {
-            if !filepath.ends_with(".tsv") && !filepath.ends_with(".csv") && !filepath.ends_with(".txt") {
-                return Err(PyValueError::new_err(
-                    format!("Unsupported file format: {}. Supported: .tsv, .csv, .txt", filepath)
-                ));
+            if !filepath.ends_with(".tsv")
+                && !filepath.ends_with(".csv")
+                && !filepath.ends_with(".txt")
+            {
+                return Err(PyValueError::new_err(format!(
+                    "Unsupported file format: {}. Supported: .tsv, .csv, .txt",
+                    filepath
+                )));
             }
         }
 
-        let columns = configuration::parse_fields(columns)
-            .map_err(PyValueError::new_err)?;
+        let columns = configuration::parse_fields(columns).map_err(PyValueError::new_err)?;
         let matrix_desc =
             create_sparse_matrix_descriptor(&columns).map_err(PyValueError::new_err)?;
 
@@ -329,9 +331,12 @@ impl SparseMatrix {
         let markov_type = match propagation {
             "left" => MarkovType::Left,
             "symmetric" => MarkovType::Symmetric,
-            _ => return Err(PyValueError::new_err(format!(
-                "Unknown propagation '{}'. Use 'left' or 'symmetric'.", propagation
-            ))),
+            _ => {
+                return Err(PyValueError::new_err(format!(
+                    "Unknown propagation '{}'. Use 'left' or 'symmetric'.",
+                    propagation
+                )))
+            }
         };
 
         let mut vectors = Array2::zeros([self.entity_ids.len(), feature_dim]);
@@ -345,7 +350,13 @@ impl SparseMatrix {
                 .build()
                 .unwrap();
             pool.install(|| {
-                NdArrayMatrix::embed_full(self, vectors, markov_type, num_iterations, residual_weight)
+                NdArrayMatrix::embed_full(
+                    self,
+                    vectors,
+                    markov_type,
+                    num_iterations,
+                    residual_weight,
+                )
             })
         });
 
@@ -367,9 +378,12 @@ impl SparseMatrix {
         let markov_type = match propagation {
             "left" => MarkovType::Left,
             "symmetric" => MarkovType::Symmetric,
-            _ => return Err(PyValueError::new_err(format!(
-                "Unknown propagation '{}'. Use 'left' or 'symmetric'.", propagation
-            ))),
+            _ => {
+                return Err(PyValueError::new_err(format!(
+                    "Unknown propagation '{}'. Use 'left' or 'symmetric'.",
+                    propagation
+                )))
+            }
         };
 
         let mut vectors = Array2::zeros([self.entity_ids.len(), feature_dim]);
@@ -384,8 +398,12 @@ impl SparseMatrix {
                 .unwrap();
             pool.install(|| {
                 NdArrayMatrix::embed_full_with_convergence(
-                    self, vectors, markov_type, max_iterations,
-                    residual_weight, convergence_threshold,
+                    self,
+                    vectors,
+                    markov_type,
+                    max_iterations,
+                    residual_weight,
+                    convergence_threshold,
                 )
             })
         });

@@ -14,8 +14,8 @@ def main():
     embed_parser = subparsers.add_parser("embed", help="Generate graph embeddings")
     embed_parser.add_argument("--input", "-i", required=True, help="Input edge file (TSV/CSV/space-separated)")
     embed_parser.add_argument("--output", "-o", required=True, help="Output file (npz/csv/tsv)")
-    embed_parser.add_argument("--dim", "-d", type=int, default=128, help="Embedding dimension (default: 128)")
-    embed_parser.add_argument("--iterations", "-n", type=int, default=4, help="Number of iterations (default: 4)")
+    embed_parser.add_argument("--dim", "-d", type=int, default=256, help="Embedding dimension (default: 256)")
+    embed_parser.add_argument("--iterations", "-n", type=int, default=40, help="Number of iterations (default: 40)")
     embed_parser.add_argument("--propagation", "-p", choices=["left", "symmetric"], default="left")
     embed_parser.add_argument("--normalization", choices=["l2", "l1", "none"], default="l2")
     embed_parser.add_argument("--columns", "-c", default="complex::reflexive::node", help="Column definition")
@@ -30,14 +30,14 @@ def main():
 
     bench_parser = subparsers.add_parser("benchmark", help="Run benchmarks")
     bench_parser.add_argument("--dataset", "-d", default="karate_club", help="Dataset name")
-    bench_parser.add_argument("--dim", type=int, default=128)
+    bench_parser.add_argument("--dim", type=int, default=256)
 
     similar_parser = subparsers.add_parser("similar", help="Find similar entities")
     similar_parser.add_argument("--input", "-i", required=True)
     similar_parser.add_argument("--columns", "-c", default="complex::reflexive::node")
     similar_parser.add_argument("--entity", "-e", required=True, help="Query entity")
     similar_parser.add_argument("--top-k", "-k", type=int, default=10)
-    similar_parser.add_argument("--dim", "-d", type=int, default=128)
+    similar_parser.add_argument("--dim", "-d", type=int, default=256)
 
     args = parser.parse_args()
 
@@ -145,7 +145,7 @@ def _cmd_benchmark(args):
     graph = SparseMatrix.from_iterator(iter(ds["edges"]), ds["columns"])
 
     algorithms = {
-        "cleora": lambda g: embed(g, args.dim, 4),
+        "cleora": lambda g: embed(g, args.dim, 40),
         "prone": lambda g: embed_prone(g, args.dim),
         "randne": lambda g: embed_randne(g, args.dim),
         "deepwalk": lambda g: embed_deepwalk(g, args.dim),

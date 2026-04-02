@@ -8,7 +8,7 @@ except ImportError:
 
 setup(
     name="pycleora",
-    version="3.0.0",
+    version="3.2.1",
     description="Fast CPU-only graph embedding library with Rust core",
     long_description=open("README.md").read() if __import__("os").path.exists("README.md") else "",
     long_description_content_type="text/markdown",

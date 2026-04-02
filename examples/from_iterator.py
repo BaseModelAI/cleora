@@ -1,7 +1,7 @@
 import time
 
 import numpy as np
-from pycleora import SparseMatrix
+from pycleora import SparseMatrix, whiten_embeddings
 
 start_time = time.time()
 
@@ -25,9 +25,10 @@ print(graph.entity_ids[:10])
 
 embeddings = np.random.randn(len(graph.entity_ids), 256).astype(np.float32)
 
-for i in range(3):
+for i in range(40):
     embeddings = graph.left_markov_propagate(embeddings)
     embeddings /= np.linalg.norm(embeddings, ord=2, axis=-1, keepdims=True)
+    embeddings = whiten_embeddings(embeddings)
     print(f"Iter {i} finished")
 
 print(f"Took {time.time() - start_time} seconds ")
