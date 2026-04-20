@@ -18,6 +18,7 @@ use crate::entity::hash_entity;
 use crate::pipeline::{build_graph_from_files, build_graph_from_iterator};
 use crate::sparse_matrix::{create_sparse_matrix_descriptor, SparseMatrix, SparseMatrixDescriptor};
 
+pub mod auto_select;
 pub mod configuration;
 pub mod embedding;
 pub mod entity;
@@ -472,6 +473,44 @@ impl SparseMatrix {
             .map_err(|e| PyRuntimeError::new_err(format!("Deserialization failed: {}", e)))?;
         *self = sm;
         Ok(())
+    }
+
+    /// Spectral probe of the left-Markov matrix `M^(L)`.
+    ///
+    /// Returns a dict with three diagnostic numbers computed via a single
+    /// top-1 power iteration on `M^(L)^T M^(L)`:
+    ///
+    ///   * ``sigma_1`` — the top singular value of `M^(L)`.
+    ///   * ``cos_v1_d`` — cosine similarity between the absolute top
+    ///     right singular vector of `M^(L)` and the node-degree vector
+    ///     (count of distinct neighbours per node in the clique-expanded
+    ///     graph).
+    ///   * ``ratio`` — `cos_v1_d / sigma_1`.
+    ///
+    /// Cost: ``O(probe_iters × nnz)``, where `probe_iters` defaults to
+    /// 30 (tight enough to separate the top singular direction on
+    /// graphs up to ~1M nodes).  Deterministic under a given ``seed``.
+    ///
+    /// Intended use: a cheap pre-flight signal for selecting between
+    /// propagation strategies.  In a 9-dataset full-pipeline MRR study
+    /// (PANEL3_RESULTS.md §15 in the downstream benchmark harness) the
+    /// ratio `cos_v1_d / sigma_1 ≈ 0.10` cleanly separated graphs where
+    /// anti-collapse (deflation) wins from graphs where plain left-
+    /// Markov propagation is sufficient.
+    #[pyo3(signature = (seed = 42, probe_iters = auto_select::DEFAULT_PROBE_ITERS))]
+    fn spectral_probe<'py>(
+        &self,
+        py: Python<'py>,
+        seed: u64,
+        probe_iters: usize,
+    ) -> PyResult<&'py pyo3::types::PyDict> {
+        let r = py.allow_threads(|| auto_select::spectral_probe(self, seed, probe_iters));
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("sigma_1", r.sigma_1)?;
+        dict.set_item("cos_v1_d", r.cos_v1_d)?;
+        dict.set_item("ratio", r.ratio)?;
+        dict.set_item("probe_iters", r.probe_iters as u64)?;
+        Ok(dict)
     }
 }
 
