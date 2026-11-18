@@ -50,6 +50,10 @@ jobs:
 
   linux:
     runs-on: ${{ matrix.platform.runner }}
+    # The 32-bit image (manylinux2014_i686, CentOS 7) cannot install packages any
+    # more: its package mirror no longer resolves, and the build needs libatomic
+    # from it. Keep trying, but do not let that block the other wheels or a release.
+    continue-on-error: ${{ matrix.platform.target == 'x86' }}
     strategy:
       fail-fast: false
       matrix:
