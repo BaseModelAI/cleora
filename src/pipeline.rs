@@ -1,240 +1,435 @@
-use std::cmp::min;
+//! Drivers that feed hyperedges from the supported sources into the builder.
+
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::sync::Arc;
-use std::time::Instant;
 
-use crossbeam::channel;
-use crossbeam::channel::{Receiver, Sender};
-use crossbeam::thread as cb_thread;
-use crossbeam::thread::{Scope, ScopedJoinHandle};
-use itertools::Itertools;
-use log::{error, info, warn};
-use smallvec::SmallVec;
+use smallvec::{smallvec, SmallVec};
 
 use crate::configuration::Configuration;
-use crate::entity::{EntityProcessor, Hyperedge, SMALL_VECTOR_SIZE};
+use crate::embedding::thread_pool;
+use crate::entity::{parse_line, weight_is_valid, IntBuffer, LineError, Tokens, MAX_WEIGHT};
 use crate::sparse_matrix::SparseMatrix;
-use crate::sparse_matrix_builder::NodeIndexerBuilder;
 use crate::sparse_matrix_builder::{
-    AsyncNodeIndexerBuilder, NodeIndexer, SparseMatrixBuffer, SparseMatrixBuffersReducer,
-    SyncNodeIndexerBuilder,
+    position, reduce, BuildStats, Indexer, WorkerBuffer, MAX_FILES, MAX_LINES,
 };
 
-pub fn build_graph_from_iterator<'a>(
-    config: &Configuration,
-    hyperedges: impl Iterator<Item = &'a str>,
-) -> SparseMatrix {
-    cb_thread::scope(|s| {
-        let (hyperedges_s, hyperedges_r) = channel::bounded(64 * config.num_workers_graph_building);
-
-        let matrix_buffer = make_consumer(hyperedges_r, config, s);
-        let node_indexer = make_producer_from_iterator(config, hyperedges, hyperedges_s);
-
-        let buffers = matrix_buffer
-            .into_iter()
-            .map(|h| h.join().unwrap())
-            .collect_vec();
-        SparseMatrixBuffersReducer::new(node_indexer, buffers, config.num_workers_graph_building)
-            .reduce()
-    })
-    .expect("All work in thread scope finished")
-}
-
-fn make_producer_from_iterator<'a>(
-    config: &Configuration,
-    hyperedges: impl Iterator<Item = &'a str>,
-    hyperedges_s: Sender<Hyperedge>,
-) -> NodeIndexer {
-    let node_indexer_builder: Arc<SyncNodeIndexerBuilder> = Default::default();
-    let entity_processor = EntityProcessor::new(config, node_indexer_builder.clone());
-    for line in hyperedges {
-        consume_line(config, &hyperedges_s, &entity_processor, line);
+/// Runs `work(first, last, buffer)` on `num_workers` threads over `0..len`, split
+/// into contiguous ranges, and returns the per-thread buffers.
+fn run_partitioned<F>(len: usize, num_workers: usize, work: F) -> Vec<WorkerBuffer>
+where
+    F: Fn(usize, usize, &mut WorkerBuffer) + Sync,
+{
+    let workers = num_workers.clamp(1, len.max(1));
+    if workers == 1 {
+        let mut buffer = WorkerBuffer::default();
+        work(0, len, &mut buffer);
+        return vec![buffer];
     }
-    drop(entity_processor);
-    let node_indexer_builder =
-        Arc::try_unwrap(node_indexer_builder).expect("All other references should be dropped");
-    node_indexer_builder.finish()
-}
-
-fn consume_line<S: NodeIndexerBuilder>(
-    config: &Configuration,
-    hyperedges_s: &Sender<Hyperedge>,
-    entity_processor: &EntityProcessor<S>,
-    line: &str,
-) {
-    let row = parse_line(line);
-    let line_col_num = row.len();
-    if line_col_num == config.columns.len() {
-        let hyperedge = entity_processor.process_row_and_get_edges(&row);
-        hyperedges_s.send(hyperedge).unwrap();
-    } else {
-        warn!(
-            "Wrong number of columns (expected: {}, provided: {}). The line [{}] is skipped.",
-            config.columns.len(),
-            line_col_num,
-            line
-        );
-    }
-}
-
-pub fn build_graph_from_files(config: &Configuration, input_files: Vec<String>) -> SparseMatrix {
-    let processing_worker_num = config.num_workers_graph_building;
-    cb_thread::scope(|s| {
-        let (hyperedges_s, hyperedges_r) = channel::bounded(processing_worker_num * 64);
-
-        let matrix_buffers: Vec<_> = make_consumer(hyperedges_r, config, s);
-        let node_indexer = make_producer_from_files(config, &input_files, s, hyperedges_s);
-
-        let buffers = matrix_buffers
-            .into_iter()
-            .map(|h| h.join().unwrap())
-            .collect_vec();
-
-        let merging_start_time = Instant::now();
-        let result =
-            SparseMatrixBuffersReducer::new(node_indexer, buffers, processing_worker_num).reduce();
-        info!(
-            "Merging finished in {} sec",
-            merging_start_time.elapsed().as_secs()
-        );
-        result
-    })
-    .expect("Threads finished work")
-}
-
-fn make_producer_from_files<'c: 'e, 'e: 's, 's>(
-    config: &'c Configuration,
-    input_files: &'c Vec<String>,
-    s: &'s Scope<'e>,
-    hyperedges_s: Sender<Hyperedge>,
-) -> NodeIndexer {
-    let (files_s, files_r) = channel::unbounded();
-
-    for input in input_files {
-        files_s.send(input).unwrap()
-    }
-    drop(files_s);
-
-    let max_file_reading_worker_num = min(config.num_workers_graph_building, 4);
-    let file_reading_worker_num = min(max_file_reading_worker_num, input_files.len());
-
-    let log_every_n = 10000;
-
-    if file_reading_worker_num == 1 {
-        let node_indexer_builder: Arc<SyncNodeIndexerBuilder> = Default::default();
-        let entity_processor = EntityProcessor::new(config, node_indexer_builder.clone());
-        consume_files(config, hyperedges_s, files_r, log_every_n, entity_processor);
-        let node_indexer_builder =
-            Arc::try_unwrap(node_indexer_builder).expect("All other references should be dropped");
-        node_indexer_builder.finish()
-    } else {
-        let node_indexer_builder: Arc<AsyncNodeIndexerBuilder> = Default::default();
-        let producers = (0..file_reading_worker_num)
-            .map(|_| {
-                let hyperedges_s = hyperedges_s.clone();
-                let files_r = files_r.clone();
-                let entity_processor = EntityProcessor::new(config, node_indexer_builder.clone());
-
-                s.spawn(move |_| {
-                    consume_files(config, hyperedges_s, files_r, log_every_n, entity_processor);
+    std::thread::scope(|scope| {
+        let handles: Vec<_> = (0..workers)
+            .map(|worker| {
+                let work = &work;
+                let first = len * worker / workers;
+                let last = len * (worker + 1) / workers;
+                scope.spawn(move || {
+                    let mut buffer = WorkerBuffer::default();
+                    work(first, last, &mut buffer);
+                    buffer
                 })
             })
-            .collect_vec();
-        drop(hyperedges_s);
-        drop(files_r);
-
-        producers.into_iter().for_each(|h| h.join().unwrap());
-        let node_indexer_builder =
-            Arc::try_unwrap(node_indexer_builder).expect("All other references should be dropped");
-        node_indexer_builder.finish()
-    }
+            .collect();
+        handles
+            .into_iter()
+            .map(|handle| handle.join().expect("worker thread panicked"))
+            .collect()
+    })
 }
 
-fn consume_files<S: NodeIndexerBuilder>(
+fn finish(
     config: &Configuration,
-    hyperedges_s: Sender<Hyperedge>,
-    files_r: Receiver<&String>,
-    log_every_n: u64,
-    entity_processor: EntityProcessor<S>,
-) {
-    for input in files_r {
-        read_file(input, log_every_n, |line| {
-            consume_line(config, &hyperedges_s, &entity_processor, line);
-        });
-    }
+    indexer: Indexer,
+    buffers: Vec<WorkerBuffer>,
+) -> Result<(SparseMatrix, BuildStats), String> {
+    thread_pool(config.num_workers).install(|| reduce(config, indexer, buffers))
 }
 
-fn make_consumer<'s, 'a: 'a>(
-    hyperedges_r: Receiver<Hyperedge>,
-    config: &'a Configuration,
-    s: &'s Scope<'a>,
-) -> Vec<ScopedJoinHandle<'s, SparseMatrixBuffer>> {
-    (0..config.num_workers_graph_building)
-        .map(|_| {
-            let hyperedges_r = hyperedges_r.clone();
-            let sparse_matrices = config.matrix_desc.clone();
+fn check_weights(weights: Option<&[f32]>, expected_len: usize) -> Result<(), String> {
+    if let Some(weights) = weights {
+        if weights.len() != expected_len {
+            return Err(format!(
+                "weights has {} element(s) but there are {} hyperedge(s)",
+                weights.len(),
+                expected_len
+            ));
+        }
+        if let Some(index) = weights.iter().position(|w| !weight_is_valid(*w)) {
+            return Err(format!(
+                "weights[{}] = {} is not a finite number between 0 and {:e}",
+                index, weights[index], MAX_WEIGHT
+            ));
+        }
+    }
+    Ok(())
+}
 
-            s.spawn(move |_| {
-                let mut buffer = sparse_matrices.make_buffer(config.hyperedge_trim_n);
-                for hyperedge in hyperedges_r {
-                    buffer.handle_hyperedge(&hyperedge);
+/// Builds the matrix from lines held in memory. `weights`, when given, holds one
+/// weight per line (and cannot be combined with a `weight::` column).
+pub fn build_graph_from_lines<S: AsRef<str> + Sync>(
+    config: &Configuration,
+    lines: &[S],
+    weights: Option<&[f32]>,
+) -> Result<(SparseMatrix, BuildStats), String> {
+    check_weights(weights, lines.len())?;
+    if weights.is_some() && config.weight_column.is_some() {
+        return Err(
+            "Pass weights either as an argument or as a 'weight::' column, not both".to_string(),
+        );
+    }
+    if lines.len() as u64 >= MAX_LINES {
+        return Err(format!("Too many lines ({})", lines.len()));
+    }
+
+    let indexer = Indexer::default();
+    let buffers = run_partitioned(lines.len(), config.num_workers, |first, last, buffer| {
+        for index in first..last {
+            let line = lines[index].as_ref();
+            let pos = position(0, index as u64, 0);
+            match parse_line(line, config) {
+                Ok(Some(parsed)) => {
+                    let weight = match weights {
+                        Some(weights) => weights[index],
+                        None => parsed.weight,
+                    };
+                    buffer.add_row(config, &indexer, &parsed.fields, weight, pos);
                 }
-                buffer
+                Ok(None) => {}
+                Err(error) => buffer.skip_line(pos, line, error),
+            }
+        }
+    });
+    finish(config, indexer, buffers)
+}
+
+/// A chunk of a file: whole lines, newline-terminated.
+struct Batch {
+    file: u32,
+    first_line: u64,
+    data: Vec<u8>,
+}
+
+const BATCH_BYTES: usize = 1 << 20;
+
+fn read_batches(
+    file_index: u32,
+    path: &str,
+    sender: &crossbeam_channel::Sender<Batch>,
+) -> Result<(), String> {
+    let file = File::open(path).map_err(|e| format!("Cannot open file '{}': {}", path, e))?;
+    let mut reader = BufReader::with_capacity(1 << 20, file);
+    let mut line_number = 0u64;
+    loop {
+        let mut data = Vec::with_capacity(BATCH_BYTES + 4096);
+        let first_line = line_number;
+        while data.len() < BATCH_BYTES {
+            let read = reader
+                .read_until(b'\n', &mut data)
+                .map_err(|e| format!("Cannot read file '{}': {}", path, e))?;
+            if read == 0 {
+                break;
+            }
+            line_number += 1;
+        }
+        if data.is_empty() {
+            return Ok(());
+        }
+        if line_number >= MAX_LINES {
+            return Err(format!("File '{}' has too many lines", path));
+        }
+        if sender
+            .send(Batch {
+                file: file_index,
+                first_line,
+                data,
             })
-        })
-        .collect()
+            .is_err()
+        {
+            // the workers are gone; their error is reported instead
+            return Ok(());
+        }
+    }
 }
 
-fn read_file<F>(filepath: &str, log_every: u64, mut line_handler: F)
-where
-    F: FnMut(&str),
-{
-    let input_file = match File::open(filepath) {
-        Ok(f) => f,
-        Err(e) => {
-            error!("Cannot open file '{}': {}", filepath, e);
-            return;
-        }
-    };
-    let buffered = BufReader::with_capacity(64 * 1024, input_file);
+/// Builds the matrix from text files (one hyperedge per line).
+pub fn build_graph_from_files(
+    config: &Configuration,
+    paths: &[String],
+) -> Result<(SparseMatrix, BuildStats), String> {
+    if paths.is_empty() {
+        return Err("At least one file path is required".to_string());
+    }
+    if paths.len() > MAX_FILES {
+        return Err(format!(
+            "Too many files ({}); at most {} are supported",
+            paths.len(),
+            MAX_FILES
+        ));
+    }
+    // Fail early, before any work, if a file cannot be opened.
+    for path in paths {
+        File::open(path).map_err(|e| format!("Cannot open file '{}': {}", path, e))?;
+    }
 
-    let mut line_number = 1u64;
-    for result in buffered.lines() {
-        match result {
-            Ok(line) => {
-                if !line.is_empty() {
-                    line_handler(&line);
-                }
+    let indexer = Indexer::default();
+    let workers = config.num_workers.max(1);
+    let readers = workers.min(4).min(paths.len());
+    let (batch_sender, batch_receiver) = crossbeam_channel::bounded::<Batch>(2 * workers);
+    let (path_sender, path_receiver) = crossbeam_channel::unbounded::<(u32, &String)>();
+    for (index, path) in paths.iter().enumerate() {
+        path_sender.send((index as u32, path)).unwrap();
+    }
+    drop(path_sender);
+
+    let (buffers, read_result) = std::thread::scope(|scope| {
+        let worker_handles: Vec<_> = (0..workers)
+            .map(|_| {
+                let receiver = batch_receiver.clone();
+                let indexer = &indexer;
+                scope.spawn(move || {
+                    let mut buffer = WorkerBuffer::default();
+                    for batch in receiver {
+                        process_batch(config, indexer, &batch, &mut buffer);
+                    }
+                    buffer
+                })
+            })
+            .collect();
+        drop(batch_receiver);
+
+        let reader_handles: Vec<_> = (0..readers)
+            .map(|_| {
+                let sender = batch_sender.clone();
+                let paths = path_receiver.clone();
+                scope.spawn(move || -> Result<(), String> {
+                    for (index, path) in paths {
+                        read_batches(index, path, &sender)?;
+                    }
+                    Ok(())
+                })
+            })
+            .collect();
+        drop(batch_sender);
+        drop(path_receiver);
+
+        let mut read_result = Ok(());
+        for handle in reader_handles {
+            let result = handle.join().expect("reader thread panicked");
+            if read_result.is_ok() {
+                read_result = result;
             }
-            Err(err) => {
-                error!("Can't read line number: {}. Error: {}.", line_number, err);
-            }
-        };
-
-        if line_number % log_every == 0 {
-            info!("Number of lines processed: {}", line_number);
         }
+        let buffers: Vec<WorkerBuffer> = worker_handles
+            .into_iter()
+            .map(|handle| handle.join().expect("worker thread panicked"))
+            .collect();
+        (buffers, read_result)
+    });
+    read_result?;
+    finish(config, indexer, buffers)
+}
 
+fn process_batch(
+    config: &Configuration,
+    indexer: &Indexer,
+    batch: &Batch,
+    buffer: &mut WorkerBuffer,
+) {
+    let mut line_number = batch.first_line;
+    for raw in batch.data.split_inclusive(|b| *b == b'\n') {
+        let pos = position(batch.file, line_number, 0);
         line_number += 1;
+        match std::str::from_utf8(raw) {
+            Ok(line) => match parse_line(line, config) {
+                Ok(Some(parsed)) => {
+                    buffer.add_row(config, indexer, &parsed.fields, parsed.weight, pos)
+                }
+                Ok(None) => {}
+                Err(error) => buffer.skip_line(pos, line.trim_end(), error),
+            },
+            Err(_) => buffer.skip_line(
+                pos,
+                String::from_utf8_lossy(raw).trim_end(),
+                LineError::InvalidUtf8,
+            ),
+        }
     }
 }
 
-fn parse_line(line: &str) -> Vec<SmallVec<[&str; SMALL_VECTOR_SIZE]>> {
-    let trimmed = line.trim();
-    if trimmed.contains('\t') {
-        trimmed
-            .split('\t')
-            .map(|c| c.split(' ').collect())
-            .collect()
-    } else if trimmed.contains(',') {
-        trimmed
-            .split(',')
-            .map(|c| c.trim().split(' ').collect())
-            .collect()
-    } else {
-        let mut result = Vec::with_capacity(1);
-        result.push(trimmed.split(' ').collect());
-        result
+/// How the two endpoints of an edge map onto the declared columns.
+#[derive(Clone, Copy)]
+enum EdgeLayout {
+    /// One reflexive column: the edge is the two-entity hyperedge `{source, target}`.
+    SingleColumn,
+    /// Two entity columns: `source` in the first, `target` in the second.
+    TwoColumns,
+}
+
+fn edge_layout(config: &Configuration) -> Result<EdgeLayout, String> {
+    if config.weight_column.is_some() {
+        return Err(
+            "Edge arrays take their weights from the 'weights' argument, not from a 'weight::' column"
+                .to_string(),
+        );
     }
+    match config.entity_column_names.len() {
+        1 => Ok(EdgeLayout::SingleColumn),
+        2 => Ok(EdgeLayout::TwoColumns),
+        n => Err(format!(
+            "Edge arrays need a columns definition with one reflexive column or two columns, got {} columns",
+            n
+        )),
+    }
+}
+
+fn add_edge(
+    config: &Configuration,
+    indexer: &Indexer,
+    buffer: &mut WorkerBuffer,
+    layout: EdgeLayout,
+    source: &str,
+    target: &str,
+    weight: f32,
+    pos: u64,
+) {
+    match layout {
+        EdgeLayout::SingleColumn => {
+            let fields: [Tokens<'_>; 1] = [smallvec![source, target]];
+            buffer.add_row(config, indexer, &fields, weight, pos);
+        }
+        EdgeLayout::TwoColumns => {
+            let fields: [Tokens<'_>; 2] = [smallvec![source], smallvec![target]];
+            buffer.add_row(config, indexer, &fields, weight, pos);
+        }
+    }
+}
+
+/// Builds the matrix from parallel arrays of integer node identifiers. The result
+/// is identical to feeding the lines `"<source> <target>"` (one reflexive column)
+/// or `"<source>\t<target>"` (two columns).
+pub fn build_graph_from_int_edges(
+    config: &Configuration,
+    sources: &[i64],
+    targets: &[i64],
+    weights: Option<&[f32]>,
+) -> Result<(SparseMatrix, BuildStats), String> {
+    let layout = edge_layout(config)?;
+    if sources.len() != targets.len() {
+        return Err(format!(
+            "src has {} element(s) but dst has {}",
+            sources.len(),
+            targets.len()
+        ));
+    }
+    check_weights(weights, sources.len())?;
+    if sources.len() as u64 >= MAX_LINES {
+        return Err(format!("Too many edges ({})", sources.len()));
+    }
+
+    let indexer = Indexer::default();
+    let buffers = run_partitioned(sources.len(), config.num_workers, |first, last, buffer| {
+        for index in first..last {
+            let source = IntBuffer::new(sources[index]);
+            let target = IntBuffer::new(targets[index]);
+            let weight = weights.map_or(1.0, |w| w[index]);
+            add_edge(
+                config,
+                &indexer,
+                buffer,
+                layout,
+                source.as_str(),
+                target.as_str(),
+                weight,
+                position(0, index as u64, 0),
+            );
+        }
+    });
+    finish(config, indexer, buffers)
+}
+
+/// Builds the matrix from parallel arrays of node names. Unlike text lines, names
+/// may contain any character (spaces, tabs, commas).
+pub fn build_graph_from_str_edges<S: AsRef<str> + Sync>(
+    config: &Configuration,
+    sources: &[S],
+    targets: &[S],
+    weights: Option<&[f32]>,
+) -> Result<(SparseMatrix, BuildStats), String> {
+    let layout = edge_layout(config)?;
+    if sources.len() != targets.len() {
+        return Err(format!(
+            "src has {} element(s) but dst has {}",
+            sources.len(),
+            targets.len()
+        ));
+    }
+    check_weights(weights, sources.len())?;
+    if sources.len() as u64 >= MAX_LINES {
+        return Err(format!("Too many edges ({})", sources.len()));
+    }
+
+    let indexer = Indexer::default();
+    let buffers = run_partitioned(sources.len(), config.num_workers, |first, last, buffer| {
+        for index in first..last {
+            let weight = weights.map_or(1.0, |w| w[index]);
+            add_edge(
+                config,
+                &indexer,
+                buffer,
+                layout,
+                sources[index].as_ref(),
+                targets[index].as_ref(),
+                weight,
+                position(0, index as u64, 0),
+            );
+        }
+    });
+    finish(config, indexer, buffers)
+}
+
+/// Builds the matrix from hyperedges given as lists of entity names per entity
+/// column. Used by tests and by callers that already hold tokenised data.
+pub fn build_graph_from_rows<S: AsRef<str> + Sync>(
+    config: &Configuration,
+    rows: &[Vec<Vec<S>>],
+    weights: Option<&[f32]>,
+) -> Result<(SparseMatrix, BuildStats), String> {
+    check_weights(weights, rows.len())?;
+    let columns = config.entity_column_names.len();
+    if let Some(index) = rows
+        .iter()
+        .position(|row| row.len() != columns || row.iter().any(|field| field.is_empty()))
+    {
+        return Err(format!(
+            "row {} does not hold a non-empty list of entities for each of the {} column(s)",
+            index, columns
+        ));
+    }
+    let indexer = Indexer::default();
+    let buffers = run_partitioned(rows.len(), config.num_workers, |first, last, buffer| {
+        for index in first..last {
+            let fields: SmallVec<[Tokens<'_>; 4]> = rows[index]
+                .iter()
+                .zip(&config.columns)
+                .map(|(field, _)| field.iter().map(|t| t.as_ref()).collect())
+                .collect();
+            let weight = weights.map_or(1.0, |w| w[index]);
+            buffer.add_row(
+                config,
+                &indexer,
+                &fields,
+                weight,
+                position(0, index as u64, 0),
+            );
+        }
+    });
+    finish(config, indexer, buffers)
 }

@@ -1,111 +1,17 @@
-use itertools::{Itertools, Product};
 use std::hash::Hasher;
-use std::ops::Range;
-use std::sync::Arc;
 
-use smallvec::{IntoIter, SmallVec};
+use smallvec::SmallVec;
 use twox_hash::XxHash64;
 
 use crate::configuration::Configuration;
-use crate::sparse_matrix_builder::NodeIndexerBuilder;
 
-/// Indicates how many elements in a vector can be placed on Stack (used by smallvec crate). The rest
-/// of the vector is placed on Heap.
+/// Number of entities of one field kept on the stack before spilling to the heap.
 pub const SMALL_VECTOR_SIZE: usize = 8;
 
-#[derive(Debug, Clone)]
-pub struct Hyperedge {
-    hashes: SmallVec<[u64; SMALL_VECTOR_SIZE]>,
-    slices: [Range<u32>; 2],
-}
+pub type Tokens<'a> = SmallVec<[&'a str; SMALL_VECTOR_SIZE]>;
 
-impl Hyperedge {
-    #[inline]
-    pub fn nodes(&self, column_id: usize) -> SmallVec<[u64; SMALL_VECTOR_SIZE]> {
-        let slice = self.slices.get(column_id).unwrap();
-        let mut v = SmallVec::with_capacity(slice.len());
-        for ix in slice.start..slice.end {
-            v.push(self.hashes[ix as usize])
-        }
-        v
-    }
-
-    #[inline(always)]
-    pub fn edges_iter(
-        &self,
-        col_id_a: u8,
-        col_id_b: u8,
-    ) -> Product<IntoIter<[u64; 8]>, IntoIter<[u64; 8]>> {
-        let nodes_a = self.nodes(col_id_a as usize);
-        let nodes_b = self.nodes(col_id_b as usize);
-        nodes_a.into_iter().cartesian_product(nodes_b)
-    }
-
-    pub fn edges_num(&self, col_id_a: u8, col_id_b: u8) -> usize {
-        self.slices[col_id_a as usize].len() * self.slices[col_id_b as usize].len()
-    }
-}
-
-pub struct EntityProcessor<'a, S: NodeIndexerBuilder> {
-    config: &'a Configuration,
-    not_ignored_columns_count: u16,
-    node_indexer: Arc<S>,
-}
-
-impl<'a, S: NodeIndexerBuilder> EntityProcessor<'a, S> {
-    pub fn new(config: &'a Configuration, node_indexer: Arc<S>) -> EntityProcessor<'a, S> {
-        let not_ignored_columns_count = config.columns.len() as u16;
-        EntityProcessor {
-            config,
-            not_ignored_columns_count,
-            node_indexer,
-        }
-    }
-
-    /// Every row can create few combinations (cartesian products) which are hashed and provided for sparse matrix creation.
-    /// `row` - array of strings such as: ("userId1", "productId1 productId2", "brandId1").
-    pub fn process_row_and_get_edges(
-        &self,
-        row: &[SmallVec<[&str; SMALL_VECTOR_SIZE]>],
-    ) -> Hyperedge {
-        let mut hashes: SmallVec<[u64; SMALL_VECTOR_SIZE]> =
-            SmallVec::with_capacity(self.not_ignored_columns_count as usize);
-        let mut slices: [Range<u32>; 2] = [0..0, 0..0];
-        let mut reflexive_count = 0;
-        let mut current_offset = 0u32;
-
-        for (i, column_entities) in row.iter().enumerate() {
-            let column = &self.config.columns[i];
-            let column_id = i as u8;
-            if column.complex {
-                for entity in column_entities {
-                    let hash = hash_entity(entity);
-                    hashes.push(hash);
-                    self.node_indexer.process(hash, entity, column_id);
-                }
-                let length = column_entities.len() as u32;
-                slices[i] = current_offset..(current_offset + length);
-                if column.reflexive {
-                    // put reflexive column data to the end of the buffers
-                    let reflexive_id = (self.not_ignored_columns_count + reflexive_count) as usize;
-                    slices[reflexive_id] = current_offset..(current_offset + length);
-                    reflexive_count += 1;
-                }
-                current_offset += length;
-            } else {
-                let entity = column_entities.first().unwrap();
-                let hash = hash_entity(entity);
-                hashes.push(hash);
-                self.node_indexer.process(hash, entity, column_id);
-                let length = 1u32;
-                slices[i] = current_offset..(current_offset + length);
-                current_offset += length;
-            }
-        }
-        Hyperedge { hashes, slices }
-    }
-}
-
+/// Hash identifying an entity. Entities are identified by their name only, so the
+/// same name appearing in two columns denotes the same entity.
 #[inline(always)]
 pub fn hash_entity(entity: &str) -> u64 {
     let mut hasher = XxHash64::default();
@@ -113,28 +19,267 @@ pub fn hash_entity(entity: &str) -> u64 {
     hasher.finish()
 }
 
+/// Why a line could not be used.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LineError {
+    /// Wrong number of fields for the declared columns.
+    ColumnCount { expected: usize, found: usize },
+    /// A field that should hold entities is empty.
+    EmptyField,
+    /// The weight field is not a finite, non-negative number.
+    BadWeight,
+    /// The line is not valid UTF-8.
+    InvalidUtf8,
+}
+
+impl LineError {
+    pub fn describe(&self) -> String {
+        match self {
+            LineError::ColumnCount { expected, found } => format!(
+                "expected {} field(s) but found {} (fields are separated by a tab or, \
+                 if the line has no tab, by a comma; entities inside a field by spaces)",
+                expected, found
+            ),
+            LineError::EmptyField => "a field holds no entity".to_string(),
+            LineError::BadWeight => "the weight is not a finite, non-negative number".to_string(),
+            LineError::InvalidUtf8 => "the line is not valid UTF-8".to_string(),
+        }
+    }
+}
+
+/// A line split into its entity fields.
+pub struct ParsedLine<'a> {
+    /// Entities of every entity column, in column order.
+    pub fields: SmallVec<[Tokens<'a>; 4]>,
+    pub weight: f32,
+}
+
+/// Largest weight accepted for a single line / edge.
+pub const MAX_WEIGHT: f32 = 1e9;
+
+#[inline]
+pub fn weight_is_valid(weight: f32) -> bool {
+    weight.is_finite() && (0.0..=MAX_WEIGHT).contains(&weight)
+}
+
+/// Splits a line into fields and entities.
+///
+/// Returns `Ok(None)` for blank lines. Fields are separated by a tab; a line without
+/// any tab is split on commas instead; a line with neither is a single field.
+/// Entities within a field are separated by spaces. A non-`complex` field
+/// contributes its first entity only.
+pub fn parse_line<'a>(
+    line: &'a str,
+    config: &Configuration,
+) -> Result<Option<ParsedLine<'a>>, LineError> {
+    let trimmed = line.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+
+    let expected = config.columns.len();
+    let separator = if trimmed.contains('\t') {
+        Some('\t')
+    } else if trimmed.contains(',') {
+        Some(',')
+    } else {
+        None
+    };
+
+    let mut fields: SmallVec<[Tokens<'a>; 4]> = SmallVec::new();
+    let mut weight = 1.0f32;
+    let mut found = 0usize;
+
+    let mut handle_field = |index: usize, field: &'a str| -> Result<(), LineError> {
+        // Fields beyond the declared ones only matter for the error message.
+        let Some(column) = config.columns.get(index) else {
+            return Ok(());
+        };
+        if column.weight {
+            weight = field
+                .trim()
+                .parse::<f32>()
+                .ok()
+                .filter(|w| weight_is_valid(*w))
+                .ok_or(LineError::BadWeight)?;
+            return Ok(());
+        }
+        let mut tokens: Tokens<'a> = SmallVec::new();
+        for token in field.split(' ') {
+            let token = token.trim();
+            if token.is_empty() {
+                continue;
+            }
+            tokens.push(token);
+            if !column.complex {
+                break;
+            }
+        }
+        if tokens.is_empty() {
+            return Err(LineError::EmptyField);
+        }
+        fields.push(tokens);
+        Ok(())
+    };
+
+    let mut first_error = None;
+    match separator {
+        Some(sep) => {
+            for field in trimmed.split(sep) {
+                if let Err(e) = handle_field(found, field) {
+                    first_error.get_or_insert(e);
+                }
+                found += 1;
+            }
+        }
+        None => {
+            if let Err(e) = handle_field(0, trimmed) {
+                first_error.get_or_insert(e);
+            }
+            found = 1;
+        }
+    }
+
+    if found != expected {
+        return Err(LineError::ColumnCount { expected, found });
+    }
+    if let Some(e) = first_error {
+        return Err(e);
+    }
+    Ok(Some(ParsedLine { fields, weight }))
+}
+
+/// Formats an integer identifier exactly like Python's `str(int)`, without allocating.
+pub struct IntBuffer {
+    bytes: [u8; 20],
+    start: usize,
+}
+
+impl IntBuffer {
+    #[inline]
+    pub fn new(value: i64) -> IntBuffer {
+        let mut bytes = [0u8; 20];
+        let mut pos = bytes.len();
+        let negative = value < 0;
+        let mut rest = value.unsigned_abs();
+        loop {
+            pos -= 1;
+            bytes[pos] = b'0' + (rest % 10) as u8;
+            rest /= 10;
+            if rest == 0 {
+                break;
+            }
+        }
+        if negative {
+            pos -= 1;
+            bytes[pos] = b'-';
+        }
+        IntBuffer { bytes, start: pos }
+    }
+
+    #[inline]
+    pub fn as_str(&self) -> &str {
+        // Only ASCII digits and '-' are ever written.
+        std::str::from_utf8(&self.bytes[self.start..]).unwrap()
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use smallvec::{smallvec, SmallVec};
+    use super::*;
 
-    use crate::entity::{Hyperedge, SMALL_VECTOR_SIZE};
+    fn config(columns: &str) -> Configuration {
+        Configuration::new(columns, 16, Some(1)).unwrap()
+    }
+
+    fn fields(line: &str, columns: &str) -> Vec<Vec<String>> {
+        parse_line(line, &config(columns))
+            .unwrap()
+            .unwrap()
+            .fields
+            .iter()
+            .map(|f| f.iter().map(|t| t.to_string()).collect())
+            .collect()
+    }
 
     #[test]
-    fn generate_cartesian_product_hashes() {
-        // hashes for entities in every column
-        // column_1: 1 entity
-        // column_2: 2 entities
-        // column_3: 3 entities
-        let slices = [0..2, 2..5];
-        let hashes: SmallVec<[u64; SMALL_VECTOR_SIZE]> = smallvec![10, 20, 30, 40, 50];
-        let hyperedge = Hyperedge { hashes, slices };
-        let combinations: Vec<_> = hyperedge.edges_iter(0, 1).collect();
-        assert_eq!((10, 30), *combinations.get(0).unwrap());
-        assert_eq!((10, 40), *combinations.get(1).unwrap());
-        assert_eq!((10, 50), *combinations.get(2).unwrap());
-        assert_eq!((20, 30), *combinations.get(3).unwrap());
-        assert_eq!((20, 40), *combinations.get(4).unwrap());
-        assert_eq!((20, 50), *combinations.get(5).unwrap());
-        assert_eq!(None, combinations.get(6));
+    fn int_buffer_matches_display() {
+        for v in [0i64, 7, -7, 10, 1234567890123, i64::MAX, i64::MIN, -1] {
+            assert_eq!(IntBuffer::new(v).as_str(), v.to_string());
+        }
+    }
+
+    #[test]
+    fn single_reflexive_field() {
+        assert_eq!(
+            fields("a b  c ", "complex::reflexive::x"),
+            vec![vec!["a", "b", "c"]]
+        );
+    }
+
+    #[test]
+    fn tab_and_comma_separated_fields() {
+        assert_eq!(
+            fields("u1\tp1 p2", "user complex::product"),
+            vec![vec!["u1"], vec!["p1", "p2"]]
+        );
+        assert_eq!(
+            fields("u1, p1 p2", "user complex::product"),
+            vec![vec!["u1"], vec!["p1", "p2"]]
+        );
+        // a simple (non-complex) field keeps its first entity only
+        assert_eq!(
+            fields("u1 u9\tp1 p2", "user product"),
+            vec![vec!["u1"], vec!["p1"]]
+        );
+    }
+
+    #[test]
+    fn weight_field() {
+        let c = config("user product weight::w");
+        let parsed = parse_line("u\tp\t2.5", &c).unwrap().unwrap();
+        assert_eq!(parsed.weight, 2.5);
+        assert_eq!(parsed.fields.len(), 2);
+        assert_eq!(parse_line("u\tp\t-1", &c).err(), Some(LineError::BadWeight));
+        assert_eq!(
+            parse_line("u\tp\tnan", &c).err(),
+            Some(LineError::BadWeight)
+        );
+        assert_eq!(
+            parse_line("u\tp\tabc", &c).err(),
+            Some(LineError::BadWeight)
+        );
+    }
+
+    #[test]
+    fn malformed_lines() {
+        let c = config("user product");
+        assert!(matches!(
+            parse_line("u p", &c),
+            Err(LineError::ColumnCount {
+                expected: 2,
+                found: 1
+            })
+        ));
+        assert!(matches!(
+            parse_line("u\tp\tx", &c),
+            Err(LineError::ColumnCount {
+                expected: 2,
+                found: 3
+            })
+        ));
+        assert_eq!(
+            parse_line("u\t ", &c).err(),
+            Some(LineError::ColumnCount {
+                expected: 2,
+                found: 1
+            })
+        );
+        assert_eq!(
+            parse_line("u\t \tp", &config("a b c")).err(),
+            Some(LineError::EmptyField)
+        );
+        assert!(parse_line("   ", &c).unwrap().is_none());
+        assert!(parse_line("", &c).unwrap().is_none());
     }
 }

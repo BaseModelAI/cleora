@@ -1,26 +1,49 @@
 [build-system]
-requires = ["maturin>=1.2.3"]
+requires = ["maturin>=1.9.4,<2.0"]
 build-backend = "maturin"
 
 [project]
 name = "pycleora"
-requires-python = ">=3.7"
-classifiers = [
-    "Programming Language :: Rust",
-    "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
-]
-version = "3.2.1"
+# the version is defined once, in Cargo.toml
+dynamic = ["version"]
 description = "Fast CPU-only graph embedding library with Rust core. Supports Cleora, DeepWalk, Node2Vec, ProNE, MLP, and more."
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
     { name = "Jacek Dabrowski", email = "jack.dabrowski@synerise.com" }
 ]
 license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.23",
+]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 
+[project.optional-dependencies]
+# Needed by the baseline algorithms (pycleora.algorithms), the attention, directed
+# and edge-feature embeddings, and by most of the analysis helpers.
+scipy = ["scipy>=1.9"]
+viz = ["matplotlib>=3.5"]
+networkx = ["networkx>=2.6"]
+full = ["scipy>=1.9", "matplotlib>=3.5", "networkx>=2.6", "tqdm>=4.60"]
+test = ["pytest>=7", "scipy>=1.9", "pandas>=1.5", "networkx>=2.6"]
+
+[project.urls]
+Homepage = "https://cleora.ai"
+Documentation = "https://cleora.ai/docs"
+Repository = "https://github.com/BaseModelAI/cleora"
 
 [project.scripts]
 pycleora = "pycleora.cli:main"
 
 [tool.maturin]
-features = ["pyo3/extension-module"]
+module-name = "pycleora.pycleora"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]

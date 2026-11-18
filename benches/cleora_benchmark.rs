@@ -1,159 +1,169 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use fnv::FnvHasher;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::Hasher;
-use twox_hash::XxHash64;
+//! Benchmarks of the kernels that dominate a Cleora run: building the sparse matrix,
+//! one propagation step, row normalisation, the covariance behind whitening, and a
+//! complete classic embedding.
+//!
+//! Run with `cargo bench`. The graph is a fixed pseudo-random one, so numbers are
+//! comparable between runs and commits (but not with numbers of real graphs: random
+//! graphs have none of the locality real ones have).
 
-fn default_hash(entity: &str) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    hasher.write(entity.as_bytes());
-    hasher.finish()
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use pycleora::configuration::Configuration;
+use pycleora::embedding::{
+    column_mean_and_covariance, embed, initialize, l2_normalize_rows, propagate, thread_pool,
+    MarkovType,
+};
+use pycleora::pipeline::{build_graph_from_int_edges, build_graph_from_lines};
+use pycleora::sparse_matrix::SparseMatrix;
+
+const NODES: i64 = 100_000;
+const EDGES: usize = 500_000;
+const DIM: usize = 128;
+
+/// SplitMix64: a tiny deterministic generator, so the benchmark needs no extra crate.
+struct Rng(u64);
+
+impl Rng {
+    fn next(&mut self) -> u64 {
+        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = self.0;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
 }
 
-fn xx_hash(entity: &str) -> u64 {
-    let mut hasher = XxHash64::default();
-    hasher.write(entity.as_bytes());
-    hasher.finish()
+fn random_edges() -> (Vec<i64>, Vec<i64>) {
+    let mut rng = Rng(7);
+    let mut sources = Vec::with_capacity(EDGES);
+    let mut targets = Vec::with_capacity(EDGES);
+    for _ in 0..EDGES {
+        sources.push((rng.next() % NODES as u64) as i64);
+        targets.push((rng.next() % NODES as u64) as i64);
+    }
+    (sources, targets)
 }
 
-fn fnv_hash(entity: &str) -> u64 {
-    let mut hasher = FnvHasher::default();
-    hasher.write(entity.as_bytes());
-    hasher.finish()
+fn configuration(num_workers: usize) -> Configuration {
+    Configuration::new("complex::reflexive::node", 16, Some(num_workers))
+        .expect("valid column definition")
 }
 
-fn hash_benchmark(c: &mut Criterion) {
-    c.bench_function("hash", |b| b.iter(|| fnv_hash(black_box("cleora"))));
+fn build_graph(num_workers: usize) -> SparseMatrix {
+    let (sources, targets) = random_edges();
+    build_graph_from_int_edges(&configuration(num_workers), &sources, &targets, None)
+        .expect("graph builds")
+        .0
 }
 
-fn bench_hashes(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Hashing");
-    for s in ["Poland", "Germany", "USA", "United Kingdom", "Norway"].iter() {
-        group.bench_with_input(BenchmarkId::new("Default", s), s, |b, s| {
-            b.iter(|| default_hash(s))
+fn worker_counts() -> Vec<usize> {
+    let available = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1);
+    let mut counts = vec![1];
+    if available > 1 {
+        counts.push(available);
+    }
+    counts
+}
+
+fn bench_graph_construction(c: &mut Criterion) {
+    let (sources, targets) = random_edges();
+    let lines: Vec<String> = sources
+        .iter()
+        .zip(&targets)
+        .map(|(s, t)| format!("{} {}", s, t))
+        .collect();
+
+    let mut group = c.benchmark_group("graph_construction");
+    group.sample_size(10);
+    group.throughput(Throughput::Elements(EDGES as u64));
+    for workers in worker_counts() {
+        let config = configuration(workers);
+        group.bench_with_input(BenchmarkId::new("from_edges", workers), &workers, |b, _| {
+            b.iter(|| build_graph_from_int_edges(&config, &sources, &targets, None).unwrap())
         });
-        group.bench_with_input(BenchmarkId::new("XXHash", s), s, |b, s| {
-            b.iter(|| xx_hash(s))
-        });
-        group.bench_with_input(BenchmarkId::new("FnvHash", s), s, |b, s| {
-            b.iter(|| fnv_hash(s))
+        group.bench_with_input(BenchmarkId::new("from_lines", workers), &workers, |b, _| {
+            b.iter(|| build_graph_from_lines(&config, &lines, None).unwrap())
         });
     }
     group.finish();
 }
 
-struct CartesianProduct {
-    lengths: Vec<u32>,
-    indices: Vec<u32>,
-}
+fn bench_propagation(c: &mut Criterion) {
+    let graph = build_graph(worker_counts().into_iter().max().unwrap_or(1));
+    let input = initialize(&graph.entity_ids, DIM, 0);
+    let mut output = vec![0f32; input.len()];
 
-impl CartesianProduct {
-    fn new(lengths: Vec<u32>) -> CartesianProduct {
-        let indices = vec![0; lengths.len()];
-        CartesianProduct { lengths, indices }
-    }
-}
-
-impl Iterator for CartesianProduct {
-    type Item = Vec<u32>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let result = self.indices.clone();
-        let len = self.indices.len();
-        for i in (0..len).rev() {
-            if self.indices[i] == (self.lengths[i] - 1) {
-                self.indices[i] = 0;
-                if i == 0 {
-                    return None;
-                }
-            } else {
-                self.indices[i] += 1;
-                break;
-            }
+    let mut group = c.benchmark_group("propagation");
+    group.sample_size(20);
+    group.throughput(Throughput::Elements(graph.nnz() as u64));
+    for workers in worker_counts() {
+        let pool = thread_pool(workers);
+        for (name, kind) in [
+            ("left", MarkovType::Left),
+            ("symmetric", MarkovType::Symmetric),
+        ] {
+            group.bench_with_input(BenchmarkId::new(name, workers), &workers, |b, _| {
+                b.iter(|| pool.install(|| propagate(&graph, &input, &mut output, DIM, kind)))
+            });
         }
-        Some(result)
     }
+    group.finish();
 }
 
-fn generate_combinations_with_length(
-    hashes: Vec<Vec<u64>>,
-    lens: Vec<u32>,
-    transient_lens: Vec<u32>,
-) -> Vec<Vec<u64>> {
-    let row_length = lens.len();
-    let mut combinations = 1;
-    for &len in &lens {
-        combinations *= len;
+fn bench_postprocessing(c: &mut Criterion) {
+    let graph = build_graph(worker_counts().into_iter().max().unwrap_or(1));
+    let rows = graph.num_entities();
+    let embeddings = initialize(&graph.entity_ids, DIM, 0);
+
+    let mut group = c.benchmark_group("postprocessing");
+    group.sample_size(20);
+    group.throughput(Throughput::Elements(rows as u64));
+    for workers in worker_counts() {
+        let pool = thread_pool(workers);
+        group.bench_with_input(
+            BenchmarkId::new("l2_normalize", workers),
+            &workers,
+            |b, _| {
+                let mut scratch = embeddings.clone();
+                b.iter(|| pool.install(|| l2_normalize_rows(&mut scratch, DIM)))
+            },
+        );
+        group.bench_with_input(BenchmarkId::new("covariance", workers), &workers, |b, _| {
+            b.iter(|| pool.install(|| column_mean_and_covariance(&embeddings, rows, DIM)))
+        });
     }
-
-    let mut transient_combinations = 1;
-    for transient_len in transient_lens {
-        transient_combinations *= transient_len;
-    }
-
-    let total_combinations = u64::from(combinations * transient_combinations);
-
-    let mut result: Vec<Vec<u64>> = Vec::with_capacity(combinations as usize);
-    let cartesian = CartesianProduct::new(lens);
-    let mut counter = 0;
-
-    for indices in cartesian {
-        let mut arr: Vec<u64> = Vec::with_capacity(row_length + 1);
-        arr.push(total_combinations);
-        let hashes_length = hashes.len();
-        for i in 0..hashes_length {
-            let id = indices[i];
-            let value = hashes.get(i).unwrap().get(id as usize).unwrap();
-            arr.push(*value);
-        }
-        result.insert(counter, arr);
-        counter += 1;
-    }
-
-    result
+    group.finish();
 }
 
-fn generate_combinations_with_length_benchmark(c: &mut Criterion) {
-    let hashes = vec![
-        vec![
-            12528106613309397869,
-            9708327007652588651,
-            14980293948133487802,
-            12266831465718424827,
-            17286486014462130850,
-            11758309849656381133,
-            10347099512938872293,
-            804562942093240192,
-            3059164883323983321,
-        ],
-        vec![
-            12528106613309397869,
-            9708327007652588651,
-            14980293948133487802,
-            12266831465718424827,
-            17286486014462130850,
-            11758309849656381133,
-            10347099512938872293,
-            804562942093240192,
-            3059164883323983321,
-        ],
-    ];
-    let lens = vec![9, 9];
-    let transient_lens = vec![1];
-    c.bench_function("generate_combinations_with_length", |b| {
-        b.iter(|| {
-            generate_combinations_with_length(
-                black_box(hashes.clone()),
-                black_box(lens.clone()),
-                black_box(transient_lens.clone()),
-            )
-        })
-    });
+fn bench_embedding(c: &mut Criterion) {
+    let graph = build_graph(worker_counts().into_iter().max().unwrap_or(1));
+
+    let mut group = c.benchmark_group("classic_embedding");
+    group.sample_size(10);
+    for workers in worker_counts() {
+        let pool = thread_pool(workers);
+        group.bench_with_input(
+            BenchmarkId::new("8_iterations", workers),
+            &workers,
+            |b, _| {
+                b.iter(|| {
+                    pool.install(|| {
+                        let initial = initialize(&graph.entity_ids, DIM, 0);
+                        embed(&graph, initial, DIM, MarkovType::Left, 8, 0.0, 0.0)
+                    })
+                })
+            },
+        );
+    }
+    group.finish();
 }
 
 criterion_group!(
     benches,
-    generate_combinations_with_length_benchmark,
-    bench_hashes
+    bench_graph_construction,
+    bench_propagation,
+    bench_postprocessing,
+    bench_embedding
 );
 criterion_main!(benches);
