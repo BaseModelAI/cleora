@@ -25,15 +25,15 @@ No negative sampling. No GPU. No noise. Just fast, deterministic, production-gra
 ---
 
 <p align="center">
-  <b>#1 Accuracy. Every Dataset.</b><br>
-  Tested on <b>5 canonical academic datasets</b> against <b>7 competing algorithms</b> — Cleora wins on accuracy on <b>every single dataset</b>,<br>and is the only algorithm that scales to every graph without crashing.
+  <b>Measured on real graphs. Reproducible with one script.</b><br>
+  On <b>8 public datasets</b> against <b>7 other embedding methods</b>, Cleora is the best method — or within one standard deviation of it — on <b>5</b>,<br>and the fastest and leanest on all of them. <a href="#benchmarks">See the numbers</a>.
 </p>
 
 <p align="center">
-  <b>240x</b> Faster Than GraphSAGE &nbsp;·&nbsp;
-  <b>50x</b> Less Memory Than NetMF &nbsp;·&nbsp;
-  <b>~5 MB</b> Install &nbsp;·&nbsp;
-  <b>0</b> GPUs Required
+  <b>2M nodes</b> embedded in 8 s on 2 CPU cores &nbsp;·&nbsp;
+  <b>Bit-for-bit</b> reproducible &nbsp;·&nbsp;
+  <b>&lt; 1 MB</b> wheel, NumPy only &nbsp;·&nbsp;
+  <b>0</b> GPUs required
 </p>
 
 ---
@@ -56,11 +56,14 @@ No negative sampling. No GPU. No noise. Just fast, deterministic, production-gra
 pip install pycleora
 ```
 
+Requires Python 3.10 or newer. NumPy is the only required dependency: building graphs, `embed()`, whitening, inductive updates, similarity search and link prediction need nothing else.
+
 Optional extras:
 
 ```bash
-pip install pycleora[viz]       # matplotlib for visualization
-pip install pycleora[full]      # matplotlib + networkx + tqdm
+pip install "pycleora[scipy]"   # baseline algorithms (ProNE, NetMF, ...), attention / directed embeddings, graph statistics
+pip install "pycleora[viz]"     # matplotlib for visualization
+pip install "pycleora[full]"    # scipy + matplotlib + networkx + tqdm
 ```
 
 ## Quick Start
@@ -68,17 +71,59 @@ pip install pycleora[full]      # matplotlib + networkx + tqdm
 ```python
 from pycleora import SparseMatrix, embed, find_most_similar
 
-edges = ["alice item_laptop", "alice item_mouse", "bob item_keyboard"]
-graph = SparseMatrix.from_iterator(iter(edges), "complex::reflexive::product")
+# one line per shopping basket: the products that were bought together
+baskets = [
+    "laptop mouse keyboard",
+    "laptop mouse monitor",
+    "keyboard mouse",
+    "espresso_machine coffee_beans",
+    "coffee_beans mug",
+    "espresso_machine coffee_beans mug",
+]
+graph = SparseMatrix.from_iterator(iter(baskets), "complex::reflexive::product")
 
-embeddings = embed(graph, feature_dim=256, num_iterations=40)
+# a toy graph: a few dimensions and classic mode are all it needs
+embeddings = embed(graph, feature_dim=8, num_iterations=3, whiten=False)
 
-similar = find_most_similar(graph, embeddings, "alice", top_k=5)
+similar = find_most_similar(graph, embeddings, "laptop", top_k=3)
 for r in similar:
     print(f"{r['entity_id']}: {r['similarity']:.4f}")
 ```
 
-`embed()` defaults to `feature_dim=256`, `num_iterations=40`, and whitening after every propagation step.
+On real data, start with the defaults: `embed(graph)` uses `feature_dim=256`, `num_iterations=40`, and whitening after every propagation step. Whitening needs clearly more entities than dimensions — on a graph with at most `feature_dim + 1` entities it erases the structure (all vectors end up equidistant) and pycleora warns about it — which is why the toy example above turns it off.
+
+**Classic Cleora** — propagation and L2 normalisation only, no whitening — is one argument away. It runs entirely in the Rust core, needs just two embedding matrices of memory and only a few iterations (4–16):
+
+```python
+embeddings = embed(graph, feature_dim=256, num_iterations=8, whiten=False)
+```
+
+Which of the two is better depends on the graph; the classic mode is one to two orders of magnitude faster, so it costs little to try both (see [Benchmarks](#benchmarks)).
+
+**Edges from arrays, with weights.** Graphs do not have to go through strings, and a weight per edge (or per hyperedge) is part of the transition matrix:
+
+```python
+import numpy as np
+from pycleora.io_utils import from_arrays
+
+src = np.array([0, 0, 1, 2])
+dst = np.array([1, 2, 2, 3])
+graph = from_arrays(src, dst, weights=[1.0, 0.5, 2.0, 1.0])
+
+# the same for text input: one weight per line, or a `weight::` column in the file
+graph = SparseMatrix.from_iterator(iter(baskets), "complex::reflexive::product", weights=[1, 3, 1, 1, 2, 1])
+```
+
+**New data without retraining.** `embed_inductive` adds edges and entities to an embedded graph. Vectors that already exist stay exactly as they are — models trained on them remain valid — and every new entity is placed at the weighted average of its neighbours:
+
+```python
+from pycleora import embed_inductive
+
+graph, embeddings = embed_inductive(
+    graph, embeddings, existing_edges=baskets, new_edges=["mug tea_bags"],
+    columns="complex::reflexive::product",
+)
+```
 
 ### Step-by-Step Example
 
@@ -90,12 +135,12 @@ import numpy as np
 import pandas as pd
 import random
 
-customers = [f"Customer_{i}" for i in range(1, 20)]
-products = [f"Product_{j}" for j in range(1, 20)]
+customers = [f"Customer_{i}" for i in range(1, 300)]
+products = [f"Product_{j}" for j in range(1, 200)]
 
 data = {
-    "customer": random.choices(customers, k=100),
-    "product": random.choices(products, k=100),
+    "customer": random.choices(customers, k=3000),
+    "product": random.choices(products, k=3000),
 }
 
 df = pd.DataFrame(data)
@@ -104,9 +149,10 @@ cleora_input = map(lambda x: ' '.join(x), customer_products)
 
 mat = SparseMatrix.from_iterator(cleora_input, columns='complex::reflexive::product')
 
-print(mat.entity_ids)
+print(mat.entity_ids[:10])
 
-embeddings = mat.initialize_deterministically(256)
+# 199 products: 32 dimensions leave whitening enough entities to work with
+embeddings = mat.initialize_deterministically(32)
 
 NUM_ITERATIONS = 40
 
@@ -115,7 +161,7 @@ for i in range(NUM_ITERATIONS):
     embeddings /= np.linalg.norm(embeddings, ord=2, axis=-1, keepdims=True)
     embeddings = whiten_embeddings(embeddings)
 
-for entity, embedding in zip(mat.entity_ids, embeddings):
+for entity, embedding in list(zip(mat.entity_ids, embeddings))[:3]:
     print(entity, embedding)
 
 print(np.dot(embeddings[0], embeddings[1]))
@@ -135,22 +181,22 @@ pycleora benchmark --dataset karate_club
 ## Key Advantages
 
 ### No Negative Sampling
-Unlike DeepWalk, Node2Vec, and LINE, Cleora doesn't approximate random walks with negative sampling. It computes **all walks exactly** via matrix multiplication. Less noise, higher accuracy, perfect reproducibility.
+Unlike DeepWalk, Node2Vec, and LINE, Cleora doesn't approximate random walks with negative sampling. It computes **all walks exactly** via matrix multiplication. Less noise, perfect reproducibility.
 
 ### 240x Faster Than GraphSAGE
 Zomato reported embedding generation in **under 5 minutes** with Cleora, compared to **20 hours with GraphSAGE** on the same dataset. Rust core with adaptive parallelism makes every CPU cycle count.
 
 ### Deterministic Embeddings
-Same input always produces the same output. No random seeds, no stochastic variation, no "run it 5 times and average" workflows. Critical for reproducible research and production ML pipelines.
+Same input always produces the same output — bit for bit, whatever the number of threads. The graph is accumulated in fixed-point arithmetic and every parallel reduction has a fixed order, so there is no stochastic variation and no "run it 5 times and average" workflow. `seed` selects a different, equally reproducible starting point. (The whitening of the default mode calls LAPACK through NumPy, so across machines the default mode is as reproducible as that library; the classic mode does not depend on it.)
 
 ### Heterogeneous Hypergraphs
 Natively handles multi-type nodes and edges, bipartite graphs, and hypergraphs. TSV input with typed columns like `complex::reflexive::product`. No graph preprocessing needed.
 
-### ~5 MB, Zero Dependencies
-The entire library is ~5 MB. Compare: PyTorch Geometric is 500 MB+, DGL is 400 MB+. Cleora ships as a single compiled Rust extension. No CUDA, no cuDNN, no GPU driver headaches.
+### Under 1 MB, NumPy Only
+The wheel is under 1 MB and NumPy is its only required dependency. Compare: PyTorch Geometric is 500 MB+, DGL is 400 MB+. Cleora ships as a single compiled Rust extension that works on every Python from 3.10 on. No CUDA, no cuDNN, no GPU driver headaches.
 
 ### Stable & Inductive
-Embeddings are stable across runs and support inductive learning: new nodes can be embedded without retraining the entire graph. Production-ready from day one.
+Embeddings are identical across runs, and new nodes can be embedded without retraining the entire graph: `embed_inductive` and `embed_streaming` leave every existing vector untouched and place new entities next to their neighbours, so a model trained on yesterday's embeddings keeps working today.
 
 ---
 
@@ -158,14 +204,14 @@ Embeddings are stable across runs and support inductive learning: new nodes can 
 
 | Algorithm | Type | Description |
 |-----------|------|-------------|
-| **Cleora** | Spectral / Random Walk | Iterative Markov propagation with per-iteration whitening — all random walks in one matrix multiplication |
+| **Cleora** | Spectral / Random Walk | Iterative Markov propagation — all random walks in one matrix multiplication. Whitening after every iteration by default, `whiten=False` for the classic algorithm |
 | **ProNE** | Spectral | Fast spectral propagation with Chebyshev polynomial approximation |
 | **RandNE** | Random Projection | Gaussian random projection for very fast, approximate embeddings |
-| **NetMF** | Matrix Factorization | Network Matrix Factorization — factorizes the DeepWalk matrix explicitly |
-| **DeepWalk** | Random Walk | Classic random walk + skip-gram approach |
-| **Node2Vec** | Random Walk | Biased random walks with tunable BFS/DFS exploration |
-| **HOPE** | Matrix Factorization | High-Order Proximity preserved Embedding |
-| **GraRep** | Matrix Factorization | Graph Representations with Global Structural Information |
+| **NetMF** | Matrix Factorization | Network Matrix Factorization — factorizes the DeepWalk matrix explicitly (dense, for graphs up to ~20K nodes) |
+| **DeepWalk** | Random Walk | Random walks factorized with PPMI + SVD — the matrix-factorization view of DeepWalk, no skip-gram training |
+| **Node2Vec** | Random Walk | Biased random walks with tunable BFS/DFS exploration (`p`, `q`), factorized the same way |
+| **HOPE** | Matrix Factorization | High-Order Proximity preserved Embedding, Katz index (dense, small graphs) |
+| **GraRep** | Matrix Factorization | Graph Representations with Global Structural Information (dense, small graphs) |
 | **MLP** | Neural Classifier | 2-layer MLP classifier in pure numpy/scipy — no PyTorch needed |
 
 All algorithms are unified under a single API. Switch between methods by changing one parameter:
@@ -184,7 +230,8 @@ Beyond the standard algorithms, Cleora supports several advanced embedding strat
 - **Attention-weighted propagation** — uses softmax-normalized dot-product attention during propagation, dynamically weighting neighbor contributions
 - **Supervised refinement** — fine-tunes unsupervised embeddings using positive/negative entity pairs with a triplet margin loss
 - **Directed graph embeddings** — handles asymmetric relationships where edge direction matters
-- **Weighted graph embeddings** — incorporates edge weights into the propagation step
+- **Weighted graph embeddings** — a weight per edge or hyperedge (`weights=` or a `weight::` column) scales its share of the transition matrix; an integer weight `k` equals repeating the line `k` times
+- **Inductive and streaming updates** — `embed_inductive` / `embed_streaming` add entities without moving the existing vectors; `refresh_every` periodically re-embeds and rotates the result back onto the old coordinates
 - **Node feature integration** — initializes embeddings with external features (text, image, numeric) before propagation
 - **PCA whitening** — built-in whitening after every iteration by default to decorrelate embedding dimensions and improve downstream task performance
 
@@ -200,8 +247,8 @@ pycleora ships with a comprehensive set of built-in modules:
 | `pycleora.classify` | MLP and Label Propagation classifiers — no PyTorch needed |
 | `pycleora.sampling` | 6 graph sampling methods |
 | `pycleora.tuning` | Grid search and random search for hyperparameter tuning |
-| `pycleora.compress` | Embedding compression (PQ, scalar quantization) |
-| `pycleora.io_utils` | Save/load embeddings (NPZ, CSV, TSV), NetworkX conversion |
+| `pycleora.compress` | Embedding compression (PCA, random projection, product quantization) |
+| `pycleora.io_utils` | Graphs from NumPy / pandas / SciPy / NetworkX (`from_arrays`, `from_pandas`, ...), save/load embeddings (NPZ, CSV, TSV) |
 | `pycleora.viz` | Embedding visualization (UMAP, t-SNE projections) |
 | `pycleora.metrics` | Evaluation metrics for embeddings |
 | `pycleora.benchmark` | Compare algorithms with time, memory, and accuracy metrics |
@@ -212,7 +259,7 @@ pycleora ships with a comprehensive set of built-in modules:
 | `pycleora.preprocess` | Graph preprocessing and filtering |
 | `pycleora.hetero` | Heterogeneous graph utilities |
 | `pycleora.generators` | Synthetic graph generators for testing |
-| `pycleora.datasets` | Real-world benchmark datasets (Facebook, Cora, CiteSeer, PubMed, PPI, roadNet-CA, and more) |
+| `pycleora.datasets` | Real benchmark graphs downloaded from their original sources (Cora, CiteSeer, PubMed, PPI, email-Eu-core, ogbn-arxiv, Facebook, roadNet-CA, and more); every dataset carries `"synthetic": False` and its `source` |
 
 See the [full API reference](https://cleora.ai/api) for details on every function and parameter.
 
@@ -245,41 +292,81 @@ Zomato's ML team needed graph embeddings to power "People Like You" restaurant r
 
 ## Benchmarks
 
-Benchmarked against **7 competing algorithms** on **5 real-world datasets** (ego-Facebook, Cora, CiteSeer, PubMed, PPI) plus a 2M-node scale test. All datasets are genuine academic benchmarks from SNAP, Planetoid, and DGL. Cleora wins on accuracy on **every single dataset**.
+Node classification on eight public graphs, from the graph structure alone (no node features), at 256 dimensions. Every number in this section is produced by [`benchmarks/run_benchmarks.py`](benchmarks/run_benchmarks.py):
 
-Full interactive benchmark results at [cleora.ai/benchmarks](https://cleora.ai/benchmarks).
+```bash
+pip install "pycleora[full]" scikit-learn
+python benchmarks/run_benchmarks.py
+```
+
+**Protocol.** The embeddings are standardized and fed to a logistic regression. Half of the nodes are used for training, the regularization strength is chosen on a validation part of the training set, and the result is the mean over 5 random splits (3 for the two multi-label graphs, PPI and Wikipedia POS, which use the top-k protocol of the DeepWalk and node2vec papers and report micro-F1). All methods see the same splits. The baselines are the implementations in `pycleora.algorithms`: NumPy/SciPy code that follows the papers, with DeepWalk and node2vec as their matrix-factorization variants (random walks → PPMI → SVD) rather than skip-gram. NetMF, HOPE and GraRep build a dense n × n matrix and are run on graphs up to 5,000 nodes. Measured with pycleora 4.0.0, Python 3.13 and NumPy 2.5 on a 2-core x86-64 cloud VM with 8 GB of memory: times will differ on your hardware, and so may the order of methods that are close.
 
 ### Classification Accuracy
 
-| Dataset | Nodes | Cleora | NetMF | DeepWalk | Node2Vec | HOPE | GraRep | ProNE | RandNE |
-|---------|-------|--------|-------|----------|----------|------|--------|-------|--------|
-| **ego-Facebook** | 4K | **0.990** | 0.957 | 0.958 | 0.958 | 0.890 | T/O | 0.075 | 0.212 |
-| **Cora** | 2.7K | **0.861** | 0.839 | 0.835 | 0.835 | 0.821 | 0.809 | 0.179 | 0.247 |
-| **CiteSeer** | 3.3K | **0.824** | 0.810 | 0.806 | 0.806 | 0.740 | 0.756 | 0.189 | 0.244 |
-| **PubMed** | 19.7K | **0.879** | OOM | T/O | T/O | T/O | OOM | 0.339 | 0.351 |
-| **PPI** | 3.9K | **1.000** | OOM | T/O | T/O | T/O | OOM | 0.023 | 0.073 |
+| Dataset | Nodes | Edges | Metric | Cleora<br>(default) | Cleora<br>(classic, 8 it.) | ProNE | RandNE | DeepWalk | node2vec | NetMF | HOPE | GraRep |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **Cora** | 2.7K | 5.3K | accuracy | 0.800 | **0.812** | 0.789 | 0.709 | **0.813** | 0.803 | **0.806** | 0.775 | 0.801 |
+| **CiteSeer** | 3.3K | 4.6K | accuracy | **0.648** | 0.617 | 0.595 | 0.481 | 0.624 | 0.618 | 0.625 | 0.550 | 0.564 |
+| **PubMed** | 19.7K | 44.3K | accuracy | 0.818 | 0.730 | 0.811 | 0.615 | **0.827** | 0.822 | — | — | — |
+| **email-Eu-core** | 1.0K | 16.1K | accuracy | 0.630 | **0.753** | 0.674 | **0.759** | 0.641 | 0.664 | 0.669 | 0.683 | **0.755** |
+| **Amazon Photo** | 7.5K | 119K | accuracy | **0.933** | **0.932** | 0.925 | 0.919 | 0.929 | 0.929 | — | — | — |
+| **Amazon Computers** | 13.5K | 246K | accuracy | **0.908** | 0.899 | 0.902 | 0.889 | 0.905 | 0.904 | — | — | — |
+| **PPI** | 3.9K | 37.8K | micro-F1 | 0.216 | 0.234 | 0.232 | 0.220 | 0.219 | 0.217 | 0.219 | 0.207 | **0.240** |
+| **Wikipedia POS** | 4.8K | 92.3K | micro-F1 | 0.472 | 0.477 | 0.530 | 0.449 | 0.440 | 0.443 | 0.454 | **0.538** | 0.529 |
 
-> **Only 3 of 8 algorithms survive at 19.7K nodes.** HOPE, NetMF, GraRep, DeepWalk, and Node2Vec all crash or time out. Cleora achieves perfect accuracy on PPI (50 classes).
+Bold: the best method on that graph and every method within one standard deviation (over the splits) of it.
 
-### Memory Efficiency
+- **No method wins everywhere.** One of the two Cleora modes is the best method, or within one standard deviation of it, on five of the eight graphs. On PubMed the default mode is 0.009 behind DeepWalk, on PPI the classic mode is 0.006 behind GraRep. On Wikipedia POS, a word co-occurrence network labelled with parts of speech, both are clearly behind HOPE, ProNE and GraRep (0.48 against 0.53–0.54).
+- **The two Cleora modes are different tools.** The whitened default is ahead on CiteSeer, PubMed and Amazon Computers; classic Cleora with 8 iterations is ahead on Cora, email-Eu-core and PPI. Classic mode takes 1/25 to 1/100 of the time, so trying both costs little.
 
-| Dataset | Cleora | Best Competitor | Factor |
-|---------|--------|-----------------|--------|
-| ego-Facebook (4K) | **22 MB** | 572 MB | 26x less |
-| Cora (2.7K) | **14 MB** | 227 MB | 16x less |
-| CiteSeer (3.3K) | **16 MB** | 294 MB | 18x less |
-| PubMed (19.7K) | **97 MB** | 175 MB | Only 3 survived |
-| roadNet-CA (2M) | **4.1 GB** | — | Only Cleora finished |
+### Time and Memory
 
-### Scale Test: roadNet-CA (2 Million Nodes)
+Embedding time in seconds (best of three runs for Cleora, one run for the others):
 
-2 million nodes. 31 seconds. Every other algorithm crashes with out-of-memory. Cleora is the only library that survives at this scale on a single CPU.
+| Dataset | Cleora<br>(default) | Cleora<br>(classic, 8 it.) | ProNE | RandNE | DeepWalk | node2vec | NetMF | HOPE | GraRep |
+|---|---|---|---|---|---|---|---|---|---|
+| **Cora** | 0.79 | **0.01** | 0.81 | 0.09 | 1.93 | 2.44 | 6.70 | 9.95 | 38 |
+| **CiteSeer** | 0.94 | **0.01** | 1.10 | 0.14 | 1.96 | 2.66 | 11 | 17 | 66 |
+| **PubMed** | 3.48 | **0.06** | 8.54 | 0.95 | 32 | 34 | — | — | — |
+| **email-Eu-core** | 0.61 | **0.01** | 0.38 | 0.04 | 0.87 | 1.44 | 0.39 | 0.64 | 2.04 |
+| **Amazon Photo** | 1.72 | **0.06** | 3.54 | 0.42 | 14 | 17 | — | — | — |
+| **Amazon Computers** | 3.10 | **0.13** | 7.33 | 0.94 | 43 | 47 | — | — | — |
+| **PPI** | 1.08 | **0.02** | 1.65 | 0.19 | 7.15 | 8.32 | 20 | 30 | 115 |
+| **Wikipedia POS** | 1.35 | **0.05** | 2.30 | 0.31 | 15 | 16 | 37 | 64 | 254 |
+
+Additional peak memory of the embedding step in MB:
+
+| Dataset | Cleora<br>(default) | Cleora<br>(classic, 8 it.) | ProNE | RandNE | DeepWalk | node2vec | NetMF | HOPE | GraRep |
+|---|---|---|---|---|---|---|---|---|---|
+| **Cora** | 11 | **5** | 70 | 30 | 119 | 113 | 569 | 508 | 691 |
+| **CiteSeer** | 13 | **6** | 83 | 36 | 131 | 131 | 833 | 715 | 954 |
+| **PubMed** | 53 | **38** | 426 | 198 | 1.0 GB | 908 | — | — | — |
+| **email-Eu-core** | 8 | **2** | 33 | 14 | 59 | 58 | 80 | 77 | 99 |
+| **Amazon Photo** | 23 | **15** | 190 | 82 | 548 | 480 | — | — | — |
+| **Amazon Computers** | 38 | **26** | 331 | 146 | 1.3 GB | 1.2 GB | — | — | — |
+| **PPI** | 14 | **7** | 98 | 42 | 304 | 285 | 1.1 GB | 1.0 GB | 1.4 GB |
+| **Wikipedia POS** | 16 | **9** | 126 | 54 | 479 | 458 | 1.7 GB | 1.6 GB | 2.2 GB |
+
+Classic Cleora is the fastest and smallest method on every graph: 6–16 times faster than RandNE, 45–130 times faster than ProNE and more than 100 times faster than the DeepWalk variant, in 2–38 MB. The whitened default needs 0.6–3.5 s and 8–53 MB here: about as fast as ProNE on the three smallest graphs and 1.5–2.5 times faster on the others, with 4–9 times less memory.
+
+### Larger Graphs
+
+**ogbn-arxiv** — 169K nodes, 1.2M edges, 40 classes. One random 50/50 split with a fixed regularization strength (`--splits 1 --fixed-c 0.1`); the DeepWalk variants and the dense methods were not run at this size.
+
+| Method | Accuracy | Time | Peak memory |
+|--------|----------|------|-------------|
+| **Cleora (default)** | **0.691** | 33 s | 351 MB |
+| Cleora (classic, 8 it.) | 0.548 | **2.0 s** | **330 MB** |
+| ProNE | 0.646 | 138 s | 3.5 GB |
+| RandNE | 0.381 | 17 s | 1.7 GB |
+
+**roadNet-CA** — 1.97M nodes, 5.5M edges, no labels, so time and memory only. Classic Cleora with 8 iterations takes **8 seconds**; the whitened default with 40 iterations takes 276 seconds. Both need the two embedding matrices they work on — 3.8 GB at 256 dimensions — and little else.
 
 ---
 
 ## Library Comparison
 
-| Feature | **pycleora 3.2** | PyG | KarateClub | DGL | Node2Vec | StellarGraph |
+| Feature | **pycleora 4.0** | PyG | KarateClub | DGL | Node2Vec | StellarGraph |
 |---------|:---:|:---:|:---:|:---:|:---:|:---:|
 | CPU-only (no GPU needed) | **Yes** | Optional | Yes | Optional | Yes | Optional |
 | Rust-powered core | **Yes** | No (C++) | No | No (C++) | No | No (TF) |
@@ -289,7 +376,7 @@ Full interactive benchmark results at [cleora.ai/benchmarks](https://cleora.ai/b
 | MLP classifier (no PyTorch) | **MLP** | Requires PyTorch | No | Requires PyTorch | No | Requires TF |
 | Graph sampling | **6 methods** | Yes | No | Yes | No | Yes |
 | Hyperparameter tuning | **Grid + Random** | Manual | No | Manual | No | Manual |
-| Install size | **~5 MB** | ~500 MB+ | ~15 MB | ~400 MB+ | ~2 MB | ~600 MB+ |
+| Install size | **< 1 MB** (+ NumPy) | ~500 MB+ | ~15 MB | ~400 MB+ | ~2 MB | ~600 MB+ |
 | Actively maintained | **Yes** | Yes | Yes | Yes | Yes | Archived |
 
 ---
@@ -350,7 +437,7 @@ A: The default is **256**. For larger production systems we often work from _102
 
 **Q: How many iterations of Markov propagation should I use?**
 
-A: The default is **40** whitening-enhanced propagation steps. If you want more local, co-occurrence-style behavior you can dial that down manually; higher values bias more toward contextual similarity.
+A: The default is **40** whitening-enhanced propagation steps. If you want more local, co-occurrence-style behavior you can dial that down manually; higher values bias more toward contextual similarity. Without whitening (`whiten=False`) nothing counteracts over-smoothing, so use far fewer iterations there: 4–16 is the useful range, and all of them cost a fraction of the default.
 
 **Q: How do I incorporate external information, e.g. entity metadata, images, texts into the embeddings?**
 
@@ -358,7 +445,7 @@ A: Just initialize the embedding matrix with your own vectors coming from a VIT,
 
 **Q: My embeddings don't fit in memory, what do I do?**
 
-A: Cleora operates on dimensions independently. Initialize your embeddings with a smaller number of dimensions, run Cleora, persist to disk, then repeat. You can concatenate your resulting embedding vectors afterwards, but remember to normalize them afterwards!
+A: Classic Cleora (`whiten=False`) operates on dimensions independently, so you can compute the embedding in slices: run it with a smaller number of dimensions and a different `seed` for every slice, persist each result to disk, and concatenate the slices afterwards — but remember to normalize the rows again! Use a new `seed` each time: the same seed reproduces the same columns. (The whitened default mixes the dimensions and cannot be split this way.) The classic mode needs memory for only two embedding matrices to begin with.
 
 **Q: Is there a minimum number of entity occurrences?**
 
