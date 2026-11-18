@@ -43,24 +43,308 @@ pub fn thread_pool(num_threads: usize) -> Arc<ThreadPool> {
         .clone()
 }
 
-/// Rows handled by one parallel task.
+/// Rows handled by one parallel task of the dense row-wise kernels (normalisation,
+/// projection): there every row costs the same.
 const ROWS_PER_TASK: usize = 64;
+
+/// Matrix entries one propagation task handles. Propagation work is proportional to the
+/// number of entries, not rows, and entities are numbered by first appearance, which
+/// puts the busiest ones next to each other at the start: tasks of equal *row* counts
+/// would leave most of the work to the one thread that got the first rows.
+const TASK_NNZ: usize = 4096;
+/// Upper bound on the rows of one propagation task (rows cost something even when empty).
+const TASK_ROWS: usize = 1024;
+/// A row with more entries than this is a task of its own, summed in parallel in
+/// segments of `TASK_NNZ` entries that are combined in order. The segmentation depends
+/// on the row only, so the result is the same for any number of threads.
+const HUB_NNZ: usize = 4 * TASK_NNZ;
+/// How many entries ahead the first cache line of a source row is requested.
+const PREFETCH_DISTANCE: usize = 4;
+
+/// What one propagation computes: `M * x` for the left or symmetric Markov matrix.
+#[derive(Clone, Copy)]
+struct Product<'a> {
+    graph: &'a SparseMatrix,
+    x: &'a [f32],
+    dim: usize,
+    symmetric: bool,
+}
+
+#[inline(always)]
+fn prefetch(pointer: *const f32) {
+    #[cfg(target_arch = "x86_64")]
+    // Safety: prefetching is a hint; it never faults, whatever the address.
+    unsafe {
+        std::arch::x86_64::_mm_prefetch::<{ std::arch::x86_64::_MM_HINT_T0 }>(pointer as *const i8);
+    }
+    #[cfg(target_arch = "aarch64")]
+    // Safety: as above (`prfm` is a hint).
+    unsafe {
+        std::arch::asm!("prfm pldl1keep, [{p}]", p = in(reg) pointer, options(nostack, preserves_flags, readonly));
+    }
+    #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+    let _ = pointer;
+}
+
+impl<'a> Product<'a> {
+    #[inline(always)]
+    fn coefficient(&self, k: usize) -> f32 {
+        let value = self.graph.values[k];
+        if self.symmetric {
+            value * self.graph.inv_sqrt_row[self.graph.indices[k] as usize]
+        } else {
+            value
+        }
+    }
+
+    #[inline(always)]
+    fn source(&self, k: usize) -> &'a [f32] {
+        let column = self.graph.indices[k] as usize;
+        &self.x[column * self.dim..(column + 1) * self.dim]
+    }
+
+    #[inline(always)]
+    fn prefetch_source(&self, k: usize) {
+        if let Some(&column) = self.graph.indices.get(k) {
+            prefetch(self.x.as_ptr().wrapping_add(column as usize * self.dim));
+        }
+    }
+
+    /// `dst += sum over entries k in [first, last) of coefficient(k) * source(k)`.
+    ///
+    /// Four source rows are added per pass over `dst`. Every element still receives
+    /// its terms one after another in entry order, so the result is bit-identical to
+    /// adding the rows one at a time; the passes over `dst` are fewer and four streams
+    /// of source rows are in flight at once.
+    #[inline(always)]
+    fn accumulate(&self, first: usize, last: usize, dst: &mut [f32]) {
+        let mut k = first;
+        while k + 4 <= last {
+            for ahead in 0..4 {
+                self.prefetch_source(k + PREFETCH_DISTANCE + ahead);
+            }
+            let (c0, c1, c2, c3) = (
+                self.coefficient(k),
+                self.coefficient(k + 1),
+                self.coefficient(k + 2),
+                self.coefficient(k + 3),
+            );
+            let (s0, s1, s2, s3) = (
+                self.source(k),
+                self.source(k + 1),
+                self.source(k + 2),
+                self.source(k + 3),
+            );
+            for i in 0..dst.len() {
+                let mut value = dst[i];
+                value += c0 * s0[i];
+                value += c1 * s1[i];
+                value += c2 * s2[i];
+                value += c3 * s3[i];
+                dst[i] = value;
+            }
+            k += 4;
+        }
+        while k < last {
+            self.prefetch_source(k + PREFETCH_DISTANCE);
+            let coefficient = self.coefficient(k);
+            for (d, s) in dst.iter_mut().zip(self.source(k)) {
+                *d += coefficient * *s;
+            }
+            k += 1;
+        }
+    }
+
+    /// Row `row` of the product, written to `dst`.
+    #[inline(always)]
+    fn row(&self, row: usize, dst: &mut [f32]) {
+        let entries = self.graph.row_range(row);
+        dst.fill(0.0);
+        if entries.len() > HUB_NNZ {
+            let segments: Vec<usize> = entries.clone().step_by(TASK_NNZ).collect();
+            let partial: Vec<Vec<f32>> = segments
+                .par_iter()
+                .with_max_len(1)
+                .map(|&first| {
+                    let mut sum = vec![0f32; self.dim];
+                    accumulate_dispatch(self, first, (first + TASK_NNZ).min(entries.end), &mut sum);
+                    sum
+                })
+                .collect();
+            for sum in &partial {
+                for (d, s) in dst.iter_mut().zip(sum) {
+                    *d += *s;
+                }
+            }
+        } else {
+            self.accumulate(entries.start, entries.end, dst);
+        }
+        let scale = if self.symmetric {
+            self.graph.inv_sqrt_row[row]
+        } else {
+            self.graph.inv_row[row]
+        };
+        for d in dst.iter_mut() {
+            *d *= scale;
+        }
+    }
+
+    /// The rows of one task, each followed by `finish(row, values)` while it is still
+    /// in the cache.
+    #[inline(always)]
+    fn rows<F: Fn(usize, &mut [f32])>(&self, rows: Rows<'_>, chunk: &mut [f32], finish: &F) {
+        for (offset, dst) in chunk.chunks_exact_mut(self.dim).enumerate() {
+            let row = match rows {
+                Rows::From(first_row) => first_row + offset,
+                Rows::List(list) => list[offset],
+            };
+            self.row(row, dst);
+            finish(row, dst);
+        }
+    }
+}
+
+/// The rows one task computes: consecutive ones or an explicit list.
+#[derive(Clone, Copy)]
+enum Rows<'a> {
+    From(usize),
+    List(&'a [usize]),
+}
+
+/// [`Product::accumulate`], compiled for AVX2 when the CPU has it. No fused
+/// multiply-add is used, so both versions produce bit-identical results.
+fn accumulate_dispatch(product: &Product<'_>, first: usize, last: usize, dst: &mut [f32]) {
+    #[cfg(target_arch = "x86_64")]
+    {
+        #[target_feature(enable = "avx2")]
+        unsafe fn avx2(product: &Product<'_>, first: usize, last: usize, dst: &mut [f32]) {
+            product.accumulate(first, last, dst)
+        }
+        if std::arch::is_x86_feature_detected!("avx2") {
+            // Safety: AVX2 availability was just checked.
+            return unsafe { avx2(product, first, last, dst) };
+        }
+    }
+    product.accumulate(first, last, dst)
+}
+
+/// [`Product::rows`], compiled for AVX2 when the CPU has it (see [`accumulate_dispatch`]).
+fn rows_dispatch<F: Fn(usize, &mut [f32])>(
+    product: &Product<'_>,
+    rows: Rows<'_>,
+    chunk: &mut [f32],
+    finish: &F,
+) {
+    #[cfg(target_arch = "x86_64")]
+    {
+        #[target_feature(enable = "avx2")]
+        unsafe fn avx2<F: Fn(usize, &mut [f32])>(
+            product: &Product<'_>,
+            rows: Rows<'_>,
+            chunk: &mut [f32],
+            finish: &F,
+        ) {
+            product.rows(rows, chunk, finish)
+        }
+        if std::arch::is_x86_feature_detected!("avx2") {
+            // Safety: AVX2 availability was just checked.
+            return unsafe { avx2(product, rows, chunk, finish) };
+        }
+    }
+    product.rows(rows, chunk, finish)
+}
+
+/// Groups a sequence of rows, given by their numbers of entries, into consecutive
+/// tasks of about `TASK_NNZ` entries (see the constants above). Returns the position
+/// of the first row of every task, followed by the number of rows.
+fn balanced_tasks(row_entries: impl Iterator<Item = usize>) -> Vec<usize> {
+    let mut bounds = vec![0usize];
+    let mut entries = 0usize;
+    let mut count = 0usize;
+    for (position, row_entries) in row_entries.enumerate() {
+        let first = *bounds.last().expect("never empty");
+        let hub = row_entries > HUB_NNZ;
+        let full = entries + row_entries > TASK_NNZ || position - first >= TASK_ROWS;
+        if position > first && (hub || full) {
+            bounds.push(position);
+            entries = 0;
+        }
+        entries += row_entries;
+        if hub {
+            bounds.push(position + 1);
+            entries = 0;
+        }
+        count = position + 1;
+    }
+    if *bounds.last().expect("never empty") != count {
+        bounds.push(count);
+    }
+    bounds
+}
+
+/// Computes the rows `rows` of the product into `out` (one row of `out` per entry of
+/// `rows`), in parallel tasks of about equal cost.
+fn run_product<F>(product: &Product<'_>, rows: Rows<'_>, out: &mut [f32], finish: F)
+where
+    F: Fn(usize, &mut [f32]) + Sync,
+{
+    let dim = product.dim;
+    let row_at = |position: usize| match rows {
+        Rows::From(first_row) => first_row + position,
+        Rows::List(list) => list[position],
+    };
+    let count = out.len() / dim;
+    let bounds = balanced_tasks((0..count).map(|p| product.graph.row_range(row_at(p)).len()));
+    let mut tasks: Vec<(Rows<'_>, &mut [f32])> = Vec::with_capacity(bounds.len() - 1);
+    let mut rest = out;
+    for task in bounds.windows(2) {
+        let (chunk, tail) = rest.split_at_mut((task[1] - task[0]) * dim);
+        let task_rows = match rows {
+            Rows::From(first_row) => Rows::From(first_row + task[0]),
+            Rows::List(list) => Rows::List(&list[task[0]..task[1]]),
+        };
+        tasks.push((task_rows, chunk));
+        rest = tail;
+    }
+    // Every task may be stolen on its own: they are about equally expensive.
+    tasks
+        .into_par_iter()
+        .with_max_len(1)
+        .for_each(|(task_rows, chunk)| rows_dispatch(product, task_rows, chunk, &finish));
+}
 
 /// `out = M * x` for the row-major `n x dim` matrices `x` and `out`, where `M` is
 /// the left or symmetric Markov matrix of the graph.
 /// Runs on the current rayon pool.
 pub fn propagate(graph: &SparseMatrix, x: &[f32], out: &mut [f32], dim: usize, kind: MarkovType) {
+    propagate_then(graph, x, out, dim, kind, |_, _| {});
+}
+
+/// [`propagate`], with `finish(row, values)` applied to every row of the result as
+/// soon as it is computed, i.e. while it is still in the cache.
+pub fn propagate_then<F>(
+    graph: &SparseMatrix,
+    x: &[f32],
+    out: &mut [f32],
+    dim: usize,
+    kind: MarkovType,
+    finish: F,
+) where
+    F: Fn(usize, &mut [f32]) + Sync,
+{
     let n = graph.num_entities();
     assert_eq!(x.len(), n * dim, "input has the wrong size");
     assert_eq!(out.len(), n * dim, "output has the wrong size");
     if n == 0 || dim == 0 {
         return;
     }
-    out.par_chunks_mut(dim * ROWS_PER_TASK)
-        .enumerate()
-        .for_each(|(task, chunk)| {
-            propagate_rows(graph, x, chunk, Rows::From(task * ROWS_PER_TASK), dim, kind);
-        });
+    let product = Product {
+        graph,
+        x,
+        dim,
+        symmetric: kind == MarkovType::Symmetric,
+    };
+    run_product(&product, Rows::From(0), out, finish);
 }
 
 /// The rows `rows` of `M * x`: `out` is a row-major `rows.len() x dim` matrix whose
@@ -81,91 +365,25 @@ pub fn propagate_selected(
     if rows.is_empty() || dim == 0 {
         return;
     }
-    out.par_chunks_mut(dim * ROWS_PER_TASK)
-        .zip(rows.par_chunks(ROWS_PER_TASK))
-        .for_each(|(chunk, rows)| {
-            propagate_rows(graph, x, chunk, Rows::List(rows), dim, kind);
-        });
+    let product = Product {
+        graph,
+        x,
+        dim,
+        symmetric: kind == MarkovType::Symmetric,
+    };
+    run_product(&product, Rows::List(rows), out, |_, _| {});
 }
 
-/// The rows one task computes: consecutive ones or an explicit list.
-#[derive(Clone, Copy)]
-enum Rows<'a> {
-    From(usize),
-    List(&'a [usize]),
-}
-
-#[inline]
-fn propagate_rows(
-    graph: &SparseMatrix,
-    x: &[f32],
-    chunk: &mut [f32],
-    rows: Rows<'_>,
-    dim: usize,
-    kind: MarkovType,
-) {
-    #[cfg(target_arch = "x86_64")]
-    {
-        if std::arch::is_x86_feature_detected!("avx2") {
-            // Safety: AVX2 availability was just checked.
-            unsafe { propagate_rows_avx2(graph, x, chunk, rows, dim, kind) };
-            return;
-        }
-    }
-    propagate_rows_generic(graph, x, chunk, rows, dim, kind);
-}
-
-/// Same code as the generic version, compiled for AVX2. No fused multiply-add is
-/// used, so both versions produce bit-identical results.
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx2")]
-unsafe fn propagate_rows_avx2(
-    graph: &SparseMatrix,
-    x: &[f32],
-    chunk: &mut [f32],
-    rows: Rows<'_>,
-    dim: usize,
-    kind: MarkovType,
-) {
-    propagate_rows_generic(graph, x, chunk, rows, dim, kind)
-}
-
+/// Scales one row to unit L2 norm (a row of zeros stays zero).
 #[inline(always)]
-fn propagate_rows_generic(
-    graph: &SparseMatrix,
-    x: &[f32],
-    chunk: &mut [f32],
-    rows: Rows<'_>,
-    dim: usize,
-    kind: MarkovType,
-) {
-    let symmetric = kind == MarkovType::Symmetric;
-    for (offset, dst) in chunk.chunks_exact_mut(dim).enumerate() {
-        let row = match rows {
-            Rows::From(first_row) => first_row + offset,
-            Rows::List(list) => list[offset],
-        };
-        dst.fill(0.0);
-        for k in graph.row_range(row) {
-            let column = graph.indices[k] as usize;
-            let coefficient = if symmetric {
-                graph.values[k] * graph.inv_sqrt_row[column]
-            } else {
-                graph.values[k]
-            };
-            let src = &x[column * dim..(column + 1) * dim];
-            for (d, s) in dst.iter_mut().zip(src) {
-                *d += coefficient * *s;
-            }
-        }
-        let scale = if symmetric {
-            graph.inv_sqrt_row[row]
-        } else {
-            graph.inv_row[row]
-        };
-        for d in dst.iter_mut() {
-            *d *= scale;
-        }
+pub fn l2_normalize_row(row: &mut [f32]) {
+    let mut sum_sq: f32 = 0.0;
+    for v in row.iter() {
+        sum_sq += v * v;
+    }
+    let inv_norm = 1.0 / sum_sq.sqrt().max(1e-10);
+    for v in row.iter_mut() {
+        *v *= inv_norm;
     }
 }
 
@@ -178,28 +396,18 @@ pub fn l2_normalize_rows(matrix: &mut [f32], dim: usize) {
         .par_chunks_mut(dim * ROWS_PER_TASK)
         .for_each(|chunk| {
             for row in chunk.chunks_exact_mut(dim) {
-                let mut sum_sq: f32 = 0.0;
-                for v in row.iter() {
-                    sum_sq += v * v;
-                }
-                let inv_norm = 1.0 / sum_sq.sqrt().max(1e-10);
-                for v in row.iter_mut() {
-                    *v *= inv_norm;
-                }
+                l2_normalize_row(row);
             }
         });
 }
 
 /// `dst = (1 - residual_weight) * dst + residual_weight * src`
-fn mix_residual(dst: &mut [f32], src: &[f32], residual_weight: f32) {
+#[inline(always)]
+fn mix_residual_row(dst: &mut [f32], src: &[f32], residual_weight: f32) {
     let alpha = 1.0 - residual_weight;
-    dst.par_chunks_mut(1 << 14)
-        .zip(src.par_chunks(1 << 14))
-        .for_each(|(d, s)| {
-            for (d, s) in d.iter_mut().zip(s) {
-                *d = alpha * *d + residual_weight * *s;
-            }
-        });
+    for (d, s) in dst.iter_mut().zip(src) {
+        *d = alpha * *d + residual_weight * *s;
+    }
 }
 
 /// Root mean squared difference between two matrices, independent of the thread count.
@@ -241,11 +449,17 @@ pub fn embed(
     let check_convergence = convergence_threshold > 0.0;
 
     for iteration in 0..num_iterations {
-        propagate(graph, &src, &mut dst, dim, kind);
-        if use_residual {
-            mix_residual(&mut dst, &src, residual_weight);
-        }
-        l2_normalize_rows(&mut dst, dim);
+        let previous = &src;
+        propagate_then(graph, previous, &mut dst, dim, kind, |row, values| {
+            if use_residual {
+                mix_residual_row(
+                    values,
+                    &previous[row * dim..(row + 1) * dim],
+                    residual_weight,
+                );
+            }
+            l2_normalize_row(values);
+        });
 
         let converged =
             check_convergence && iteration > 0 && rmse(&dst, &src) < convergence_threshold as f64;
@@ -583,6 +797,115 @@ mod tests {
         }
         let mut empty: Vec<f32> = Vec::new();
         propagate_selected(&graph, &x, &[], &mut empty, dim, MarkovType::Left);
+    }
+
+    /// A star whose centre has more entries than `HUB_NNZ`, plus a ring among the leaves.
+    fn hub_graph(leaves: usize) -> SparseMatrix {
+        let mut lines: Vec<String> = (0..leaves).map(|i| format!("hub leaf{}", i)).collect();
+        lines.extend((0..leaves).map(|i| format!("leaf{} leaf{}", i, (i + 1) % leaves)));
+        let config =
+            crate::configuration::Configuration::new("complex::reflexive::v", 16, Some(2)).unwrap();
+        crate::pipeline::build_graph_from_lines(&config, &lines, None)
+            .unwrap()
+            .0
+    }
+
+    #[test]
+    fn tasks_cover_all_rows_and_isolate_hubs() {
+        let entries = [10usize, 5000, 3, HUB_NNZ + 1, 7, 7, TASK_NNZ, 1];
+        let bounds = balanced_tasks(entries.iter().copied());
+        assert_eq!(bounds.first(), Some(&0));
+        assert_eq!(bounds.last(), Some(&entries.len()));
+        assert!(bounds.windows(2).all(|w| w[0] < w[1]));
+        // the hub (position 3) is a task of its own
+        assert!(bounds.windows(2).any(|w| w == [3, 4]));
+        // no other task exceeds the budget unless it is a single row
+        for w in bounds.windows(2) {
+            let total: usize = entries[w[0]..w[1]].iter().sum();
+            assert!(
+                total <= TASK_NNZ || w[1] - w[0] == 1,
+                "{:?} holds {}",
+                w,
+                total
+            );
+        }
+        assert_eq!(balanced_tasks(std::iter::empty()), vec![0]);
+        // many empty rows are still split up
+        let bounds = balanced_tasks(std::iter::repeat(0).take(3 * TASK_ROWS + 5));
+        assert_eq!(bounds.len(), 5);
+    }
+
+    /// Rows that are summed in segments (hubs) must not depend on the thread count,
+    /// must agree with the plain definition of the product, and must come out the
+    /// same through `propagate_selected`.
+    #[test]
+    fn hub_rows_are_exact_and_thread_independent() {
+        let leaves = HUB_NNZ + 300;
+        let graph = hub_graph(leaves);
+        let n = graph.num_entities();
+        let hub = graph.index_of("hub").unwrap();
+        assert!(graph.row_range(hub).len() > HUB_NNZ);
+        let dim = 5;
+        let x = initialize(&graph.entity_ids, dim, 1);
+        for kind in [MarkovType::Left, MarkovType::Symmetric] {
+            let mut single = vec![0f32; n * dim];
+            thread_pool(1).install(|| propagate(&graph, &x, &mut single, dim, kind));
+            let mut many = vec![0f32; n * dim];
+            thread_pool(7).install(|| propagate(&graph, &x, &mut many, dim, kind));
+            assert_eq!(single, many);
+
+            let normalization = match kind {
+                MarkovType::Left => crate::sparse_matrix::Normalization::Left,
+                MarkovType::Symmetric => crate::sparse_matrix::Normalization::Symmetric,
+            };
+            for row in [hub, 0, n - 1] {
+                for column in 0..dim {
+                    let direct: f64 = graph
+                        .row_range(row)
+                        .map(|k| {
+                            graph.normalized_value(row, k, normalization) as f64
+                                * x[graph.indices[k] as usize * dim + column] as f64
+                        })
+                        .sum();
+                    let got = single[row * dim + column] as f64;
+                    assert!(
+                        (got - direct).abs() < 1e-5,
+                        "row {}: {} vs {}",
+                        row,
+                        got,
+                        direct
+                    );
+                }
+            }
+
+            let rows = [hub, 3, hub, n - 1];
+            let mut selected = vec![f32::NAN; rows.len() * dim];
+            thread_pool(3)
+                .install(|| propagate_selected(&graph, &x, &rows, &mut selected, dim, kind));
+            for (i, &row) in rows.iter().enumerate() {
+                assert_eq!(
+                    &selected[i * dim..(i + 1) * dim],
+                    &single[row * dim..(row + 1) * dim]
+                );
+            }
+        }
+    }
+
+    /// The fused pass must give exactly what separate passes give.
+    #[test]
+    fn finishing_rows_in_the_propagation_pass_changes_nothing() {
+        let graph = ring_graph(500);
+        let n = graph.num_entities();
+        let dim = 12;
+        let x = initialize(&graph.entity_ids, dim, 3);
+        let mut separate = vec![0f32; n * dim];
+        propagate(&graph, &x, &mut separate, dim, MarkovType::Left);
+        l2_normalize_rows(&mut separate, dim);
+        let mut fused = vec![0f32; n * dim];
+        propagate_then(&graph, &x, &mut fused, dim, MarkovType::Left, |_, row| {
+            l2_normalize_row(row)
+        });
+        assert_eq!(separate, fused);
     }
 
     #[test]
