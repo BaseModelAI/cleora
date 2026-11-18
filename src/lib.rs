@@ -320,6 +320,7 @@ impl SparseMatrix {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn embed_classic<'py>(
         &self,
         py: Python<'py>,
@@ -732,6 +733,7 @@ impl SparseMatrix {
     /// The matrix in CSR form: `(indptr, indices, data)`, ready for
     /// `scipy.sparse.csr_matrix((data, indices, indptr), shape=(n, n))`.
     #[pyo3(signature = (markov_type = None))]
+    #[allow(clippy::type_complexity)]
     fn to_csr<'py>(
         &self,
         py: Python<'py>,

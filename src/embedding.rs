@@ -435,6 +435,7 @@ fn rmse(a: &[f32], b: &[f32]) -> f64 {
 /// buffer. Returns the number of rounds performed.
 /// With `convergence_threshold > 0` iteration stops once the RMSE between two
 /// consecutive rounds drops below the threshold.
+#[allow(clippy::too_many_arguments)]
 pub fn iterate(
     graph: &SparseMatrix,
     current: &mut [f32],
@@ -869,7 +870,7 @@ mod tests {
         }
         assert_eq!(balanced_tasks(std::iter::empty()), vec![0]);
         // many empty rows are still split up
-        let bounds = balanced_tasks(std::iter::repeat(0).take(3 * TASK_ROWS + 5));
+        let bounds = balanced_tasks(std::iter::repeat_n(0, 3 * TASK_ROWS + 5));
         assert_eq!(bounds.len(), 5);
     }
 

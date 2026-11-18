@@ -11,6 +11,18 @@ repository = "https://github.com/BaseModelAI/cleora"
 description = """
 Sparse hypergraph structure and markov-propagation for node embeddings exposed via Python bindings.
 """
+# Not part of the source distribution: the benchmark suite with its results and
+# figures, images, the pre-Python CLI, and files that only serve the repository.
+exclude = [
+    ".github/",
+    "benchmarks/",
+    "files/",
+    "legacy/",
+    "scripts/",
+    "run.py",
+    "requirements.txt",
+    "COMPARISON.md",
+]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

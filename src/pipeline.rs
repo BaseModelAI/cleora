@@ -243,10 +243,9 @@ fn process_batch(
     batch: &Batch,
     buffer: &mut WorkerBuffer,
 ) {
-    let mut line_number = batch.first_line;
-    for raw in batch.data.split_inclusive(|b| *b == b'\n') {
+    let raw_lines = batch.data.split_inclusive(|b| *b == b'\n');
+    for (line_number, raw) in (batch.first_line..).zip(raw_lines) {
         let pos = position(batch.file, line_number, 0);
-        line_number += 1;
         match std::str::from_utf8(raw) {
             Ok(line) => match parse_line(line, config) {
                 Ok(Some(parsed)) => {
@@ -290,6 +289,7 @@ fn edge_layout(config: &Configuration) -> Result<EdgeLayout, String> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn add_edge(
     config: &Configuration,
     indexer: &Indexer,
