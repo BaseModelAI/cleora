@@ -32,7 +32,7 @@ scipy = ["scipy>=1.9"]
 viz = ["matplotlib>=3.5"]
 networkx = ["networkx>=2.6"]
 full = ["scipy>=1.9", "matplotlib>=3.5", "networkx>=2.6", "tqdm>=4.60"]
-test = ["pytest>=7", "scipy>=1.9", "pandas>=1.5", "networkx>=2.6"]
+test = ["pytest>=7", "scipy>=1.9", "pandas>=1.5", "networkx>=2.6", "scikit-learn>=1.1"]
 
 [project.urls]
 Homepage = "https://cleora.ai"
