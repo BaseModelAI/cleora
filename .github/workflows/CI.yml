@@ -43,15 +43,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Every supported Python on Linux x86_64; the oldest and the newest one
+        # on Linux aarch64 and on Apple silicon. One abi3 wheel serves them all,
+        # so what varies is the interpreter and the versions of the dependencies.
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
         include:
-          - os: ubuntu-latest        # x86_64
+          - os: ubuntu-24.04-arm
             python-version: "3.10"
-          - os: ubuntu-latest
-            python-version: "3.13"
-          - os: ubuntu-24.04-arm     # aarch64
-            python-version: "3.13"
-          - os: macos-latest         # Apple silicon
-            python-version: "3.13"
+          - os: ubuntu-24.04-arm
+            python-version: "3.15"
+          - os: macos-latest
+            python-version: "3.10"
+          - os: macos-latest
+            python-version: "3.15"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
