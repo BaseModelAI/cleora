@@ -181,6 +181,13 @@ impl SparseMatrix {
         self.py_entity_ids = PyOnceLock::new();
     }
 
+    /// Entities without any neighbour other than themselves, in increasing order.
+    pub fn isolated_entities(&self) -> Vec<usize> {
+        (0..self.num_entities())
+            .filter(|&row| self.row_range(row).all(|k| self.indices[k] as usize == row))
+            .collect()
+    }
+
     /// Edge value under the requested normalisation.
     #[inline(always)]
     pub fn normalized_value(&self, row: usize, k: usize, kind: Normalization) -> f32 {

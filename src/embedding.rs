@@ -430,27 +430,31 @@ fn rmse(a: &[f32], b: &[f32]) -> f64 {
     (partial.iter().sum::<f64>() / a.len() as f64).sqrt()
 }
 
-/// Classic Cleora: `num_iterations` rounds of propagation followed by row-wise L2
-/// normalisation. Returns the embeddings and the number of rounds performed.
+/// Classic Cleora on a matrix in place: `num_iterations` rounds of propagation followed
+/// by row-wise L2 normalisation of `current`, using `scratch` (same size) as the second
+/// buffer. Returns the number of rounds performed.
 /// With `convergence_threshold > 0` iteration stops once the RMSE between two
 /// consecutive rounds drops below the threshold.
-pub fn embed(
+pub fn iterate(
     graph: &SparseMatrix,
-    initial: Vec<f32>,
+    current: &mut [f32],
+    scratch: &mut [f32],
     dim: usize,
     kind: MarkovType,
     num_iterations: usize,
     residual_weight: f32,
     convergence_threshold: f32,
-) -> (Vec<f32>, usize) {
-    let mut src = initial;
-    let mut dst = vec![0f32; src.len()];
+) -> usize {
     let use_residual = residual_weight > 0.0 && residual_weight < 1.0;
     let check_convergence = convergence_threshold > 0.0;
+    // the two buffers take turns; `src` always holds the latest round
+    let (mut src, mut dst) = (current, scratch);
+    let mut in_scratch = false;
+    let mut rounds = num_iterations;
 
     for iteration in 0..num_iterations {
-        let previous = &src;
-        propagate_then(graph, previous, &mut dst, dim, kind, |row, values| {
+        let previous: &[f32] = src;
+        propagate_then(graph, previous, dst, dim, kind, |row, values| {
             if use_residual {
                 mix_residual_row(
                     values,
@@ -462,13 +466,47 @@ pub fn embed(
         });
 
         let converged =
-            check_convergence && iteration > 0 && rmse(&dst, &src) < convergence_threshold as f64;
+            check_convergence && iteration > 0 && rmse(dst, src) < convergence_threshold as f64;
         std::mem::swap(&mut src, &mut dst);
+        in_scratch = !in_scratch;
         if converged {
-            return (src, iteration + 1);
+            rounds = iteration + 1;
+            break;
         }
     }
-    (src, num_iterations)
+    if in_scratch {
+        // `src` is the scratch buffer: the result belongs in `current`
+        dst.par_chunks_mut(1 << 16)
+            .zip(src.par_chunks(1 << 16))
+            .for_each(|(target, source)| target.copy_from_slice(source));
+    }
+    rounds
+}
+
+/// Classic Cleora from the given initial vectors. Returns the embeddings and the
+/// number of rounds performed (see [`iterate`]).
+pub fn embed(
+    graph: &SparseMatrix,
+    initial: Vec<f32>,
+    dim: usize,
+    kind: MarkovType,
+    num_iterations: usize,
+    residual_weight: f32,
+    convergence_threshold: f32,
+) -> (Vec<f32>, usize) {
+    let mut current = initial;
+    let mut scratch = vec![0f32; current.len()];
+    let rounds = iterate(
+        graph,
+        &mut current,
+        &mut scratch,
+        dim,
+        kind,
+        num_iterations,
+        residual_weight,
+        convergence_threshold,
+    );
+    (current, rounds)
 }
 
 #[inline(always)]
@@ -906,6 +944,38 @@ mod tests {
             l2_normalize_row(row)
         });
         assert_eq!(separate, fused);
+    }
+
+    /// The result of the in-place loop must end up in the caller's buffer whatever
+    /// the number of rounds, and equal the rounds applied one by one.
+    #[test]
+    fn iterating_in_place_matches_separate_rounds() {
+        let graph = ring_graph(200);
+        let n = graph.num_entities();
+        let dim = 6;
+        for rounds in 0..5 {
+            let mut expected = initialize(&graph.entity_ids, dim, 2);
+            for _ in 0..rounds {
+                let mut next = vec![0f32; n * dim];
+                propagate(&graph, &expected, &mut next, dim, MarkovType::Symmetric);
+                l2_normalize_rows(&mut next, dim);
+                expected = next;
+            }
+            let mut current = initialize(&graph.entity_ids, dim, 2);
+            let mut scratch = vec![f32::NAN; n * dim];
+            let done = iterate(
+                &graph,
+                &mut current,
+                &mut scratch,
+                dim,
+                MarkovType::Symmetric,
+                rounds,
+                0.0,
+                0.0,
+            );
+            assert_eq!(done, rounds);
+            assert_eq!(current, expected, "{} rounds", rounds);
+        }
     }
 
     #[test]

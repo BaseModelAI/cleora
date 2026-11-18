@@ -18,6 +18,8 @@ class SparseMatrix:
     entity_degrees: NDArray[np.float32]
     #: Names of the entity columns the matrix was built from.
     column_names: List[str]
+    #: Indices of the entities that have no neighbour other than themselves.
+    isolated_entities: List[int]
 
     def __new__(cls, *args: Any) -> "SparseMatrix": ...
     def __repr__(self) -> str: ...
@@ -27,6 +29,14 @@ class SparseMatrix:
     def from_iterator(
         hyperedges: Iterable[str],
         columns: str,
+        hyperedge_trim_n: int = 16,
+        num_workers: Optional[int] = None,
+        weights: Optional[Union[Sequence[float], NDArray[Any]]] = None,
+    ) -> "SparseMatrix": ...
+
+    @staticmethod
+    def from_cliques(
+        cliques: Iterable[Sequence[str]],
         hyperedge_trim_n: int = 16,
         num_workers: Optional[int] = None,
         weights: Optional[Union[Sequence[float], NDArray[Any]]] = None,
@@ -63,6 +73,12 @@ class SparseMatrix:
         out: Optional[NDArray[np.float32]] = None,
         rows: Optional[Union[Sequence[int], NDArray[np.integer[Any]]]] = None,
     ) -> NDArray[np.float32]: ...
+    def left_markov_propagate_normalized_inplace(
+        self, x: NDArray[np.float32], num_iterations: int, num_workers: Optional[int] = None
+    ) -> None: ...
+    def symmetric_markov_propagate_normalized_inplace(
+        self, x: NDArray[np.float32], num_iterations: int, num_workers: Optional[int] = None
+    ) -> None: ...
     def embed_fast(
         self,
         feature_dim: int,

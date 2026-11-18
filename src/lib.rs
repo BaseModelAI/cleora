@@ -17,7 +17,7 @@ use crate::configuration::{resolve_num_workers, Configuration};
 use crate::embedding::{thread_pool, MarkovType};
 use crate::pipeline::{
     build_graph_from_files, build_graph_from_int_edges, build_graph_from_lines,
-    build_graph_from_str_edges,
+    build_graph_from_rows, build_graph_from_str_edges,
 };
 use crate::sparse_matrix::{Normalization, SparseMatrix};
 use crate::sparse_matrix_builder::BuildStats;
@@ -280,6 +280,46 @@ impl SparseMatrix {
         build_graph_from_lines(&config, &lines, None).map(|(matrix, _)| matrix)
     }
 
+    fn propagate_normalized_inplace(
+        &self,
+        py: Python<'_>,
+        x: &Bound<'_, PyAny>,
+        markov_type: MarkovType,
+        num_iterations: usize,
+        num_workers: Option<usize>,
+    ) -> PyResult<()> {
+        let x = as_f32_matrix(x, "x")?;
+        let (rows, dim) = (x.shape()[0], x.shape()[1]);
+        if rows != self.num_entities() {
+            return Err(PyValueError::new_err(format!(
+                "Embedding matrix has {} rows but graph has {} entities",
+                rows,
+                self.num_entities()
+            )));
+        }
+        let mut target = x
+            .try_readwrite()
+            .map_err(|_| PyValueError::new_err("x must be a writeable array"))?;
+        let data = writable_matrix_data(&mut target, "x")?;
+        let pool = thread_pool(resolve_num_workers(num_workers));
+        py.detach(|| {
+            pool.install(|| {
+                let mut scratch = vec![0f32; data.len()];
+                embedding::iterate(
+                    self,
+                    data,
+                    &mut scratch,
+                    dim,
+                    markov_type,
+                    num_iterations,
+                    0.0,
+                    0.0,
+                );
+            })
+        });
+        Ok(())
+    }
+
     fn embed_classic<'py>(
         &self,
         py: Python<'py>,
@@ -347,6 +387,85 @@ impl SparseMatrix {
         rows: Option<&Bound<'py, PyAny>>,
     ) -> PyResult<Bound<'py, PyArray2<f32>>> {
         self.markov_propagate(py, x, MarkovType::Symmetric, num_workers, out, rows)
+    }
+
+    /// `num_iterations` rounds of random-walk propagation, each followed by scaling
+    /// every row to unit L2 norm, in place: `x` (float32, C-contiguous, one row per
+    /// entity) is overwritten with the result. Needs one more matrix of working
+    /// memory, whatever the number of rounds.
+    #[pyo3(signature = (x, num_iterations, num_workers = None))]
+    fn left_markov_propagate_normalized_inplace(
+        &self,
+        py: Python<'_>,
+        x: &Bound<'_, PyAny>,
+        num_iterations: usize,
+        num_workers: Option<usize>,
+    ) -> PyResult<()> {
+        self.propagate_normalized_inplace(py, x, MarkovType::Left, num_iterations, num_workers)
+    }
+
+    /// Like `left_markov_propagate_normalized_inplace`, with the symmetrically
+    /// normalised matrix.
+    #[pyo3(signature = (x, num_iterations, num_workers = None))]
+    fn symmetric_markov_propagate_normalized_inplace(
+        &self,
+        py: Python<'_>,
+        x: &Bound<'_, PyAny>,
+        num_iterations: usize,
+        num_workers: Option<usize>,
+    ) -> PyResult<()> {
+        self.propagate_normalized_inplace(py, x, MarkovType::Symmetric, num_iterations, num_workers)
+    }
+
+    /// Builds the matrix from an iterable of cliques: every element is a sequence of
+    /// entity names, and all entities of a clique are connected with each other.
+    ///
+    /// Names are taken as they are, so they may contain any character (spaces, tabs,
+    /// commas). `weights` optionally gives one non-negative weight per clique.
+    #[staticmethod]
+    #[pyo3(signature = (cliques, hyperedge_trim_n = 16, num_workers = None, weights = None))]
+    fn from_cliques(
+        py: Python<'_>,
+        cliques: &Bound<'_, PyAny>,
+        hyperedge_trim_n: usize,
+        num_workers: Option<usize>,
+        weights: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<SparseMatrix> {
+        let config = Configuration::new(
+            "complex::reflexive::CliqueNode",
+            hyperedge_trim_n,
+            num_workers,
+        )
+        .map_err(PyValueError::new_err)?;
+        let mut rows: Vec<Vec<Vec<PyBackedStr>>> = match cliques.len() {
+            Ok(len) => Vec::with_capacity(len),
+            Err(_) => Vec::new(),
+        };
+        for clique in cliques.try_iter()? {
+            let clique = clique?;
+            if clique.is_instance_of::<pyo3::types::PyString>() {
+                return Err(PyValueError::new_err(
+                    "every clique must be a sequence of entity names, not a single string",
+                ));
+            }
+            let names = extract_strings(&clique, "Clique elements")?;
+            if names.is_empty() {
+                return Err(PyValueError::new_err(format!(
+                    "clique {} is empty",
+                    rows.len()
+                )));
+            }
+            rows.push(vec![names]);
+        }
+        let weights = extract_weights(weights)?;
+        let result = py.detach(|| build_graph_from_rows(&config, &rows, weights.as_deref()));
+        finish_build(py, result)
+    }
+
+    /// Indices of the entities that have no neighbour other than themselves.
+    #[getter(isolated_entities)]
+    fn py_isolated_entities(&self) -> Vec<usize> {
+        self.isolated_entities()
     }
 
     /// Builds the matrix from an iterable of lines, one hyperedge per line.
