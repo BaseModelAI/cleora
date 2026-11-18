@@ -51,6 +51,7 @@ jobs:
   linux:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
+      fail-fast: false
       matrix:
         platform:
           - runner: ubuntu-latest
@@ -132,6 +133,7 @@ jobs:
   windows:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
+      fail-fast: false
       matrix:
         platform:
           - runner: windows-latest
@@ -166,11 +168,13 @@ jobs:
   macos:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
+      fail-fast: false
       matrix:
         platform:
           - runner: macos-15-intel
             target: x86_64
-          - runner: macos-14
+          # macos-14 was retired in November 2026
+          - runner: macos-latest
             target: aarch64
     steps:
       - uses: actions/checkout@v4
