@@ -22,6 +22,9 @@ def main():
     embed_parser.add_argument("--algorithm", "-a", default="cleora",
                               choices=["cleora", "prone", "randne", "hope", "netmf", "grarep", "deepwalk", "node2vec"])
     embed_parser.add_argument("--seed", type=int, default=0)
+    embed_parser.add_argument("--no-whiten", action="store_true",
+                              help="Classic Cleora without per-iteration whitening: much faster, "
+                                   "use it with few iterations (e.g. -n 4 to -n 16)")
     embed_parser.add_argument("--verbose", "-v", action="store_true")
 
     info_parser = subparsers.add_parser("info", help="Show graph information")
@@ -90,7 +93,8 @@ def _cmd_embed(args):
 
     t0 = time.time()
     algo_map = {
-        "cleora": lambda: embed(graph, args.dim, args.iterations, args.propagation, args.normalization, args.seed),
+        "cleora": lambda: embed(graph, args.dim, args.iterations, args.propagation, args.normalization,
+                                args.seed, whiten=not args.no_whiten),
         "prone": lambda: embed_prone(graph, args.dim, seed=args.seed),
         "randne": lambda: embed_randne(graph, args.dim, seed=args.seed),
         "hope": lambda: embed_hope(graph, args.dim),
@@ -142,14 +146,27 @@ def _cmd_benchmark(args):
     from .benchmark import benchmark_algorithms, format_benchmark_table
 
     ds = load_dataset(args.dataset)
+    if not ds.get("labels"):
+        kind = "multi-label targets" if ds.get("multilabel") else "no node labels"
+        raise SystemExit(
+            f"Dataset '{args.dataset}' has {kind}; this command needs one label per node. "
+            "See benchmarks/run_benchmarks.py in the repository for multi-label evaluation."
+        )
     graph = SparseMatrix.from_iterator(iter(ds["edges"]), ds["columns"])
 
+    dim = args.dim
+    if graph.num_entities < 4 * dim:
+        # embeddings with (nearly) as many dimensions as there are nodes say nothing
+        dim = max(2, graph.num_entities // 4)
+        print(f"Using {dim} dimensions instead of {args.dim}: the graph has only {graph.num_entities} nodes.")
+
     algorithms = {
-        "cleora": lambda g: embed(g, args.dim, 40),
-        "prone": lambda g: embed_prone(g, args.dim),
-        "randne": lambda g: embed_randne(g, args.dim),
-        "deepwalk": lambda g: embed_deepwalk(g, args.dim),
-        "node2vec": lambda g: embed_node2vec(g, args.dim),
+        "cleora": lambda g: embed(g, dim, 40),
+        "cleora-classic": lambda g: embed(g, dim, 8, whiten=False),
+        "prone": lambda g: embed_prone(g, dim),
+        "randne": lambda g: embed_randne(g, dim),
+        "deepwalk": lambda g: embed_deepwalk(g, dim),
+        "node2vec": lambda g: embed_node2vec(g, dim),
     }
 
     print(f"Benchmarking on {ds['name']} ({ds['num_nodes']} nodes)...")

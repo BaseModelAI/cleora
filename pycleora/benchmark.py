@@ -1,7 +1,62 @@
 import numpy as np
 import time
 import tracemalloc
-from typing import Dict, List, Optional, Callable, Tuple
+from typing import Dict, List, Optional, Callable
+
+
+class _MemoryTracker:
+    """Peak additional memory of a block of code, in MB.
+
+    On Linux this is the peak resident set size of the process, which includes
+    native (Rust, BLAS) allocations. Elsewhere it falls back to ``tracemalloc``,
+    which only sees allocations made through Python and therefore under-reports
+    native code; ``method`` tells which one was used.
+    """
+
+    def __init__(self):
+        self.method = "rss" if self._reset_peak() else "tracemalloc"
+        self.peak_mb = 0.0
+
+    @staticmethod
+    def _reset_peak() -> bool:
+        try:
+            with open("/proc/self/clear_refs", "w") as f:
+                f.write("5")
+            return True
+        except OSError:
+            return False
+
+    @staticmethod
+    def _status_kb(field: str) -> Optional[int]:
+        try:
+            with open("/proc/self/status") as f:
+                for line in f:
+                    if line.startswith(field + ":"):
+                        return int(line.split()[1])
+        except OSError:
+            pass
+        return None
+
+    def __enter__(self):
+        if self.method == "rss":
+            self._reset_peak()
+            self._start_kb = self._status_kb("VmRSS")
+            if self._start_kb is None:
+                self.method = "tracemalloc"
+        if self.method == "tracemalloc":
+            tracemalloc.start()
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if self.method == "rss":
+            peak_kb = self._status_kb("VmHWM")
+            if peak_kb is not None:
+                self.peak_mb = max(peak_kb - self._start_kb, 0) / 1024
+        else:
+            _, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+            self.peak_mb = peak / 1024 / 1024
+        return False
 
 
 def benchmark_algorithms(
@@ -23,22 +78,21 @@ def benchmark_algorithms(
         scores_list = []
         memory_peaks = []
 
+        memory_method = None
         for run in range(num_runs):
-            tracemalloc.start()
-            t0 = time.time()
             try:
-                emb = algo_fn(graph)
-                elapsed = time.time() - t0
-                _, peak = tracemalloc.get_traced_memory()
-                tracemalloc.stop()
+                with _MemoryTracker() as tracker:
+                    t0 = time.perf_counter()
+                    emb = algo_fn(graph)
+                    elapsed = time.perf_counter() - t0
+                memory_method = tracker.method
 
                 scores = metrics_fn(graph, emb, labels)
                 times.append(elapsed)
                 scores_list.append(scores)
-                memory_peaks.append(peak / 1024 / 1024)
+                memory_peaks.append(tracker.peak_mb)
             except Exception as e:
-                tracemalloc.stop()
-                results[name] = {"error": str(e)}
+                results[name] = {"error": f"{type(e).__name__}: {e}"}
                 break
 
         if name not in results:
@@ -53,6 +107,7 @@ def benchmark_algorithms(
                 "avg_time": float(np.mean(times)),
                 "std_time": float(np.std(times)) if len(times) > 1 else 0.0,
                 "avg_memory_mb": float(np.mean(memory_peaks)),
+                "memory_method": memory_method,
                 "scores": avg_scores,
                 "num_runs": num_runs,
             }
@@ -74,10 +129,10 @@ def benchmark_datasets(
     for ds_name in dataset_names:
         try:
             ds = load_dataset(ds_name)
-            t0 = time.time()
+            t0 = time.perf_counter()
             graph = SparseMatrix.from_iterator(iter(ds["edges"]), ds["columns"])
             emb = embed_fn(graph)
-            elapsed = time.time() - t0
+            elapsed = time.perf_counter() - t0
 
             scores = node_classification_scores(graph, emb, ds["labels"], seed=seed)
             results[ds_name] = {
