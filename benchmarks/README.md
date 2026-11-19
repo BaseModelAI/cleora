@@ -15,6 +15,7 @@ benchmarks/replicate.sh ~/cleora-bench --datasets cora,citeseer --no-timing   # 
 - [Node classification](#node-classification)
 - [Similarity search and link ranking](#similarity-search-and-link-ranking)
 - [One configuration per method](#one-configuration-per-method)
+- [The popularity prior](#the-popularity-prior)
 - [Number of iterations](#number-of-iterations)
 - [Time and memory](#time-and-memory)
 - [Figures](#figures)
@@ -102,9 +103,11 @@ four *families*. The columns of the main tables:
   recommends for the task, for every graph alike -
   `embed(graph, 1024, graph.suggest_iterations(propagation, purpose), propagation)`
   with `propagation="left"`, `purpose="classification"` for node classification and
-  `propagation="symmetric"`, `purpose="similarity"` for link ranking. The two columns
-  are the same method fed in two ways; they are shown side by side and are not ranked
-  against each other.
+  `propagation="symmetric"`, `purpose="similarity"` for similarity search and link
+  ranking, where the vectors are also given the popularity prior
+  (`scale_by_popularity`, [below](#the-popularity-prior)). The two columns are the
+  same method fed in two ways; they are shown side by side and are not ranked against
+  each other.
 
 Outside the main tables, in tables of their own:
 
@@ -241,15 +244,16 @@ Two decisions about Cleora were made once, for all graphs, and not on test score
 | Task | Graphs | one column, left | one column, symmetric | two columns, left | two columns, symmetric |
 |---|---:|---:|---:|---:|---:|
 | node classification (logistic regression) | 17 | 0.6606 (4) | 0.6490 (7) | 0.6592 (2) | 0.6539 (4) |
-| link ranking (cosine) | 26 | 0.4243 (3) | 0.4574 (21) | 0.3870 (1) | 0.4033 (1) |
+| link ranking (cosine) | 26 | 0.4242 (3) | 0.4575 (21) | 0.3870 (1) | 0.4033 (1) |
 <!-- /benchmark:families_validation -->
 
 - *The number of iterations.* A rule on two statistics of the graph, fitted on
-  validation curves ([next section](#number-of-iterations)).
+  validation curves ([below](#number-of-iterations)).
+- *The popularity prior and its exponent* ([next section](#the-popularity-prior)).
 
 In similarity search and in link ranking a method is given the better of dot product
-and cosine on validation (the validation MRR against sampled candidates); for Cleora,
-whose vectors have unit length, the two coincide.
+and cosine on validation (the validation MRR against sampled candidates); for Cleora
+that is the choice between the popularity prior and none.
 
 A number is the mean over seeds and splits; ± is the standard deviation over them.
 The best number of a row is bold, the second best underlined. *mean rank* is the
@@ -289,34 +293,74 @@ reported separately:
 <!-- benchmark:tuned_lp -->
 | Dataset | Cleora | Cleora, tuned | gain | Best baseline |
 |---|---:|---:|---:|---|
-| CiteSeer | 0.440 | **0.445** | +0.6 | NetMF 0.421 |
-| Cora | 0.387 | **0.388** | +0.2 | NetMF 0.364 |
-| PPI | 0.204 | **0.207** | +0.3 | RandNE 0.183 |
-| PubMed | **0.428** | 0.427 | -0.0 | Walklets 0.420 |
-| DBLP | 0.524 | **0.529** | +0.5 | RandNE 0.492 |
-| Cora-Full | 0.643 | **0.649** | +0.6 | RandNE 0.614 |
-| Facebook (ego) | 0.595 | **0.608** | +1.3 | ProNE 0.601 |
-| Coauthor CS | 0.634 | **0.657** | +2.3 | RandNE 0.648 |
-| Amazon Photo | 0.508 | **0.520** | +1.2 | HOPE 0.456 |
-| Wikipedia POS | **0.251** | **0.251** | +0.0 | HOPE 0.242 |
-| Amazon Computers | 0.483 | **0.493** | +1.0 | HOPE 0.421 |
-| Coauthor Physics | 0.737 | **0.765** | +2.9 | RandNE 0.752 |
-| BlogCatalog | **0.218** | **0.218** | +0.0 | HOPE 0.209 |
-| Flickr | 0.283 | **0.297** | +1.4 | DeepWalk 0.244 |
+| CiteSeer | **0.458** | **0.458** | +0.0 | NetMF 0.421 |
+| Cora | **0.408** | **0.408** | +0.0 | NetMF 0.364 |
+| PPI | 0.204 | **0.206** | +0.2 | RandNE 0.183 |
+| PubMed | 0.450 | **0.459** | +0.9 | Walklets 0.420 |
+| DBLP | 0.540 | **0.541** | +0.2 | RandNE 0.492 |
+| Cora-Full | 0.658 | **0.660** | +0.3 | RandNE 0.614 |
+| Facebook (ego) | 0.595 | **0.612** | +1.7 | ProNE 0.601 |
+| Coauthor CS | 0.637 | **0.662** | +2.5 | RandNE 0.648 |
+| Amazon Photo | 0.519 | **0.524** | +0.6 | HOPE 0.456 |
+| Wikipedia POS | **0.270** | **0.270** | +0.0 | HOPE 0.242 |
+| Amazon Computers | 0.489 | **0.494** | +0.5 | HOPE 0.421 |
+| Coauthor Physics | 0.737 | **0.769** | +3.2 | RandNE 0.752 |
+| BlogCatalog | **0.222** | **0.222** | +0.0 | HOPE 0.209 |
+| Flickr | 0.297 | **0.306** | +1.0 | DeepWalk 0.244 |
 | MovieLens-1M | 0.148 | 0.148 | +0.0 | HOPE 0.149 |
-| ogbl-ddi | 0.027 | 0.027 | +0.0 | HOPE 0.083 |
-| ogbn-arxiv | **0.671** | **0.671** | +0.0 | RandNE 0.606 |
-| ogbl-collab | 0.057 | 0.055 | -0.2 | DeepWalk 0.095 |
+| ogbl-ddi | 0.027 | 0.069 | +4.2 | HOPE 0.083 |
+| ogbn-arxiv | **0.680** | **0.680** | +0.0 | RandNE 0.606 |
+| ogbl-collab | 0.095 | **0.134** | +3.9 | DeepWalk 0.095 |
 | roadNet-CA | 0.752 | 0.752 | +0.0 | ProNE 0.778 |
-| Yelp | 0.495 | 0.504 | +0.8 | RandNE 0.513 |
-| Reddit | 0.605 | **0.745** | +14.0 | ProNE 0.626 |
-| MovieLens-20M | 0.209 | 0.209 | +0.0 | ProNE 0.227 |
-| ogbl-ppa | **0.069** | **0.069** | +0.0 | FastRP 0.034 |
-| ogbl-citation2 | 0.802 | **0.838** | +3.6 | RandNE 0.829 |
-| LiveJournal | 0.756 | **0.799** | +4.3 | RandNE 0.776 |
-| ogbn-products | **0.909** | **0.909** | +0.0 | RandNE 0.906 |
-| *mean gain (points)* | | | +1.3 | |
+| Yelp | 0.495 | **0.525** | +2.9 | RandNE 0.513 |
+| Reddit | 0.605 | **0.747** | +14.3 | ProNE 0.626 |
+| MovieLens-20M | 0.237 | **0.256** | +1.9 | ProNE 0.227 |
+| ogbl-ppa | **0.065** | **0.065** | +0.0 | FastRP 0.034 |
+| ogbl-citation2 | 0.813 | **0.850** | +3.7 | RandNE 0.829 |
+| LiveJournal | 0.765 | **0.809** | +4.4 | RandNE 0.776 |
+| ogbn-products | 0.912 | **0.916** | +0.4 | RandNE 0.906 |
+| *mean gain (points)* | | | +1.8 | |
 <!-- /benchmark:tuned_lp -->
+
+## The popularity prior
+
+Cleora's vectors have unit length, so their dot product is the cosine: a measure of
+how alike two nodes are. Whether two nodes are linked depends on more than that - a
+node with many links is in more of the missing ones too - and the baselines whose
+vectors are not normalised carry that information in the length of their vectors.
+`scale_by_popularity(graph, vectors, exponent)` gives it to Cleora's: every vector is
+multiplied by `degree ** exponent`, and the dot product becomes
+`cosine(i, j) · (degree_i · degree_j) ** exponent`.
+
+In the link tables the Cleora columns are these scaled vectors. The rule that holds
+for every method - dot product or cosine, whichever validates better on the graph -
+then decides between the prior (dot product) and no prior (cosine).
+
+The exponent, 1/16, is the default of the library and was chosen on validation edges
+(`popularity_exponent.py`: the similarity configuration of the benchmark, seed 0, the
+graphs of tiers S and M). Mean validation scores by exponent - MRR against the
+sampled candidates and recall@10 among all nodes - with the prior applied on every
+graph, and under the rule above:
+
+<!-- benchmark:popularity_exponent -->
+| Exponent | Graphs | MRR | recall@10 | MRR, prior or cosine | recall@10, prior or cosine | Graphs that take the prior |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 21 | 0.4016 | 0.2932 | 0.4016 | 0.2932 | 0 |
+| 0.03125 | 21 | 0.4099 | 0.3080 | 0.4123 | 0.3094 | 16 |
+| 0.0625 | 21 | **0.4101** | **0.3092** | **0.4149** | **0.3148** | 14 |
+| 0.09375 | 21 | 0.4076 | 0.3086 | 0.4145 | 0.3145 | 12 |
+| 0.125 | 21 | 0.4051 | 0.3048 | 0.4147 | 0.3139 | 11 |
+| 0.1875 | 21 | 0.3977 | 0.2976 | 0.4133 | 0.3113 | 8 |
+| 0.25 | 21 | 0.3899 | 0.2885 | 0.4130 | 0.3100 | 7 |
+| 0.375 | 21 | 0.3723 | 0.2654 | 0.4109 | 0.3061 | 6 |
+| 0.5 | 21 | 0.3543 | 0.2405 | 0.4092 | 0.2991 | 4 |
+<!-- /benchmark:popularity_exponent -->
+
+The prior is small on purpose. It settles the order of nodes that are about equally
+similar; at larger exponents popularity starts to replace similarity and the scores
+fall. It does not help everywhere: on eight of the 26 graphs (Reddit, ogbl-ddi,
+MovieLens-1M, PPI, Facebook, Coauthor Physics, roadNet-CA, Yelp) the cosine validates
+better and is what the tables use.
 
 ## Number of iterations
 
@@ -424,8 +468,8 @@ sweep chose):
 <!-- benchmark:iterations_lp -->
 | Dataset | one column, left (auto) | one column, left (tuned) | one column, left (loss) | one column, symmetric (auto) | one column, symmetric (tuned) | one column, symmetric (loss) | two columns, left (auto) | two columns, left (tuned) | two columns, left (loss) | two columns, symmetric (auto) | two columns, symmetric (tuned) | two columns, symmetric (loss) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| CiteSeer | 16 | 8 | +0.5 | 23/24 | 8 | +0.6 | 8 | 6 | -0.1 | 12 | 16 | -0.1 |
-| Cora | 14 | 12 | +0.3 | 20 | 16 | +0.2 | 7 | 24 | -1.4 | 10 | 32 | -1.0 |
+| CiteSeer | 16 | 8 | +0.5 | 23/24 | 8 | +0.5 | 8 | 6 | -0.1 | 12 | 16 | -0.1 |
+| Cora | 14 | 12 | +0.3 | 20 | 16 | +0.1 | 7 | 24 | -1.4 | 10 | 32 | -1.0 |
 | PPI | 8 | 8 | +0.0 | 9 | 6 | +0.3 | 3 | 3 | +0.0 | 5 | 3 | +0.6 |
 | PubMed | 12 | 12 | +0.0 | 18 | 16 | -0.0 | 6 | 8 | -0.1 | 9 | 16 | -0.2 |
 | DBLP | 11 | 8 | +0.3 | 16 | 12 | +0.5 | 5 | 6 | -0.5 | 8 | 6 | +0.1 |
@@ -441,7 +485,7 @@ sweep chose):
 | MovieLens-1M | 8 | 12 | +1.2 | 8 | 8 | +0.0 | 2 | 64 | +4.2 | 2 | 64 | +1.8 |
 | ogbl-ddi | 8 | 12 | -0.0 | 8 | 8 | +0.0 | 2 | 2 | +0.0 | 2 | 2 | +0.0 |
 | ogbn-arxiv | 8 | 8 | +0.0 | 11 | 12 | -0.3 | 4 | 3 | +0.1 | 5 | 4 | +0.1 |
-| ogbl-collab | 9 | 16 | -0.0 | 13 | 2 | +0.3 | 4 | 8 | +0.0 | 7 | 2 | +0.1 |
+| ogbl-collab | 9 | 16 | -0.1 | 13 | 2 | +0.3 | 4 | 8 | -0.0 | 7 | 2 | +0.1 |
 | roadNet-CA | 15 | – | – | 23 | – | – | 8 | – | – | 11 | – | – |
 | Yelp | 8 | 8 | +0.0 | 9 | 12 | +0.0 | 3 | 2 | +0.1 | 4 | 4 | +0.0 |
 | Reddit | 8 | 8 | +0.0 | 8 | 8 | +0.0 | 2 | 1 | +19.3 | 2 | 1 | +8.5 |
@@ -490,7 +534,7 @@ separates classes better than another is what the tables measure.
 ```bash
 benchmarks/replicate.sh <directory> [--tiers S|SM|SML] [--datasets a,b,c] [--dim 1024] [--threads N]
                         [--no-setup] [--no-baselines] [--no-previous] [--no-tuned]
-                        [--no-timing] [--no-figures] [--no-report]
+                        [--no-popularity] [--no-timing] [--no-figures] [--no-report]
 ```
 
 runs, in this order and skipping whatever is already there:
@@ -502,6 +546,7 @@ runs, in this order and skipping whatever is already there:
 | Cleora, baselines, pycleora 3.2 default | `run_benchmark.py` | `results/` |
 | iteration sweep and selection | `run_benchmark.py --results sweep`, `select_iterations.py` | `sweep/`, `selected_iterations.json` |
 | Cleora, tuned | `run_benchmark.py --methods cleora_tuned` | `results/` |
+| exponent of the popularity prior (tiers S and M) | `popularity_exponent.py` | `popularity/` |
 | time and memory | `run_benchmark.py --tasks time --results timing` | `timing/` |
 | figures | `make_figures.py` | `benchmarks/figures/` |
 | tables | `make_report.py` | `benchmarks/RESULTS.md`, `benchmarks/results.csv.gz` (every aggregated number), the READMEs |

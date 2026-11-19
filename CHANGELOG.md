@@ -110,20 +110,24 @@ mixed with new ones. Requires Python 3.10 or newer; tested on 3.10 to 3.15.
 - `SparseMatrix.entity_ids` is an immutable tuple that is built once. It used to
   be a new list on every access, which made loops over `graph.entity_ids[i]`
   quadratic. Assigning a new sequence of names still works.
-- **Speed.** The propagation schedules work by matrix entries instead of rows,
-  splits hub rows across threads, fuses the row normalisation into the product
-  and prefetches; graph construction is parallel and deterministic. On an R-MAT
-  graph with 0.6 million nodes and 12 million edges at 1024 dimensions
-  (`benchmarks/kernel_speed.py`):
+- **Speed.** `embed()` keeps the embedding matrix in blocks of 16 columns, one
+  cache line per entity, and finishes a block for all entities before the next:
+  the vectors that are read at random then come from a slab that fits the
+  caches instead of from all over a matrix of gigabytes. The result is
+  bit-identical to propagating row by row. Work is scheduled by matrix entries
+  instead of rows, hub rows are split across threads, and the row normalisation
+  costs no pass of its own; graph construction is parallel and deterministic.
+  On an R-MAT graph with 0.6 million nodes and 12 million edges at 1024
+  dimensions (`benchmarks/kernel_speed.py`):
 
   | Machine | pycleora | Threads | Build | One iteration |
   |---|---|---:|---:|---:|
   | Intel Core Ultra 9 275HX (24 threads) | 3.2.1 | 24 | 17.8 s | 5.39 s |
-  | | 4.0.0 | 24 | 1.11 s | 1.48 s |
-  | | 4.0.0 | 1 | 6.38 s | 5.44 s |
+  | | 4.0.0 | 24 | 1.19 s | 0.74 s |
+  | | 4.0.0 | 1 | 6.12 s | 5.16 s |
   | Apple M4 (Mac mini, 10 cores) | 3.2.1 | 10 | 5.70 s | 4.02 s |
-  | | 4.0.0 | 10 | 0.91 s | 1.29 s |
-  | | 4.0.0 | 1 | 3.36 s | 3.09 s |
+  | | 4.0.0 | 10 | 0.88 s | 0.73 s |
+  | | 4.0.0 | 1 | 3.20 s | 2.84 s |
 
 - The whitening path (`whiten=True`) computes the covariance and the projection
   in the Rust core, in place, with 2 instead of 6 embedding matrices of working
@@ -142,6 +146,11 @@ mixed with new ones. Requires Python 3.10 or newer; tested on 3.10 to 3.15.
   `pycleora.__version__`.
 
 ### Added
+- `scale_by_popularity(graph, embeddings, exponent=1/16)`: multiplies every
+  vector by a power of the degree of its entity, so that the dot product of two
+  vectors is their cosine times a popularity prior. On 14 of 21 benchmark graphs
+  held-out links are found better with it than with the cosine
+  (`benchmarks/README.md`, "The popularity prior").
 - `SparseMatrix.from_edges(src, dst, weights=None)` and
   `pycleora.io_utils.from_arrays`: build a graph from NumPy arrays of integer
   ids or from sequences of names without formatting and re-parsing strings.

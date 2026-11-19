@@ -29,11 +29,11 @@ No sampling, no training, no GPU. Deterministic, and fast enough to tune in seco
 <!-- benchmark:headline -->
 | | Graphs | Cleora: best on | mean rank | Cleora, two columns: best on | mean rank | Best baseline (mean rank) |
 |---|---:|---:|---:|---:|---:|---|
-| Similarity search among all nodes (dot product / cosine, recall@10) | 26 | **19** | 1.35 | 7 | 3.38 | RandNE (3.38) |
+| Similarity search among all nodes (dot product / cosine, recall@10) | 26 | **23** | 1.12 | 15 | 2.23 | RandNE (3.46) |
 | Node classification (logistic regression, accuracy / micro-F1) | 17 | **10** | 2.00 | 7 | 2.24 | node2vec (3.35) |
-| Link ranking against sampled candidates (dot product / cosine, MRR) | 26 | **14** | 1.58 | 5 | 3.50 | RandNE (3.27) |
+| Link ranking against sampled candidates (dot product / cosine, MRR) | 26 | **15** | 1.50 | 13 | 2.35 | RandNE (3.27) |
 
-With the number of iterations and the normalisation chosen on validation data - the baselines stay at their authors' settings, so this is not part of the comparison above - Cleora is ahead of every baseline on 15 of 17 graphs in node classification and on 20 of 26 graphs in link ranking against sampled candidates.
+With the number of iterations and the normalisation chosen on validation data - the baselines stay at their authors' settings, so this is not part of the comparison above - Cleora is ahead of every baseline on 15 of 17 graphs in node classification and on 23 of 26 graphs in link ranking against sampled candidates.
 <!-- /benchmark:headline -->
 
 Every number on this page is generated from the benchmark's result files, and the
@@ -43,9 +43,11 @@ benchmark is one command: [`benchmarks/replicate.sh`](benchmarks/replicate.sh).
 
 - `embed(graph)` runs classic Cleora with a number of iterations chosen from the graph;
   per-iteration whitening, the default of 3.2, is opt-in.
-- One embedding iteration is 3 to 4 times faster and graph construction 6 to 16 times
+- One embedding iteration is 5 to 7 times faster and graph construction 6 to 15 times
   ([Performance](#performance)); both are bit-for-bit deterministic for any number of
   threads.
+- `scale_by_popularity` turns "how alike" into "how likely to be linked": better
+  link prediction and recommendation on two graphs out of three.
 - Initial vectors are independent (in 3.2 a 256-dimensional initialisation had an
   effective rank of 5), weights are honoured, bad input is reported, forked workers
   no longer hang.
@@ -117,7 +119,7 @@ network = SparseMatrix.from_edges(source, target, columns="complex::reflexive::n
 vectors = embed(network, feature_dim=1024)           # row i belongs to network.entity_ids[i]
 ```
 
-### The three choices that matter
+### The four choices that matter
 
 **1. How the graph is given.** A column that is `complex::reflexive` relates the
 entities of a line to each other *and to themselves*; two plain columns relate the
@@ -153,6 +155,23 @@ embed(graph, 1024, 32, callback=lambda i, vectors: snapshots.__setitem__(i + 1, 
 ```
 
 [How the rule was derived and how close it gets](benchmarks/README.md#number-of-iterations).
+
+**4. Alike, or likely to be linked.** The vectors have unit length: their dot product
+is the cosine, which says how alike two entities are. Which links exist depends on
+more than that - a well-connected entity is in more of them. To find missing links
+(recommendations, "people you may know") give the vectors a popularity prior:
+
+```python
+from pycleora import scale_by_popularity
+
+for_links = scale_by_popularity(graph, embeddings)     # row i times degree_i ** (1/16)
+```
+
+The dot product of two such vectors is their cosine times a factor that grows with how
+connected both are; search them with an index that maximises the dot product. On two
+of three benchmark graphs this finds more of the held-out links than the cosine does
+([table](benchmarks/README.md#the-popularity-prior)). Keep the unit vectors for
+classification and for "more like this".
 
 ### More
 
@@ -190,7 +209,7 @@ graph.left_markov_propagate_normalized_inplace(vectors, 8)   # 8 iterations, in 
 
 **Whitening.** `embed(graph, num_iterations=40, whiten=True)` PCA-whitens the columns
 after every iteration - the default of pycleora 3.2. It needs many more entities than
-dimensions and 25 to 400 times the time. On small graphs it is clearly worse than the
+dimensions and 30 to 350 times the time. On small graphs it is clearly worse than the
 default, on graphs with hundreds of nodes per dimension it can classify better
 ([Reading the results honestly](#reading-the-results-honestly)).
 
@@ -224,8 +243,8 @@ embeddings are used in production:
 **One configuration per method, the same for every graph.** Nothing is chosen per
 dataset - not for the baselines, and not for Cleora, which runs with the settings
 recommended above for the task: left normalisation and `purpose="classification"` for
-node classification, symmetric normalisation and `purpose="similarity"` for similarity
-search and link ranking. Both ways of feeding a graph are shown: **Cleora** (one reflexive column) and
+node classification; symmetric normalisation, `purpose="similarity"` and the
+popularity prior for similarity search and link ranking. Both ways of feeding a graph are shown: **Cleora** (one reflexive column) and
 **Cleora, two columns**.
 
 ### Mean rank across graphs
@@ -239,11 +258,11 @@ Similarity search among all nodes, by metric:
 <!-- benchmark:ranks_retrieval -->
 | Metric | Graphs | Cleora | Cleora, two columns | DeepWalk | node2vec | Walklets | NetMF | GraRep | HOPE | ProNE | FastRP | RandNE |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| recall@10 | 26 | **1.35** (19) | 3.38 (7) | 6.23 (0) | 6.27 (0) | 6.04 (1) | 5.69 (0) | 7.88 (0) | 4.88 (3) | 4.19 (1) | 4.46 (0) | 3.38 (2) |
-| recall@50 | 26 | **1.35** (19) | 3.12 (8) | 5.92 (0) | 6.31 (0) | 6.12 (1) | 5.54 (0) | 7.85 (0) | 5.46 (1) | 4.38 (2) | 4.23 (0) | 3.23 (3) |
-| nDCG@10 | 26 | **1.27** (21) | 3.27 (5) | 6.46 (0) | 6.50 (0) | 6.15 (1) | 6.00 (0) | 7.81 (0) | 4.50 (2) | 4.15 (1) | 4.35 (0) | 3.19 (1) |
-| MAP@10 | 26 | **1.23** (22) | 3.15 (5) | 6.42 (0) | 6.58 (0) | 6.23 (1) | 6.00 (0) | 7.77 (0) | 4.46 (2) | 4.19 (0) | 4.35 (0) | 3.15 (1) |
-| MRR | 26 | **1.35** (20) | 3.31 (3) | 6.50 (0) | 6.73 (0) | 6.27 (1) | 6.00 (0) | 7.46 (0) | 4.19 (2) | 4.42 (1) | 4.35 (0) | 3.12 (2) |
+| recall@10 | 26 | **1.12** (23) | 2.23 (15) | 6.23 (0) | 6.27 (0) | 6.04 (1) | 5.69 (0) | 7.88 (0) | 5.00 (1) | 4.23 (1) | 4.46 (0) | 3.46 (0) |
+| recall@50 | 26 | **1.23** (21) | 2.35 (13) | 5.92 (0) | 6.31 (0) | 6.15 (0) | 5.54 (0) | 7.85 (0) | 5.46 (1) | 4.38 (2) | 4.27 (0) | 3.27 (2) |
+| nDCG@10 | 26 | **1.08** (24) | 2.00 (16) | 6.46 (0) | 6.50 (0) | 6.15 (1) | 6.00 (0) | 7.81 (0) | 4.62 (0) | 4.19 (1) | 4.35 (0) | 3.23 (0) |
+| MAP@10 | 26 | **1.04** (25) | 2.00 (18) | 6.42 (0) | 6.58 (0) | 6.23 (1) | 6.00 (0) | 7.77 (0) | 4.58 (0) | 4.23 (0) | 4.35 (0) | 3.19 (0) |
+| MRR | 26 | **1.08** (25) | 2.00 (17) | 6.50 (0) | 6.73 (0) | 6.31 (0) | 6.00 (0) | 7.46 (0) | 4.31 (0) | 4.46 (1) | 4.35 (0) | 3.19 (0) |
 <!-- /benchmark:ranks_retrieval -->
 
 Node classification (accuracy, or micro-F1 on multi-label graphs), by probe:
@@ -260,10 +279,10 @@ Link ranking (MRR of the true neighbour against 500 sampled non-neighbours), by 
 <!-- benchmark:ranks_lp -->
 | Probe | Graphs | Cleora | Cleora, two columns | DeepWalk | node2vec | Walklets | NetMF | GraRep | HOPE | ProNE | FastRP | RandNE |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| dot product or cosine | 26 | **1.58** (14) | 3.50 (5) | 6.15 (1) | 6.35 (0) | 6.12 (0) | 5.88 (0) | 7.31 (0) | 4.81 (2) | 4.54 (4) | 4.38 (0) | 3.27 (5) |
-| dot product | 26 | **1.58** (14) | 3.46 (4) | 6.08 (1) | 6.58 (0) | 5.96 (0) | 6.35 (0) | 7.31 (0) | 4.65 (2) | 4.23 (4) | 4.54 (0) | 3.12 (5) |
+| dot product or cosine | 26 | **1.50** (15) | 2.35 (13) | 6.15 (1) | 6.35 (0) | 6.12 (0) | 5.88 (0) | 7.31 (0) | 4.81 (2) | 4.58 (3) | 4.42 (0) | 3.27 (5) |
+| dot product | 26 | **1.54** (15) | 2.35 (13) | 6.08 (1) | 6.58 (0) | 5.96 (0) | 6.35 (0) | 7.31 (0) | 4.65 (2) | 4.23 (3) | 4.58 (0) | 3.12 (5) |
 | cosine | 26 | **1.38** (17) | 2.69 (11) | 6.46 (0) | 6.42 (0) | 6.65 (0) | 5.31 (0) | 7.54 (0) | 6.42 (0) | 3.62 (4) | 4.04 (0) | 2.54 (5) |
-| logistic regression on x*y | 26 | **1.73** (11) | 3.12 (5) | 6.08 (0) | 6.12 (0) | 6.15 (0) | 6.19 (0) | 7.46 (0) | 5.62 (0) | 2.50 (11) | 4.73 (0) | 3.81 (4) |
+| logistic regression on x*y | 26 | **1.77** (11) | 3.12 (5) | 6.08 (0) | 6.12 (0) | 6.15 (0) | 6.19 (0) | 7.46 (0) | 5.58 (0) | 2.50 (11) | 4.73 (0) | 3.81 (4) |
 <!-- /benchmark:ranks_lp -->
 
 ### Similarity search
@@ -277,34 +296,34 @@ MRR](benchmarks/RESULTS.md#similarity-search-among-all-nodes) give the same pict
 <!-- benchmark:retrieval_recall@10 -->
 | Dataset | Cleora | Cleora, two columns | DeepWalk | node2vec | Walklets | NetMF | GraRep | HOPE | ProNE | FastRP | RandNE |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| CiteSeer | **0.449 ± 0.021** | 0.375 ± 0.014 | 0.401 ± 0.032 | 0.403 ± 0.018 | 0.409 ± 0.017 | <u>0.425 ± 0.028</u> | 0.264 ± 0.019 | 0.419 ± 0.024 | 0.406 ± 0.025 | 0.397 ± 0.030 | 0.383 ± 0.029 |
-| Cora | **0.411 ± 0.010** | 0.377 ± 0.005 | 0.370 ± 0.004 | 0.374 ± 0.004 | 0.371 ± 0.010 | 0.384 ± 0.004 | 0.186 ± 0.001 | <u>0.386 ± 0.006</u> | 0.370 ± 0.007 | 0.380 ± 0.010 | 0.370 ± 0.003 |
-| PPI | **0.167 ± 0.005** | 0.120 ± 0.001 | 0.056 ± 0.001 | 0.056 ± 0.001 | 0.093 ± 0.001 | 0.087 ± 0.004 | 0.035 ± 0.005 | 0.123 ± 0.003 | 0.088 ± 0.002 | 0.107 ± 0.001 | <u>0.131 ± 0.003</u> |
-| PubMed | 0.152 ± 0.004 | 0.088 ± 0.002 | 0.092 ± 0.003 | 0.086 ± 0.006 | **0.192 ± 0.006** | 0.103 ± 0.002 | 0.055 ± 0.004 | <u>0.158 ± 0.003</u> | 0.099 ± 0.003 | 0.092 ± 0.001 | 0.093 ± 0.001 |
-| DBLP | **0.268 ± 0.003** | <u>0.228 ± 0.003</u> | 0.138 ± 0.004 | 0.139 ± 0.005 | 0.089 ± 0.036 | 0.195 ± 0.005 | 0.078 ± 0.004 | 0.222 ± 0.002 | 0.196 ± 0.006 | 0.219 ± 0.004 | 0.227 ± 0.004 |
-| Cora-Full | **0.404 ± 0.003** | <u>0.365 ± 0.002</u> | 0.263 ± 0.001 | 0.265 ± 0.002 | 0.340 ± 0.001 | 0.330 ± 0.001 | 0.122 ± 0.001 | 0.305 ± 0.005 | 0.333 ± 0.001 | 0.364 ± 0.004 | <u>0.365 ± 0.002</u> |
-| Facebook (ego) | **0.491 ± 0.009** | 0.457 ± 0.008 | 0.330 ± 0.004 | 0.324 ± 0.003 | 0.298 ± 0.016 | 0.397 ± 0.002 | 0.182 ± 0.006 | 0.392 ± 0.004 | <u>0.477 ± 0.007</u> | 0.418 ± 0.006 | 0.449 ± 0.004 |
-| Coauthor CS | <u>0.446 ± 0.002</u> | 0.428 ± 0.003 | 0.318 ± 0.001 | 0.325 ± 0.001 | 0.275 ± 0.058 | 0.390 ± 0.002 | 0.138 ± 0.001 | 0.305 ± 0.005 | 0.392 ± 0.005 | 0.431 ± 0.003 | **0.449 ± 0.003** |
-| Amazon Photo | **0.380 ± 0.006** | 0.259 ± 0.007 | 0.197 ± 0.003 | 0.194 ± 0.003 | 0.235 ± 0.004 | 0.212 ± 0.005 | 0.081 ± 0.003 | <u>0.313 ± 0.005</u> | 0.281 ± 0.006 | 0.266 ± 0.007 | 0.277 ± 0.008 |
-| Wikipedia POS | <u>0.232 ± 0.002</u> | 0.127 ± 0.005 | 0.027 ± 0.001 | 0.032 ± 0.004 | 0.041 ± 0.001 | 0.033 ± 0.001 | 0.009 ± 0.001 | **0.252 ± 0.011** | 0.035 ± 0.002 | 0.045 ± 0.002 | 0.030 ± 0.001 |
-| Amazon Computers | **0.330 ± 0.003** | 0.238 ± 0.002 | 0.146 ± 0.002 | 0.146 ± 0.002 | 0.149 ± 0.003 | 0.199 ± 0.003 | 0.043 ± 0.001 | 0.230 ± 0.003 | 0.241 ± 0.000 | 0.233 ± 0.002 | <u>0.244 ± 0.002</u> |
+| CiteSeer | **0.471 ± 0.025** | 0.405 ± 0.017 | 0.401 ± 0.032 | 0.403 ± 0.018 | 0.409 ± 0.017 | <u>0.425 ± 0.028</u> | 0.264 ± 0.019 | 0.419 ± 0.024 | 0.406 ± 0.025 | 0.397 ± 0.030 | 0.383 ± 0.029 |
+| Cora | **0.434 ± 0.010** | <u>0.397 ± 0.012</u> | 0.370 ± 0.004 | 0.374 ± 0.004 | 0.371 ± 0.010 | 0.384 ± 0.004 | 0.186 ± 0.001 | 0.386 ± 0.006 | 0.370 ± 0.007 | 0.380 ± 0.010 | 0.370 ± 0.003 |
+| PPI | **0.167 ± 0.005** | 0.114 ± 0.004 | 0.056 ± 0.001 | 0.056 ± 0.001 | 0.093 ± 0.001 | 0.087 ± 0.004 | 0.035 ± 0.005 | 0.123 ± 0.003 | 0.088 ± 0.002 | 0.107 ± 0.001 | <u>0.131 ± 0.003</u> |
+| PubMed | <u>0.185 ± 0.005</u> | 0.108 ± 0.001 | 0.092 ± 0.003 | 0.086 ± 0.006 | **0.192 ± 0.006** | 0.103 ± 0.002 | 0.055 ± 0.004 | 0.158 ± 0.003 | 0.099 ± 0.003 | 0.092 ± 0.001 | 0.093 ± 0.001 |
+| DBLP | **0.307 ± 0.006** | <u>0.280 ± 0.005</u> | 0.138 ± 0.004 | 0.139 ± 0.005 | 0.089 ± 0.036 | 0.195 ± 0.005 | 0.078 ± 0.004 | 0.222 ± 0.002 | 0.196 ± 0.006 | 0.219 ± 0.004 | 0.227 ± 0.004 |
+| Cora-Full | **0.447 ± 0.003** | <u>0.422 ± 0.001</u> | 0.263 ± 0.001 | 0.265 ± 0.002 | 0.340 ± 0.001 | 0.330 ± 0.001 | 0.122 ± 0.001 | 0.305 ± 0.005 | 0.333 ± 0.001 | 0.364 ± 0.004 | 0.365 ± 0.002 |
+| Facebook (ego) | **0.491 ± 0.009** | <u>0.483 ± 0.009</u> | 0.330 ± 0.004 | 0.324 ± 0.003 | 0.298 ± 0.016 | 0.397 ± 0.002 | 0.182 ± 0.006 | 0.392 ± 0.004 | 0.477 ± 0.007 | 0.418 ± 0.006 | 0.449 ± 0.004 |
+| Coauthor CS | **0.458 ± 0.002** | 0.442 ± 0.004 | 0.318 ± 0.001 | 0.325 ± 0.001 | 0.275 ± 0.058 | 0.390 ± 0.002 | 0.138 ± 0.001 | 0.305 ± 0.005 | 0.392 ± 0.005 | 0.431 ± 0.003 | <u>0.449 ± 0.003</u> |
+| Amazon Photo | **0.416 ± 0.004** | <u>0.358 ± 0.006</u> | 0.197 ± 0.003 | 0.194 ± 0.003 | 0.235 ± 0.004 | 0.212 ± 0.005 | 0.081 ± 0.003 | 0.313 ± 0.005 | 0.281 ± 0.006 | 0.266 ± 0.007 | 0.277 ± 0.008 |
+| Wikipedia POS | **0.315 ± 0.003** | <u>0.311 ± 0.005</u> | 0.027 ± 0.001 | 0.032 ± 0.004 | 0.041 ± 0.001 | 0.033 ± 0.001 | 0.009 ± 0.001 | 0.252 ± 0.011 | 0.035 ± 0.002 | 0.045 ± 0.002 | 0.030 ± 0.001 |
+| Amazon Computers | **0.360 ± 0.004** | <u>0.295 ± 0.005</u> | 0.146 ± 0.002 | 0.146 ± 0.002 | 0.149 ± 0.003 | 0.199 ± 0.003 | 0.043 ± 0.001 | 0.230 ± 0.003 | 0.241 ± 0.000 | 0.233 ± 0.002 | 0.244 ± 0.002 |
 | Coauthor Physics | **0.504 ± 0.000** | 0.485 ± 0.001 | 0.391 ± 0.004 | 0.389 ± 0.004 | 0.317 ± 0.010 | 0.403 ± 0.003 | 0.156 ± 0.005 | 0.288 ± 0.003 | 0.430 ± 0.005 | 0.468 ± 0.002 | <u>0.498 ± 0.004</u> |
-| BlogCatalog | <u>0.114 ± 0.002</u> | 0.029 ± 0.000 | 0.024 ± 0.000 | 0.024 ± 0.002 | 0.038 ± 0.002 | 0.016 ± 0.002 | 0.040 ± 0.002 | **0.120 ± 0.003** | 0.018 ± 0.001 | 0.023 ± 0.001 | 0.020 ± 0.001 |
-| Flickr | **0.073 ± 0.001** | 0.013 ± 0.001 | <u>0.035 ± 0.001</u> | 0.034 ± 0.000 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.027 ± 0.000 | 0.012 ± 0.001 | 0.013 ± 0.000 |
-| MovieLens-1M | <u>0.101 ± 0.003</u> | 0.000 ± 0.000 | 0.028 ± 0.001 | 0.027 ± 0.001 | 0.025 ± 0.000 | 0.067 ± 0.001 | 0.066 ± 0.001 | **0.107 ± 0.010** | 0.090 ± 0.001 | 0.004 ± 0.001 | 0.082 ± 0.005 |
-| ogbl-ddi | **0.092 ± 0.001** | 0.057 ± 0.000 | 0.042 ± 0.000 | 0.040 ± 0.001 | 0.047 ± 0.000 | 0.054 ± 0.000 | 0.028 ± 0.000 | 0.042 ± 0.000 | 0.058 ± 0.000 | 0.059 ± 0.001 | <u>0.060 ± 0.000</u> |
-| ogbn-arxiv | **0.280 ± 0.004** | <u>0.217 ± 0.005</u> | 0.142 ± 0.004 | 0.135 ± 0.003 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.161 ± 0.005 | 0.199 ± 0.004 | 0.212 ± 0.003 |
-| ogbl-collab | **0.383 ± 0.001** | 0.353 ± 0.001 | 0.369 ± 0.002 | 0.368 ± 0.001 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.292 ± 0.001 | 0.354 ± 0.001 | <u>0.370 ± 0.001</u> |
+| BlogCatalog | **0.165 ± 0.002** | 0.111 ± 0.003 | 0.024 ± 0.000 | 0.024 ± 0.002 | 0.038 ± 0.002 | 0.016 ± 0.002 | 0.040 ± 0.002 | <u>0.120 ± 0.003</u> | 0.018 ± 0.001 | 0.023 ± 0.001 | 0.020 ± 0.001 |
+| Flickr | **0.110 ± 0.003** | 0.017 ± 0.001 | <u>0.035 ± 0.001</u> | 0.034 ± 0.000 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.027 ± 0.000 | 0.012 ± 0.001 | 0.013 ± 0.000 |
+| MovieLens-1M | <u>0.101 ± 0.003</u> | 0.001 ± 0.000 | 0.028 ± 0.001 | 0.027 ± 0.001 | 0.025 ± 0.000 | 0.067 ± 0.001 | 0.066 ± 0.001 | **0.107 ± 0.010** | 0.090 ± 0.001 | 0.004 ± 0.001 | 0.082 ± 0.005 |
+| ogbl-ddi | **0.092 ± 0.001** | 0.057 ± 0.001 | 0.042 ± 0.000 | 0.040 ± 0.001 | 0.047 ± 0.000 | 0.054 ± 0.000 | 0.028 ± 0.000 | 0.042 ± 0.000 | 0.058 ± 0.000 | 0.059 ± 0.001 | <u>0.060 ± 0.000</u> |
+| ogbn-arxiv | **0.317 ± 0.002** | <u>0.294 ± 0.004</u> | 0.142 ± 0.004 | 0.135 ± 0.003 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.161 ± 0.005 | 0.199 ± 0.004 | 0.212 ± 0.003 |
+| ogbl-collab | **0.404 ± 0.001** | <u>0.389 ± 0.002</u> | 0.369 ± 0.002 | 0.368 ± 0.001 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.292 ± 0.001 | 0.354 ± 0.001 | 0.370 ± 0.001 |
 | roadNet-CA | **0.346** | 0.255 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.310</u> | 0.104 | 0.239 |
-| Yelp | **0.103** | 0.087 | 0.035 | 0.028 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.060 | 0.047 | <u>0.090</u> |
-| Reddit | 0.311 | **0.423** | 0.110 | 0.092 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.345</u> | 0.231 | 0.274 |
-| MovieLens-20M | 0.042 | 0.000 | 0.019 | 0.021 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.051</u> | 0.002 | **0.081** |
-| ogbl-ppa | **0.376** | <u>0.283</u> | 0.215 | 0.196 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.251 | 0.262 | 0.270 |
-| ogbl-citation2 | **0.244** | <u>0.204</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.179 | 0.201 |
-| LiveJournal | **0.309** | 0.258 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.222 | <u>0.276</u> |
-| ogbn-products | **0.319** | <u>0.253</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.216 | 0.247 |
-| *mean rank* | **1.35** | 3.38 | 6.23 | 6.27 | 6.04 | 5.69 | 7.88 | 4.88 | 4.19 | 4.46 | 3.38 |
-| *best on* | 19 / 26 | 7 / 26 | 0 / 22 | 0 / 22 | 1 / 15 | 0 / 15 | 0 / 15 | 3 / 15 | 1 / 23 | 0 / 26 | 2 / 26 |
+| Yelp | **0.103** | <u>0.097</u> | 0.035 | 0.028 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.060 | 0.047 | 0.090 |
+| Reddit | 0.311 | **0.403** | 0.110 | 0.092 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.345</u> | 0.231 | 0.274 |
+| MovieLens-20M | **0.094** | 0.001 | 0.019 | 0.021 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.051 | 0.002 | <u>0.081</u> |
+| ogbl-ppa | **0.391** | <u>0.291</u> | 0.215 | 0.196 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.251 | 0.262 | 0.270 |
+| ogbl-citation2 | **0.261** | <u>0.239</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.179 | 0.201 |
+| LiveJournal | **0.327** | <u>0.304</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.222 | 0.276 |
+| ogbn-products | **0.337** | <u>0.316</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.216 | 0.247 |
+| *mean rank* | **1.12** | 2.23 | 6.23 | 6.27 | 6.04 | 5.69 | 7.88 | 5.00 | 4.23 | 4.46 | 3.46 |
+| *best on* | 23 / 26 | 15 / 26 | 0 / 22 | 0 / 22 | 1 / 15 | 0 / 15 | 0 / 15 | 1 / 15 | 1 / 23 | 0 / 26 | 0 / 26 |
 <!-- /benchmark:retrieval_recall@10 -->
 
 ### Node classification
@@ -352,34 +371,34 @@ datasets: against their official negatives), by dot product or cosine:
 <!-- benchmark:lp_mrr_similarity -->
 | Dataset | Cleora | Cleora, two columns | DeepWalk | node2vec | Walklets | NetMF | GraRep | HOPE | ProNE | FastRP | RandNE |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| CiteSeer | **0.440 ± 0.024** | 0.390 ± 0.022 | 0.400 ± 0.024 | 0.400 ± 0.018 | 0.389 ± 0.030 | <u>0.421 ± 0.025</u> | 0.291 ± 0.020 | 0.396 ± 0.029 | 0.386 ± 0.025 | 0.402 ± 0.029 | 0.393 ± 0.026 |
-| Cora | **0.387 ± 0.009** | <u>0.365 ± 0.010</u> | 0.345 ± 0.007 | 0.348 ± 0.010 | 0.338 ± 0.002 | 0.364 ± 0.002 | 0.203 ± 0.006 | 0.351 ± 0.006 | 0.336 ± 0.005 | 0.363 ± 0.013 | 0.351 ± 0.007 |
-| PPI | **0.204 ± 0.002** | 0.163 ± 0.002 | 0.070 ± 0.001 | 0.070 ± 0.001 | 0.135 ± 0.002 | 0.122 ± 0.002 | 0.091 ± 0.003 | 0.169 ± 0.002 | 0.125 ± 0.001 | 0.156 ± 0.004 | <u>0.183 ± 0.001</u> |
-| PubMed | **0.428 ± 0.007** | 0.304 ± 0.002 | 0.312 ± 0.006 | 0.300 ± 0.007 | <u>0.420 ± 0.005</u> | 0.369 ± 0.007 | 0.207 ± 0.007 | 0.367 ± 0.003 | 0.328 ± 0.007 | 0.316 ± 0.006 | 0.330 ± 0.004 |
-| DBLP | **0.524 ± 0.006** | 0.487 ± 0.006 | 0.381 ± 0.002 | 0.382 ± 0.002 | 0.433 ± 0.015 | 0.466 ± 0.005 | 0.259 ± 0.004 | 0.462 ± 0.006 | 0.433 ± 0.006 | 0.478 ± 0.005 | <u>0.492 ± 0.004</u> |
-| Cora-Full | **0.643 ± 0.001** | <u>0.615 ± 0.002</u> | 0.532 ± 0.003 | 0.533 ± 0.004 | 0.587 ± 0.002 | 0.601 ± 0.002 | 0.340 ± 0.006 | 0.560 ± 0.004 | 0.579 ± 0.003 | 0.612 ± 0.002 | 0.614 ± 0.000 |
-| Facebook (ego) | <u>0.595 ± 0.002</u> | 0.545 ± 0.004 | 0.447 ± 0.005 | 0.446 ± 0.001 | 0.454 ± 0.024 | 0.518 ± 0.003 | 0.256 ± 0.010 | 0.577 ± 0.003 | **0.601 ± 0.002** | 0.509 ± 0.004 | 0.550 ± 0.003 |
-| Coauthor CS | <u>0.634 ± 0.001</u> | 0.613 ± 0.002 | 0.534 ± 0.002 | 0.538 ± 0.003 | 0.564 ± 0.018 | 0.611 ± 0.002 | 0.298 ± 0.002 | 0.556 ± 0.003 | 0.617 ± 0.002 | 0.630 ± 0.002 | **0.648 ± 0.001** |
-| Amazon Photo | **0.508 ± 0.004** | 0.411 ± 0.004 | 0.326 ± 0.002 | 0.326 ± 0.003 | 0.378 ± 0.003 | 0.401 ± 0.003 | 0.187 ± 0.002 | <u>0.456 ± 0.002</u> | 0.427 ± 0.005 | 0.412 ± 0.003 | 0.427 ± 0.003 |
-| Wikipedia POS | **0.251 ± 0.003** | 0.210 ± 0.004 | 0.046 ± 0.001 | 0.048 ± 0.002 | 0.070 ± 0.002 | 0.046 ± 0.001 | 0.069 ± 0.001 | <u>0.242 ± 0.005</u> | 0.058 ± 0.001 | 0.112 ± 0.003 | 0.097 ± 0.001 |
-| Amazon Computers | **0.483 ± 0.001** | 0.410 ± 0.002 | 0.283 ± 0.002 | 0.285 ± 0.001 | 0.329 ± 0.003 | 0.399 ± 0.003 | 0.126 ± 0.001 | <u>0.421 ± 0.001</u> | 0.405 ± 0.003 | 0.394 ± 0.003 | 0.409 ± 0.003 |
+| CiteSeer | **0.458 ± 0.030** | 0.411 ± 0.026 | 0.400 ± 0.024 | 0.400 ± 0.018 | 0.389 ± 0.030 | <u>0.421 ± 0.025</u> | 0.291 ± 0.020 | 0.396 ± 0.029 | 0.386 ± 0.025 | 0.402 ± 0.029 | 0.393 ± 0.026 |
+| Cora | **0.408 ± 0.011** | <u>0.382 ± 0.007</u> | 0.345 ± 0.007 | 0.348 ± 0.010 | 0.338 ± 0.002 | 0.364 ± 0.002 | 0.203 ± 0.006 | 0.351 ± 0.006 | 0.336 ± 0.005 | 0.363 ± 0.013 | 0.351 ± 0.007 |
+| PPI | **0.204 ± 0.002** | 0.163 ± 0.004 | 0.070 ± 0.001 | 0.070 ± 0.001 | 0.135 ± 0.002 | 0.122 ± 0.002 | 0.091 ± 0.003 | 0.169 ± 0.002 | 0.125 ± 0.001 | 0.156 ± 0.004 | <u>0.183 ± 0.001</u> |
+| PubMed | **0.450 ± 0.006** | 0.329 ± 0.003 | 0.312 ± 0.006 | 0.300 ± 0.007 | <u>0.420 ± 0.005</u> | 0.369 ± 0.007 | 0.207 ± 0.007 | 0.367 ± 0.003 | 0.328 ± 0.007 | 0.316 ± 0.006 | 0.330 ± 0.004 |
+| DBLP | **0.540 ± 0.007** | <u>0.516 ± 0.006</u> | 0.381 ± 0.002 | 0.382 ± 0.002 | 0.433 ± 0.015 | 0.466 ± 0.005 | 0.259 ± 0.004 | 0.462 ± 0.006 | 0.433 ± 0.006 | 0.478 ± 0.005 | 0.492 ± 0.004 |
+| Cora-Full | **0.658 ± 0.001** | <u>0.639 ± 0.002</u> | 0.532 ± 0.003 | 0.533 ± 0.004 | 0.587 ± 0.002 | 0.601 ± 0.002 | 0.340 ± 0.006 | 0.560 ± 0.004 | 0.579 ± 0.003 | 0.612 ± 0.002 | 0.614 ± 0.000 |
+| Facebook (ego) | <u>0.595 ± 0.002</u> | 0.588 ± 0.002 | 0.447 ± 0.005 | 0.446 ± 0.001 | 0.454 ± 0.024 | 0.518 ± 0.003 | 0.256 ± 0.010 | 0.577 ± 0.003 | **0.601 ± 0.002** | 0.509 ± 0.004 | 0.550 ± 0.003 |
+| Coauthor CS | <u>0.637 ± 0.001</u> | 0.619 ± 0.002 | 0.534 ± 0.002 | 0.538 ± 0.003 | 0.564 ± 0.018 | 0.611 ± 0.002 | 0.298 ± 0.002 | 0.556 ± 0.003 | 0.617 ± 0.002 | 0.630 ± 0.002 | **0.648 ± 0.001** |
+| Amazon Photo | **0.519 ± 0.003** | <u>0.484 ± 0.002</u> | 0.326 ± 0.002 | 0.326 ± 0.003 | 0.378 ± 0.003 | 0.401 ± 0.003 | 0.187 ± 0.002 | 0.456 ± 0.002 | 0.427 ± 0.005 | 0.412 ± 0.003 | 0.427 ± 0.003 |
+| Wikipedia POS | **0.270 ± 0.004** | <u>0.269 ± 0.004</u> | 0.046 ± 0.001 | 0.048 ± 0.002 | 0.070 ± 0.002 | 0.046 ± 0.001 | 0.069 ± 0.001 | 0.242 ± 0.005 | 0.058 ± 0.001 | 0.112 ± 0.003 | 0.097 ± 0.001 |
+| Amazon Computers | **0.489 ± 0.002** | <u>0.460 ± 0.002</u> | 0.283 ± 0.002 | 0.285 ± 0.001 | 0.329 ± 0.003 | 0.399 ± 0.003 | 0.126 ± 0.001 | 0.421 ± 0.001 | 0.405 ± 0.003 | 0.394 ± 0.003 | 0.409 ± 0.003 |
 | Coauthor Physics | 0.737 ± 0.002 | 0.719 ± 0.002 | 0.676 ± 0.003 | 0.674 ± 0.003 | 0.669 ± 0.002 | 0.651 ± 0.001 | 0.343 ± 0.003 | 0.621 ± 0.001 | <u>0.739 ± 0.001</u> | 0.725 ± 0.001 | **0.752 ± 0.002** |
-| BlogCatalog | **0.218 ± 0.001** | 0.114 ± 0.001 | 0.070 ± 0.001 | 0.070 ± 0.001 | 0.092 ± 0.001 | 0.055 ± 0.000 | 0.165 ± 0.002 | <u>0.209 ± 0.001</u> | 0.070 ± 0.000 | 0.098 ± 0.000 | 0.096 ± 0.000 |
-| Flickr | **0.283 ± 0.001** | 0.122 ± 0.001 | <u>0.244 ± 0.001</u> | 0.243 ± 0.000 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.195 ± 0.001 | 0.154 ± 0.001 | 0.189 ± 0.000 |
-| MovieLens-1M | <u>0.148 ± 0.001</u> | 0.008 ± 0.001 | 0.060 ± 0.000 | 0.059 ± 0.000 | 0.044 ± 0.001 | 0.081 ± 0.001 | 0.108 ± 0.001 | **0.149 ± 0.012** | 0.144 ± 0.000 | 0.023 ± 0.001 | 0.102 ± 0.009 |
-| ogbl-ddi | <u>0.027 ± 0.002</u> | 0.003 ± 0.000 | 0.005 ± 0.000 | 0.005 ± 0.000 | 0.010 ± 0.001 | 0.001 ± 0.000 | 0.012 ± 0.001 | **0.083 ± 0.002** | 0.002 ± 0.000 | 0.001 ± 0.000 | 0.002 ± 0.000 |
-| ogbn-arxiv | **0.671 ± 0.001** | <u>0.617 ± 0.001</u> | 0.547 ± 0.002 | 0.539 ± 0.001 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.580 ± 0.002 | 0.593 ± 0.001 | 0.606 ± 0.002 |
-| ogbl-collab | 0.057 ± 0.002 | 0.054 ± 0.001 | **0.095 ± 0.011** | **0.095 ± 0.006** | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.039 ± 0.001 | <u>0.059 ± 0.001</u> | 0.053 ± 0.001 |
+| BlogCatalog | **0.222 ± 0.001** | 0.202 ± 0.000 | 0.070 ± 0.001 | 0.070 ± 0.001 | 0.092 ± 0.001 | 0.055 ± 0.000 | 0.165 ± 0.002 | <u>0.209 ± 0.001</u> | 0.070 ± 0.000 | 0.098 ± 0.000 | 0.096 ± 0.000 |
+| Flickr | **0.297 ± 0.001** | 0.140 ± 0.000 | <u>0.244 ± 0.001</u> | 0.243 ± 0.000 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.195 ± 0.001 | 0.154 ± 0.001 | 0.189 ± 0.000 |
+| MovieLens-1M | <u>0.148 ± 0.001</u> | 0.009 ± 0.002 | 0.060 ± 0.000 | 0.059 ± 0.000 | 0.044 ± 0.001 | 0.081 ± 0.001 | 0.108 ± 0.001 | **0.149 ± 0.012** | 0.144 ± 0.000 | 0.023 ± 0.001 | 0.102 ± 0.009 |
+| ogbl-ddi | 0.027 ± 0.002 | <u>0.069 ± 0.001</u> | 0.005 ± 0.000 | 0.005 ± 0.000 | 0.010 ± 0.001 | 0.001 ± 0.000 | 0.012 ± 0.001 | **0.083 ± 0.002** | 0.002 ± 0.000 | 0.001 ± 0.000 | 0.002 ± 0.000 |
+| ogbn-arxiv | **0.680 ± 0.001** | <u>0.659 ± 0.001</u> | 0.547 ± 0.002 | 0.539 ± 0.001 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.580 ± 0.002 | 0.593 ± 0.001 | 0.606 ± 0.002 |
+| ogbl-collab | <u>0.095 ± 0.000</u> | **0.101 ± 0.001** | <u>0.095 ± 0.011</u> | <u>0.095 ± 0.006</u> | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.039 ± 0.001 | 0.059 ± 0.001 | 0.053 ± 0.001 |
 | roadNet-CA | <u>0.752</u> | 0.614 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | **0.778** | 0.374 | 0.413 |
-| Yelp | <u>0.495</u> | 0.472 | 0.302 | 0.285 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.445 | 0.361 | **0.513** |
-| Reddit | 0.605 | **0.645** | 0.323 | 0.315 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.626</u> | 0.467 | 0.508 |
-| MovieLens-20M | <u>0.209</u> | 0.014 | 0.105 | 0.104 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | **0.227** | 0.020 | 0.202 |
-| ogbl-ppa | **0.069** | 0.019 | 0.007 | 0.006 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.009 | <u>0.034</u> | 0.014 |
-| ogbl-citation2 | 0.802 | **0.839** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.793 | <u>0.829</u> |
-| LiveJournal | 0.756 | <u>0.766</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.685 | **0.776** |
-| ogbn-products | **0.909** | 0.904 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.892 | <u>0.906</u> |
-| *mean rank* | **1.58** | 3.50 | 6.15 | 6.35 | 6.12 | 5.88 | 7.31 | 4.81 | 4.54 | 4.38 | 3.27 |
-| *best on* | 14 / 26 | 5 / 26 | 1 / 22 | 0 / 22 | 0 / 15 | 0 / 15 | 0 / 15 | 2 / 15 | 4 / 23 | 0 / 26 | 5 / 26 |
+| Yelp | <u>0.495</u> | 0.490 | 0.302 | 0.285 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.445 | 0.361 | **0.513** |
+| Reddit | 0.605 | **0.654** | 0.323 | 0.315 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.626</u> | 0.467 | 0.508 |
+| MovieLens-20M | **0.237** | 0.025 | 0.105 | 0.104 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.227</u> | 0.020 | 0.202 |
+| ogbl-ppa | **0.065** | <u>0.064</u> | 0.007 | 0.006 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.009 | 0.034 | 0.014 |
+| ogbl-citation2 | 0.813 | **0.848** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.793 | <u>0.829</u> |
+| LiveJournal | 0.765 | **0.777** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.685 | <u>0.776</u> |
+| ogbn-products | **0.912** | <u>0.911</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.892 | 0.906 |
+| *mean rank* | **1.50** | 2.35 | 6.15 | 6.35 | 6.12 | 5.88 | 7.31 | 4.81 | 4.58 | 4.42 | 3.27 |
+| *best on* | 15 / 26 | 13 / 26 | 1 / 22 | 0 / 22 | 0 / 15 | 0 / 15 | 0 / 15 | 2 / 15 | 3 / 23 | 0 / 26 | 5 / 26 |
 <!-- /benchmark:lp_mrr_similarity -->
 
 ### With a validation set
@@ -414,33 +433,33 @@ candidate and adds about a point:
 <!-- benchmark:tuned_lp -->
 | Dataset | Cleora | Cleora, tuned | gain | Best baseline |
 |---|---:|---:|---:|---|
-| CiteSeer | 0.440 | **0.445** | +0.6 | NetMF 0.421 |
-| Cora | 0.387 | **0.388** | +0.2 | NetMF 0.364 |
-| PPI | 0.204 | **0.207** | +0.3 | RandNE 0.183 |
-| PubMed | **0.428** | 0.427 | -0.0 | Walklets 0.420 |
-| DBLP | 0.524 | **0.529** | +0.5 | RandNE 0.492 |
-| Cora-Full | 0.643 | **0.649** | +0.6 | RandNE 0.614 |
-| Facebook (ego) | 0.595 | **0.608** | +1.3 | ProNE 0.601 |
-| Coauthor CS | 0.634 | **0.657** | +2.3 | RandNE 0.648 |
-| Amazon Photo | 0.508 | **0.520** | +1.2 | HOPE 0.456 |
-| Wikipedia POS | **0.251** | **0.251** | +0.0 | HOPE 0.242 |
-| Amazon Computers | 0.483 | **0.493** | +1.0 | HOPE 0.421 |
-| Coauthor Physics | 0.737 | **0.765** | +2.9 | RandNE 0.752 |
-| BlogCatalog | **0.218** | **0.218** | +0.0 | HOPE 0.209 |
-| Flickr | 0.283 | **0.297** | +1.4 | DeepWalk 0.244 |
+| CiteSeer | **0.458** | **0.458** | +0.0 | NetMF 0.421 |
+| Cora | **0.408** | **0.408** | +0.0 | NetMF 0.364 |
+| PPI | 0.204 | **0.206** | +0.2 | RandNE 0.183 |
+| PubMed | 0.450 | **0.459** | +0.9 | Walklets 0.420 |
+| DBLP | 0.540 | **0.541** | +0.2 | RandNE 0.492 |
+| Cora-Full | 0.658 | **0.660** | +0.3 | RandNE 0.614 |
+| Facebook (ego) | 0.595 | **0.612** | +1.7 | ProNE 0.601 |
+| Coauthor CS | 0.637 | **0.662** | +2.5 | RandNE 0.648 |
+| Amazon Photo | 0.519 | **0.524** | +0.6 | HOPE 0.456 |
+| Wikipedia POS | **0.270** | **0.270** | +0.0 | HOPE 0.242 |
+| Amazon Computers | 0.489 | **0.494** | +0.5 | HOPE 0.421 |
+| Coauthor Physics | 0.737 | **0.769** | +3.2 | RandNE 0.752 |
+| BlogCatalog | **0.222** | **0.222** | +0.0 | HOPE 0.209 |
+| Flickr | 0.297 | **0.306** | +1.0 | DeepWalk 0.244 |
 | MovieLens-1M | 0.148 | 0.148 | +0.0 | HOPE 0.149 |
-| ogbl-ddi | 0.027 | 0.027 | +0.0 | HOPE 0.083 |
-| ogbn-arxiv | **0.671** | **0.671** | +0.0 | RandNE 0.606 |
-| ogbl-collab | 0.057 | 0.055 | -0.2 | DeepWalk 0.095 |
+| ogbl-ddi | 0.027 | 0.069 | +4.2 | HOPE 0.083 |
+| ogbn-arxiv | **0.680** | **0.680** | +0.0 | RandNE 0.606 |
+| ogbl-collab | 0.095 | **0.134** | +3.9 | DeepWalk 0.095 |
 | roadNet-CA | 0.752 | 0.752 | +0.0 | ProNE 0.778 |
-| Yelp | 0.495 | 0.504 | +0.8 | RandNE 0.513 |
-| Reddit | 0.605 | **0.745** | +14.0 | ProNE 0.626 |
-| MovieLens-20M | 0.209 | 0.209 | +0.0 | ProNE 0.227 |
-| ogbl-ppa | **0.069** | **0.069** | +0.0 | FastRP 0.034 |
-| ogbl-citation2 | 0.802 | **0.838** | +3.6 | RandNE 0.829 |
-| LiveJournal | 0.756 | **0.799** | +4.3 | RandNE 0.776 |
-| ogbn-products | **0.909** | **0.909** | +0.0 | RandNE 0.906 |
-| *mean gain (points)* | | | +1.3 | |
+| Yelp | 0.495 | **0.525** | +2.9 | RandNE 0.513 |
+| Reddit | 0.605 | **0.747** | +14.3 | ProNE 0.626 |
+| MovieLens-20M | 0.237 | **0.256** | +1.9 | ProNE 0.227 |
+| ogbl-ppa | **0.065** | **0.065** | +0.0 | FastRP 0.034 |
+| ogbl-citation2 | 0.813 | **0.850** | +3.7 | RandNE 0.829 |
+| LiveJournal | 0.765 | **0.809** | +4.4 | RandNE 0.776 |
+| ogbn-products | 0.912 | **0.916** | +0.4 | RandNE 0.906 |
+| *mean gain (points)* | | | +1.8 | |
 <!-- /benchmark:tuned_lp -->
 
 ### Time and memory
@@ -451,12 +470,12 @@ Time to embed the whole graph at 1024 dimensions, one method at a time on an idl
 <!-- benchmark:time -->
 | Dataset | Cleora | pycleora 3.2 default | DeepWalk | node2vec | Walklets | NetMF | GraRep | HOPE | ProNE | FastRP | RandNE |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Cora | **75 ms** | 27.9 s | 5.7 s | 7.1 s | 7.0 s | 2.1 min | 8.2 s | 2.2 s | 2.7 s | 718 ms | 705 ms |
-| PubMed | **194 ms** | 29.8 s | 44.2 s | 46.1 s | 57.0 s | 8.2 min | 2.9 min | 14.4 s | 16.3 s | 1.8 s | 1.2 s |
-| Amazon Computers | **146 ms** | 25.7 s | 25.9 s | 30.1 s | 60.9 s | 5.3 min | 6.7 min | 2.4 min | 18.3 s | 2.5 s | 1.7 s |
-| Flickr | **928 ms** | 62.9 s | 10.0 min | 10.1 min | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 82.6 s | 7.7 s | 5.0 s |
-| ogbn-arxiv | **1.8 s** | 1.8 min | 17.4 min | 18.1 min | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 2.9 min | 13.1 s | 10.0 s |
-| Yelp | **9.7 s** | 4.2 min | 97.1 min | 99.8 min | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 13.1 min | 67.7 s | 53.6 s |
+| Cora | **81 ms** | 27.9 s | 5.7 s | 7.1 s | 7.0 s | 2.1 min | 8.2 s | 2.2 s | 2.7 s | 718 ms | 705 ms |
+| PubMed | **198 ms** | 29.8 s | 44.2 s | 46.1 s | 57.0 s | 8.2 min | 2.9 min | 14.4 s | 16.3 s | 1.8 s | 1.2 s |
+| Amazon Computers | **163 ms** | 25.7 s | 25.9 s | 30.1 s | 60.9 s | 5.3 min | 6.7 min | 2.4 min | 18.3 s | 2.5 s | 1.7 s |
+| Flickr | **618 ms** | 62.9 s | 10.0 min | 10.1 min | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 82.6 s | 7.7 s | 5.0 s |
+| ogbn-arxiv | **1.4 s** | 1.8 min | 17.4 min | 18.1 min | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 2.9 min | 13.1 s | 10.0 s |
+| Yelp | **7.8 s** | 4.2 min | 97.1 min | 99.8 min | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 13.1 min | 67.7 s | 53.6 s |
 <!-- /benchmark:time -->
 
 Peak memory of the embedding process:
@@ -464,11 +483,11 @@ Peak memory of the embedding process:
 <!-- benchmark:memory -->
 | Dataset | Cleora | pycleora 3.2 default | DeepWalk | node2vec | Walklets | NetMF | GraRep | HOPE | ProNE | FastRP | RandNE |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Cora | **0.05 GB** | 0.37 GB | 0.26 GB | 0.28 GB | 0.39 GB | 0.27 GB | 0.26 GB | 0.17 GB | 0.45 GB | 0.40 GB | 0.26 GB |
+| Cora | **0.06 GB** | 0.37 GB | 0.26 GB | 0.28 GB | 0.39 GB | 0.27 GB | 0.26 GB | 0.17 GB | 0.45 GB | 0.40 GB | 0.26 GB |
 | PubMed | **0.20 GB** | 0.46 GB | 0.61 GB | 0.64 GB | 2.02 GB | 3.90 GB | 4.73 GB | 0.41 GB | 1.53 GB | 1.87 GB | 1.04 GB |
-| Amazon Computers | **0.17 GB** | 0.44 GB | 0.49 GB | 0.50 GB | 1.47 GB | 2.07 GB | 9.79 GB | 0.98 GB | 1.15 GB | 1.38 GB | 0.76 GB |
+| Amazon Computers | **0.16 GB** | 0.44 GB | 0.49 GB | 0.50 GB | 1.47 GB | 2.07 GB | 9.79 GB | 0.98 GB | 1.15 GB | 1.38 GB | 0.76 GB |
 | Flickr | **0.77 GB** | 1.02 GB | 2.01 GB | 2.03 GB | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 6.10 GB | 7.89 GB | 4.24 GB |
-| ogbn-arxiv | **1.44 GB** | 1.65 GB | 3.59 GB | 3.61 GB | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 11.39 GB | 14.84 GB | 7.94 GB |
+| ogbn-arxiv | **1.43 GB** | 1.65 GB | 3.59 GB | 3.61 GB | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 11.39 GB | 14.84 GB | 7.94 GB |
 | Yelp | **6.05 GB** | 6.21 GB | 14.65 GB | 14.66 GB | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 46.35 GB | 62.28 GB | 33.21 GB |
 <!-- /benchmark:memory -->
 
@@ -489,25 +508,28 @@ per dataset, one panel per method; all of them are in
 Every graph on which Cleora is not the best method, generated from the same tables:
 
 <!-- benchmark:caveats -->
-- **Similarity search among all nodes: a baseline is ahead of Cleora on** PubMed (Walklets 0.192, Cleora 0.152); Coauthor CS (RandNE 0.449, Cleora 0.446); Wikipedia POS (HOPE 0.252, Cleora 0.232); BlogCatalog (HOPE 0.120, Cleora 0.114); MovieLens-1M (HOPE 0.107, Cleora 0.101); Reddit (ProNE 0.345, Cleora 0.311); MovieLens-20M (RandNE 0.081, Cleora 0.042).
+- **Similarity search among all nodes: a baseline is ahead of Cleora on** PubMed (Walklets 0.192, Cleora 0.185); MovieLens-1M (HOPE 0.107, Cleora 0.101); Reddit (ProNE 0.345, Cleora 0.311).
 - **Similarity search among all nodes: the pycleora 3.2 default (whitening, 40 iterations) is ahead of Cleora on** roadNet-CA (0.3464 against 0.3458); Reddit (0.359 against 0.311).
 - **Node classification: a baseline is ahead of Cleora on** CiteSeer (NetMF 0.572, Cleora 0.566); Coauthor Physics (NetMF 0.932, Cleora 0.928); ogbn-arxiv (node2vec 0.685, Cleora 0.681); PPI (RandNE 0.129, Cleora 0.127); Wikipedia POS (RandNE 0.409, Cleora 0.383); BlogCatalog (FastRP 0.332, Cleora 0.259); Yelp (ProNE 0.284, Cleora 0.217).
 - **Node classification: the pycleora 3.2 default (whitening, 40 iterations) is ahead of Cleora on** Flickr (0.548 against 0.539); ogbn-arxiv (0.695 against 0.681); ogbn-products (0.741 against 0.645); Yelp (0.264 against 0.217).
-- **Link ranking against sampled candidates: a baseline is ahead of Cleora on** Facebook (ego) (ProNE 0.601, Cleora 0.595); Coauthor CS (RandNE 0.648, Cleora 0.634); Coauthor Physics (RandNE 0.752, Cleora 0.737); MovieLens-1M (HOPE 0.149, Cleora 0.148); ogbl-ddi (HOPE 0.083, Cleora 0.027); ogbl-collab (DeepWalk 0.095, Cleora 0.057); roadNet-CA (ProNE 0.778, Cleora 0.752); Yelp (RandNE 0.513, Cleora 0.495); Reddit (ProNE 0.626, Cleora 0.605); MovieLens-20M (ProNE 0.227, Cleora 0.209); ogbl-citation2 (RandNE 0.829, Cleora 0.802); LiveJournal (RandNE 0.776, Cleora 0.756).
-- **Link ranking against sampled candidates: the pycleora 3.2 default (whitening, 40 iterations) is ahead of Cleora on** Coauthor Physics (0.752 against 0.737); roadNet-CA (0.816 against 0.752); Yelp (0.501 against 0.495); ogbl-citation2 (0.827 against 0.802); LiveJournal (0.809 against 0.756).
+- **Link ranking against sampled candidates: a baseline is ahead of Cleora on** Facebook (ego) (ProNE 0.601, Cleora 0.595); Coauthor CS (RandNE 0.648, Cleora 0.637); Coauthor Physics (RandNE 0.752, Cleora 0.737); MovieLens-1M (HOPE 0.149, Cleora 0.148); ogbl-ddi (HOPE 0.083, Cleora 0.027); ogbl-collab (DeepWalk 0.0955, Cleora 0.0946); roadNet-CA (ProNE 0.778, Cleora 0.752); Yelp (RandNE 0.513, Cleora 0.495); Reddit (ProNE 0.626, Cleora 0.605); ogbl-citation2 (RandNE 0.829, Cleora 0.813); LiveJournal (RandNE 0.776, Cleora 0.765).
+- **Link ranking against sampled candidates: the pycleora 3.2 default (whitening, 40 iterations) is ahead of Cleora on** Coauthor Physics (0.752 against 0.737); roadNet-CA (0.816 against 0.752); Yelp (0.501 against 0.495); ogbl-citation2 (0.827 against 0.813); LiveJournal (0.809 against 0.765).
 <!-- /benchmark:caveats -->
 
 What follows from that list:
 
 - **Similarity search is where Cleora leads most clearly.** Nearest-neighbour search
   over its vectors finds more of a node's held-out neighbours than any baseline on
-  most graphs - six of the eight largest among them - and on small and mid-sized
-  graphs often by a wide margin. The exceptions are graphs dominated by hubs
-  (Wikipedia POS, BlogCatalog, MovieLens), PubMed and Reddit.
-- **Against 500 sampled candidates the lead is narrower on the largest graphs.** There
-  RandNE or ProNE rank the true neighbour a little higher, with five to eight times
-  the memory - on Yelp, roadNet-CA, ogbl-citation2 and LiveJournal while finding fewer
-  of the held-out neighbours among all nodes.
+  every graph but three - PubMed, MovieLens-1M and Reddit - and on small and mid-sized
+  graphs often by a wide margin.
+- **Against 500 sampled candidates the lead is narrower.** On eleven graphs a baseline
+  ranks the true neighbour higher, mostly by a point or two: among them four of the
+  largest (Yelp, roadNet-CA, ogbl-citation2, LiveJournal), where RandNE or ProNE do so
+  with five to eight times the memory while finding fewer of the held-out neighbours
+  among all nodes.
+- **The popularity prior is not for every graph.** On eight of the 26 - Reddit,
+  ogbl-ddi, MovieLens-1M, PPI, Facebook, Coauthor Physics, roadNet-CA, Yelp - the plain
+  cosine validates better, and that is what the tables then show for Cleora.
 - **A learned weight per dimension helps ProNE most.** With logistic regression on
   x∘y it is the best method on as many graphs as Cleora, though its mean rank stays
   behind ([rank tables](#mean-rank-across-graphs)).
@@ -516,13 +538,14 @@ What follows from that list:
 - **Multi-label classification is not Cleora's ground.** On PPI, Wikipedia POS,
   BlogCatalog and Yelp one of RandNE, FastRP and ProNE is better.
 - **Whitening pays off when there are far more nodes than dimensions.** The 3.2 default
-  (40 iterations, whitening after each) loses badly on small graphs and costs 25 to
-  400 times the time, but on four of the five largest labelled graphs it classifies
+  (40 iterations, whitening after each) loses badly on small graphs and costs 30 to
+  350 times the time, but on four of the five largest labelled graphs it classifies
   better than plain Cleora - by ten points on ogbn-products. `embed(graph, 1024, 40,
   whiten=True)` is worth a try there.
 - **Two columns can beat one**: on Reddit, the densest graph, in both link
-  measurements, and on ogbl-citation2 and LiveJournal against sampled candidates. The
-  recommendation of one reflexive column is a default, not a law.
+  measurements; on ogbl-citation2, LiveJournal and two more against sampled
+  candidates; on four graphs in classification. The recommendation of one reflexive
+  column is a default, not a law.
 - **Everything is at 1024 dimensions.** Most baselines were published at 128, and some
   of them (ProNE and HOPE on the small graphs) are better there.
 - **DeepWalk and node2vec did not finish** 1024 dimensions on graphs of two million
@@ -533,10 +556,17 @@ What follows from that list:
 
 ## Performance
 
-The propagation kernel schedules work by matrix entries instead of rows, splits hub
-rows across threads, fuses the row normalisation into the product and prefetches the
-rows it is about to read. Time of one iteration (propagation and normalisation of the
-whole embedding matrix) on an R-MAT graph, measured with
+A round of Cleora reads, for every edge, the vector of the node at its other end: at
+1024 dimensions 4 KB from somewhere in a matrix of gigabytes. Done row by row this
+runs at the speed of the memory bus and no faster, however many cores there are.
+pycleora 4.0 keeps the matrix in blocks of 16 columns - one cache line per node - and
+finishes one block for all nodes before it starts the next, so that what the threads
+read at random is a slab that fits the caches, and what comes from memory is the edge
+list, in order. Work is scheduled by matrix entries instead of rows, hub rows are
+split across threads, and the row normalisation costs no pass of its own.
+
+Time of one iteration (propagation and normalisation of the whole embedding matrix)
+on an R-MAT graph, measured with
 [`benchmarks/kernel_speed.py`](benchmarks/kernel_speed.py):
 
 0.6 million nodes, 12 million edges, 1024 dimensions; best of three runs:
@@ -544,18 +574,20 @@ whole embedding matrix) on an R-MAT graph, measured with
 | Machine | pycleora | Threads | Build | One iteration |
 |---|---|---:|---:|---:|
 | Intel Core Ultra 9 275HX (24 threads) | 3.2.1 | 24 | 17.8 s | 5.39 s |
-| | 4.0.0 | 24 | 1.11 s | 1.48 s |
-| | 4.0.0 | 1 | 6.38 s | 5.44 s |
+| | 4.0.0 | 24 | 1.19 s | 0.74 s |
+| | 4.0.0 | 1 | 6.12 s | 5.16 s |
 | Apple M4 (Mac mini, 10 cores) | 3.2.1 | 10 | 5.70 s | 4.02 s |
-| | 4.0.0 | 10 | 0.91 s | 1.29 s |
-| | 4.0.0 | 1 | 3.36 s | 3.09 s |
+| | 4.0.0 | 10 | 0.88 s | 0.73 s |
+| | 4.0.0 | 1 | 3.20 s | 2.84 s |
 
 On the Intel machine one thread of 4.0 does an iteration in the time 3.2.1 needs with
-all 24. With all threads 4.0 is 3.6 times faster there and 3.1 times on Apple silicon
-(beyond a few threads the propagation is limited by memory bandwidth on both), and it
-builds the graph 16 and 6 times faster. Graph construction is deterministic as well as
-parallel: the same input gives the same matrix, bit for bit, whatever the number of
-threads, and so do the embeddings.
+all 24. With all threads 4.0 is 7.3 times faster there and 5.5 times on Apple silicon,
+and it builds the graph 15 and 6.5 times faster. The blocks gain most on dense graphs
+of a few hundred thousand nodes (3.2 times over reading whole rows at 230,000 nodes and
+30 million edges) and least on graphs of millions of nodes (1.4 times at 2.1 million
+nodes and 40 million edges); the script prints both timings. Everything is
+deterministic as well as parallel: the same input gives the same matrix and the same
+embeddings, bit for bit, whatever the number of threads.
 
 ---
 
