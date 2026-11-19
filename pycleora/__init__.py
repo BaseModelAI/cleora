@@ -136,6 +136,10 @@ def embed(
     """
     _validate_propagation(propagation)
     _validate_normalization(normalization)
+    # Both the Rust core and the loop below skip the residual for a weight outside
+    # (0, 1), so a wrong value would be ignored instead of reported.
+    if not 0.0 <= residual_weight < 1.0:
+        raise ValueError(f"residual_weight must be in [0, 1), got {residual_weight}")
     num_iterations = _resolve_iterations(num_iterations, graph, propagation, whiten)
     if whiten and num_iterations > 0:
         _warn_if_whitening_is_degenerate(graph.num_entities, feature_dim)
@@ -287,6 +291,8 @@ def embed_with_node_features(
     normalization: str = "l2",
     feature_weight: float = 0.5,
     num_workers: Optional[int] = None,
+    seed: int = 0,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> np.ndarray:
     if not node_features:
         raise ValueError("node_features must be a non-empty dict of entity_id -> feature_vector")
@@ -294,7 +300,7 @@ def embed_with_node_features(
     sample_feat = next(iter(node_features.values()))
     feat_dim = len(sample_feat)
 
-    init_emb = graph.initialize_deterministically(feat_dim)
+    init_emb = graph.initialize_deterministically(feat_dim, seed)
 
     index_map = {eid: i for i, eid in enumerate(graph.entity_ids)}
     for eid, feat in node_features.items():
@@ -315,6 +321,7 @@ def embed_with_node_features(
         normalization=normalization,
         initial_embeddings=init_emb,
         num_workers=num_workers,
+        whiten=whiten,
     )
 
 
@@ -494,7 +501,8 @@ def embed_directed(
 ) -> Tuple[SparseMatrix, np.ndarray]:
     """Embeds a directed graph: in every line, earlier entities point to later ones.
 
-    Each entity is propagated from the entities it points to only.
+    Each entity is propagated from the entities it points to only. An entity that
+    points to nothing (a sink) keeps its own vector, so no row of the result is zero.
     """
     from scipy.sparse import csr_matrix, diags
 
@@ -531,8 +539,11 @@ def embed_directed(
 
     adj = _to_scipy_sparse(graph, "left").multiply(direction).tocsr().astype(np.float64)
     row_sums = np.asarray(adj.sum(axis=1)).ravel()
-    row_sums = np.maximum(row_sums, 1e-10)
-    adj = (diags(1.0 / row_sums) @ adj).tocsr()
+    # A sink has nothing to be propagated from. Its row would be zero, and the zeros
+    # would spread to everything upstream, one step per iteration: a self-loop makes
+    # it keep its own vector instead.
+    is_sink = (row_sums == 0).astype(np.float64)
+    adj = (diags(1.0 / np.maximum(row_sums, 1e-10)) @ adj + diags(is_sink)).tocsr()
 
     if whiten:
         _warn_if_whitening_is_degenerate(graph.num_entities, feature_dim)
@@ -894,7 +905,10 @@ def predict_links(
     source_entities: Optional[List[str]] = None,
 ) -> List[Dict]:
     """The ``top_k`` highest-cosine pairs (source, target) among the candidates of
-    the given source entities (all entities by default)."""
+    the given source entities (all entities by default).
+
+    A pair is unordered and comes back once: of two sources, the one with the
+    lower index is reported as the source."""
     n = graph.num_entities
     if top_k <= 0 or n == 0:
         return []
@@ -902,9 +916,13 @@ def predict_links(
     normed = (embeddings / np.maximum(norms, 1e-10)[:, None]).astype(np.float32)
 
     if source_entities is not None:
-        source_indices = np.asarray(graph.get_entity_indices(list(source_entities)), dtype=np.int64)
+        # distinct, so that a source named twice does not repeat its pairs
+        source_indices = np.unique(np.asarray(graph.get_entity_indices(list(source_entities)), dtype=np.int64))
     else:
         source_indices = np.arange(n, dtype=np.int64)
+    is_source = np.zeros(n, dtype=bool)
+    is_source[source_indices] = True
+    columns = np.arange(n, dtype=np.int64)
 
     if exclude_existing:
         indptr, indices, _ = graph.to_csr()
@@ -916,7 +934,9 @@ def predict_links(
     for start in range(0, len(source_indices), block):
         sources = source_indices[start:start + block]
         sims = normed[sources] @ normed.T
-        sims[np.arange(len(sources)), sources] = -2.0
+        # The cosine is symmetric, so a pair of two sources is in the rows of both:
+        # it is left in the row of the lower index only. This also removes the diagonal.
+        sims[is_source & (columns <= sources[:, None])] = -2.0
         if exclude_existing:
             # the matrix is symmetric: the row of a source lists all its existing links
             for local, src in enumerate(sources):
@@ -1016,6 +1036,10 @@ def find_most_similar(
     top_k: int = 10,
     exclude_self: bool = True,
 ) -> List[Dict]:
+    """The ``top_k`` entities with the highest cosine similarity to ``query_entity``.
+
+    With ``exclude_self=True`` the query is never among them: a graph of ``n``
+    entities gives at most ``n - 1`` results."""
     query_idx = graph.get_entity_index(query_entity)
     query_vec = embeddings[query_idx]
 
@@ -1024,10 +1048,14 @@ def find_most_similar(
     query_norm = max(float(norms[query_idx]), 1e-10)
     similarities = ((embeddings @ query_vec) / (norms * query_norm)).astype(np.float32)
 
+    num_candidates = len(similarities)
     if exclude_self:
-        similarities[query_idx] = -1.0
+        # Below every cosine (-1 is one an entity can really have), and with one
+        # candidate fewer the query cannot be among those that are kept.
+        similarities[query_idx] = -np.inf
+        num_candidates -= 1
 
-    keep = min(max(top_k, 0), len(similarities))
+    keep = min(max(top_k, 0), num_candidates)
     if keep == 0:
         return []
     top_indices = np.argpartition(-similarities, keep - 1)[:keep]

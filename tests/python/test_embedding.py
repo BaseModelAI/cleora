@@ -198,6 +198,20 @@ def test_argument_validation(graph):
             function(graph, 8, "many")
 
 
+@pytest.mark.parametrize("weight", [-0.1, 1.0, 1.5, float("nan")])
+def test_residual_weight_outside_its_range_is_an_error(graph, weight):
+    """It used to be ignored without a word: such a run was one without a residual."""
+    for loop in ({}, {"callback": lambda i, e: None}):  # the Rust fast path, the Python loop
+        with pytest.raises(ValueError, match="residual_weight"):
+            embed(graph, 8, 2, residual_weight=weight, **loop)
+
+
+def test_residual_weight_at_the_ends_of_its_range(graph):
+    np.testing.assert_array_equal(embed(graph, 8, 2, residual_weight=0.0), embed(graph, 8, 2))
+    almost_one = embed(graph, 8, 2, residual_weight=0.999)
+    assert np.isfinite(almost_one).all() and not np.array_equal(almost_one, embed(graph, 8, 2))
+
+
 def test_whitening_more_dimensions_than_entities_is_reported():
     """Whitening N points in N - 1 or more dimensions makes them all equidistant."""
     rng = np.random.default_rng(31)
@@ -454,13 +468,38 @@ def test_find_most_similar_matches_brute_force(graph):
     with_self = pycleora.find_most_similar(graph, embeddings, query, top_k=3, exclude_self=False)
     assert with_self[0]["entity_id"] == query and with_self[0]["similarity"] == pytest.approx(1.0, abs=1e-5)
     assert pycleora.find_most_similar(graph, embeddings, query, top_k=0) == []
-    assert len(pycleora.find_most_similar(graph, embeddings, query, top_k=10**6)) == graph.num_entities
+    everyone = pycleora.find_most_similar(graph, embeddings, query, top_k=10**6, exclude_self=False)
+    assert len(everyone) == graph.num_entities
+    others = pycleora.find_most_similar(graph, embeddings, query, top_k=10**6)
+    assert len(others) == graph.num_entities - 1 and query not in [hit["entity_id"] for hit in others]
     with pytest.raises(ValueError, match="not found"):
         pycleora.find_most_similar(graph, embeddings, "nobody")
 
 
+def test_find_most_similar_never_returns_the_query():
+    """Asked for more entities than there are others, it returned the query as well,
+    with a similarity of -1."""
+    graph = SparseMatrix.from_iterator(iter(["a b", "b c", "c d", "d a", "a c"]), COLUMNS)
+    embeddings = embed(graph, 8, 2)
+    for top_k in (3, 4, 100):
+        found = pycleora.find_most_similar(graph, embeddings, "a", top_k=top_k)
+        assert sorted(hit["entity_id"] for hit in found) == ["b", "c", "d"]
+        expected = [pycleora.cosine_similarity(embeddings[hit["index"]], embeddings[graph.get_entity_index("a")]) for hit in found]
+        np.testing.assert_allclose([hit["similarity"] for hit in found], expected, atol=1e-6)
+    assert len(pycleora.find_most_similar(graph, embeddings, "a", top_k=100, exclude_self=False)) == 4
+
+    # an entity pointing exactly the other way has cosine -1 and is a result like any other
+    row = {name: i for i, name in enumerate(graph.entity_ids)}
+    vectors = np.zeros((4, 2), dtype=np.float32)
+    vectors[row["a"]], vectors[row["b"]], vectors[row["c"]], vectors[row["d"]] = (1, 0), (-1, 0), (0, 1), (1, 1)
+    found = pycleora.find_most_similar(graph, vectors, "a", top_k=3)
+    assert [hit["entity_id"] for hit in found] == ["d", "c", "b"]
+    assert found[-1]["similarity"] == pytest.approx(-1.0)
+
+
 @pytest.mark.parametrize("exclude_existing", [True, False])
 def test_predict_links_matches_brute_force(graph, exclude_existing):
+    n = graph.num_entities
     embeddings = embed(graph, 16, 4)
     unit = l2(embeddings.astype(np.float64))
     scores = unit @ unit.T
@@ -470,7 +509,11 @@ def test_predict_links_matches_brute_force(graph, exclude_existing):
 
     sources = [graph.entity_ids[i] for i in (3, 77, 150)]
     rows = [3, 77, 150]
-    flat = [(scores[r, c], r, c) for r in rows for c in range(graph.num_entities) if np.isfinite(scores[r, c])]
+    # a pair of two sources counts once, from the source with the lower index
+    flat = [
+        (scores[r, c], r, c) for r in rows for c in range(n)
+        if np.isfinite(scores[r, c]) and not (c in rows and c < r)
+    ]
     flat.sort(reverse=True)
     expected = flat[:9]
     found = pycleora.predict_links(graph, embeddings, top_k=9, exclude_existing=exclude_existing, source_entities=sources)
@@ -478,9 +521,33 @@ def test_predict_links_matches_brute_force(graph, exclude_existing):
     np.testing.assert_allclose([p["score"] for p in found], [s for s, _, _ in expected], atol=1e-5)
 
     everything = pycleora.predict_links(graph, embeddings, top_k=5, exclude_existing=exclude_existing)
-    best = np.sort(scores[np.isfinite(scores)])[::-1][:5]
+    unordered = scores[np.triu_indices(n, k=1)]
+    best = np.sort(unordered[np.isfinite(unordered)])[::-1][:5]
     np.testing.assert_allclose([p["score"] for p in everything], best, atol=1e-5)
     assert pycleora.predict_links(graph, embeddings, top_k=0) == []
+
+
+def test_predict_links_returns_every_pair_once(graph):
+    """Every pair used to come back as (a, b) and as (b, a): top_k=10 gave 5 pairs."""
+    embeddings = embed(graph, 16, 4)
+
+    def pairs(predictions):
+        return [frozenset((p["source"], p["target"])) for p in predictions]
+
+    found = pycleora.predict_links(graph, embeddings, top_k=10)
+    assert len(found) == 10 and len(set(pairs(found))) == 10
+
+    # both ends of the best pair as sources, one of them named twice
+    first, second = found[0]["source"], found[0]["target"]
+    among = pycleora.predict_links(graph, embeddings, top_k=10, source_entities=[second, first, second])
+    assert len(among) == 10 and len(set(pairs(among))) == 10
+    assert all(p["source"] in (first, second) for p in among)
+    assert pairs(among)[0] == pairs(found)[0]
+
+    # fewer pairs than asked for: all of them, 4 * 3 / 2
+    small = SparseMatrix.from_iterator(iter(["a b", "b c", "c d"]), COLUMNS)
+    everything = pycleora.predict_links(small, embed(small, 4, 2), top_k=100, exclude_existing=False)
+    assert len(everything) == 6 and len(set(pairs(everything))) == 6
 
 
 # --- the other embedding variants --------------------------------------------------------
@@ -490,14 +557,62 @@ def test_directed_embedding_follows_the_arrows():
     graph, embeddings = pycleora.embed_directed(lines, COLUMNS, feature_dim=6, num_iterations=1, whiten=False)
     init = graph.initialize_deterministically(6).astype(np.float64)
     row = {name: i for i, name in enumerate(graph.entity_ids)}
-    # "a" points to b and c, "b" to c, "c" to nothing
+    # "a" points to b and c, "b" to c, "c" to nothing: it keeps its own vector
     np.testing.assert_allclose(embeddings[row["a"]], l2((init[row["b"]] + init[row["c"]])[None])[0], atol=1e-5)
     np.testing.assert_allclose(embeddings[row["b"]], l2(init[row["c"]][None])[0], atol=1e-5)
-    assert not embeddings[row["c"]].any()
+    np.testing.assert_allclose(embeddings[row["c"]], l2(init[row["c"]][None])[0], atol=1e-5)
 
     hyper = ["x y z w", "w x"]
     graph, embeddings = pycleora.embed_directed(hyper, COLUMNS, feature_dim=2, num_iterations=3)
     assert embeddings.shape == (4, 2) and np.isfinite(embeddings).all()
+
+
+def test_directed_sinks_do_not_erase_the_embedding():
+    """A sink had a zero row, and the zeros moved one step upstream with every
+    iteration: after 5 of them a chain of 5 was all zeros."""
+    chain = ["a b", "b c", "c d", "d e"]
+    graph, embeddings = pycleora.embed_directed(chain, COLUMNS, feature_dim=6, num_iterations=5)
+    np.testing.assert_allclose(np.linalg.norm(embeddings, axis=1), 1.0, atol=1e-5)
+    # what moves upstream now is the vector of the sink
+    init = graph.initialize_deterministically(6).astype(np.float64)
+    sink = l2(init[[graph.get_entity_index("e")]])[0]
+    np.testing.assert_allclose(embeddings, np.tile(sink, (5, 1)), atol=1e-5)
+
+    # one step: only "d" has seen the sink, the others have their successor's vector
+    graph, embeddings = pycleora.embed_directed(chain, COLUMNS, feature_dim=6, num_iterations=1)
+    row = {name: i for i, name in enumerate(graph.entity_ids)}
+    for name, successor in (("a", "b"), ("b", "c"), ("c", "d"), ("d", "e"), ("e", "e")):
+        np.testing.assert_allclose(embeddings[row[name]], l2(init[[row[successor]]])[0], atol=1e-5)
+
+
+def test_node_features_take_a_seed_and_whitening(graph):
+    """The only embed_* variant that had neither argument."""
+    import inspect
+
+    rng = np.random.default_rng(3)
+    features = {name: rng.standard_normal(6).astype(np.float32) for name in graph.entity_ids[:50]}
+
+    def expected(seed, whiten):
+        init = graph.initialize_deterministically(6, seed)
+        for name, vector in features.items():
+            row = graph.get_entity_index(name)
+            init[row] = 0.5 * init[row] + 0.5 * vector
+        return embed(graph, 6, 3, initial_embeddings=init, whiten=whiten)
+
+    default = pycleora.embed_with_node_features(graph, features, 3)
+    np.testing.assert_array_equal(default, expected(0, False))
+    seeded = pycleora.embed_with_node_features(graph, features, 3, seed=7)
+    np.testing.assert_array_equal(seeded, expected(7, False))
+    assert not np.array_equal(seeded, default)
+    whitened = pycleora.embed_with_node_features(graph, features, 3, whiten=True)
+    np.testing.assert_array_equal(whitened, expected(0, True))
+    assert not np.array_equal(whitened, default)
+
+    # added at the end: positional calls written for the old signature mean the same
+    assert list(inspect.signature(pycleora.embed_with_node_features).parameters) == [
+        "graph", "node_features", "num_iterations", "propagation", "normalization",
+        "feature_weight", "num_workers", "seed", "whiten",
+    ]
 
 
 def test_multiscale_attention_and_estimator(graph):
