@@ -22,7 +22,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from cleora_bench import configurations, datasets, display, iteration_fit, report, selection  # noqa: E402
+from cleora_bench import configurations, datasets, display, iteration_fit, popularity, report, selection  # noqa: E402
 
 
 class Results:
@@ -182,7 +182,7 @@ def iterations_table(results, task):
             auto_cell = report.cell(results.table, name, task, probe, metric, [(auto_name, display.MAIN_DIM)])
             tuned_cell = report.cell(results.table, name, task, probe, metric, [(tuned_name, display.MAIN_DIM)]) if tuned_name else {}
             cells.append(_iterations(auto) if auto else "–")
-            cells.append(tuned_name.rsplit("_k", 1)[1] if tuned_name else "–")
+            cells.append(str(configurations.iterations(tuned_name)) if tuned_name else "–")
             if "mean" in auto_cell and "mean" in tuned_cell:
                 loss = 100 * (tuned_cell["mean"] - auto_cell["mean"])
                 losses[family].append(loss)
@@ -387,6 +387,7 @@ def build(results):
     if os.path.isdir(sweep):
         tables["iteration_rule_fit"] = iteration_fit.markdown(sweep)
         tables["iteration_rule_constants"] = iteration_fit.sensitivity_markdown(sweep)
+    tables["popularity_exponent"] = popularity.markdown(os.path.join(results.data, popularity.DIRECTORY))
     if results.timing:
         tables["time"] = timing_table(results, "seconds")
         tables["memory"] = timing_table(results, "peak_rss_mb")
@@ -449,6 +450,12 @@ SECTIONS = (
      "regression, link ranking against sampled candidates with dot product or cosine - the two scores the sweep "
      "validates.",
      [f"tuned_{scenario}" for scenario in display.TUNED_SCENARIOS]),
+    ("Cleora: the exponent of the popularity prior",
+     "Validation scores of the benchmark's similarity configuration with `scale_by_popularity(graph, vectors, "
+     "exponent)`, dot product, seed 0, mean over the graphs (`benchmarks/popularity_exponent.py`). `MRR`: against "
+     "the sampled candidates; `recall@10`: among all nodes. *prior or cosine*: the benchmark's rule, under which "
+     "a graph keeps the unit vectors when they validate better.",
+     ["popularity_exponent"]),
     ("Number of iterations: automatic rule against the sweep",
      "`auto`: iterations of `SparseMatrix.suggest_iterations` for the task. `tuned`: best of the sweep on "
      "validation. `loss`: points of the metric (x 100) the automatic count is behind the tuned one; negative: "

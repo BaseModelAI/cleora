@@ -11,7 +11,7 @@ import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "benchmarks"))
 
-from cleora_bench import configurations, iteration_fit, report, selection  # noqa: E402
+from cleora_bench import configurations, iteration_fit, popularity, report, selection  # noqa: E402
 
 
 def write_job(results, dataset, method, dim, seed, task, validation, test, metric="accuracy", probe="logistic"):
@@ -76,7 +76,11 @@ def test_tuned_iterations_are_the_ones_that_validate_best(tmp_path):
         write_job(sweep, "toy", name, 1024, 0, "nc", 1.0 - abs(iterations - 8) / 100, 1.0 - abs(iterations - 16) / 100)
         write_job(sweep, "toy", name, 1024, 0, "lp", 1.0 - abs(iterations - 3) / 100, 0.5, metric="mrr", probe="cosine")
     chosen = selection.write(str(tmp_path))
-    assert chosen == {"toy": {"nc": {"hyperedge/left": "cleora_left_k8"}, "lp": {"hyperedge/left": "cleora_left_k3"}}}
+    # the count chosen for the link task is run as the similarity configuration
+    assert chosen == {"toy": {"nc": {"hyperedge/left": "cleora_left_k8"}, "lp": {"hyperedge/left": "cleora_left_k3_sim"}}}
+    assert configurations.iterations("cleora_left_k3_sim") == 3
+    assert configurations.resolve("cleora_left_k3_sim")[1]["popularity"] == configurations.SIMILARITY["popularity"]
+    assert "popularity" not in configurations.resolve("cleora_left_k8")[1]
     assert selection.configurations_for(str(tmp_path), "toy", "nc") == ["cleora_left_k8"]
     assert selection.configurations_for(str(tmp_path), "other", "nc") == []
 
@@ -87,7 +91,9 @@ def test_configuration_names():
         "cleora_left_cls", "cleora_sym_cls", "cleora_pair_left_cls", "cleora_pair_sym_cls"]
     method, parameters = configurations.resolve("cleora_pair_sym_sim")
     assert method == "cleora_classic"
-    assert parameters == {"iterations": "auto", "purpose": "similarity", "propagation": "symmetric", "columns": "src dst"}
+    assert parameters == {"iterations": "auto", "purpose": "similarity", "propagation": "symmetric", "columns": "src dst",
+                          **configurations.SIMILARITY}
+    assert "popularity" not in configurations.resolve("cleora_pair_sym_cls")[1]
     with pytest.raises(KeyError, match="Unknown configuration"):
         configurations.resolve("cleora_best")
 
@@ -101,3 +107,19 @@ def test_regret_is_measured_in_points_against_the_validated_optimum(tmp_path):
     assert iteration_fit.regret(record, 4) == pytest.approx(0.4)   # 0.508 - 0.504, in points
     # between grid points: linear in log K (halfway between 16 and 24 on that scale is 19.6)
     assert iteration_fit.regret(record, np.sqrt(16 * 24)) == pytest.approx(-1.2)
+
+
+def test_popularity_table_follows_the_rule_of_the_benchmark(tmp_path):
+    # one graph that the prior helps (by validation MRR) and one that it hurts
+    helped = {str(e): {"mrr": 0.30 + (0.1 if e == 0.0625 else 0.05 if e > 0 else 0), "recall@10": 0.20 + e} for e in popularity.EXPONENTS}
+    hurt = {str(e): {"mrr": 0.50 - e, "recall@10": 0.40 - e} for e in popularity.EXPONENTS}
+    for name, scores in (("helped", helped), ("hurt", hurt)):
+        target = pathlib.Path(popularity.path(str(tmp_path), name))
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(scores))
+    rows = {line.split("|")[1].strip(): [cell.strip().strip("*") for cell in line.split("|")[2:-1]]
+            for line in popularity.markdown(str(tmp_path / popularity.DIRECTORY)).splitlines()[2:]}
+    # applied everywhere the prior is averaged over both graphs; under the rule the second graph keeps the cosine
+    assert rows["0.0625"] == ["2", "0.4188", "0.3000", "0.4500", "0.3313", "1"]
+    assert rows["0"] == ["2", "0.4000", "0.3000", "0.4000", "0.3000", "0"]
+    assert popularity.markdown(str(tmp_path / "nothing")) == ""

@@ -111,9 +111,10 @@ def _node_order(vectors, row_node, num_nodes):
     return out
 
 
-@_method("cleora_classic", "main", "Cleora", note="iterations: a number, or 'auto' = SparseMatrix.suggest_iterations(purpose)")
+@_method("cleora_classic", "main", "Cleora", note="iterations: a number, or 'auto' = SparseMatrix.suggest_iterations(purpose); "
+                                                  "popularity: exponent of pycleora.scale_by_popularity, 0 = unit vectors")
 def cleora_classic(edges, num_nodes, dim, seed, threads, weights, iterations="auto", propagation="left",
-                   columns="complex::reflexive::node", purpose="general"):
+                   columns="complex::reflexive::node", purpose="general", popularity=0.0):
     import pycleora
 
     graph, row_node = _cleora_graph(edges, threads, weights, columns)
@@ -121,6 +122,8 @@ def cleora_classic(edges, num_nodes, dim, seed, threads, weights, iterations="au
         iterations = graph.suggest_iterations(propagation, purpose)
     RUN_INFO["iterations"] = iterations
     vectors = pycleora.embed(graph, dim, iterations, propagation=propagation, seed=seed, num_workers=threads, whiten=False)
+    if popularity:
+        vectors = pycleora.scale_by_popularity(graph, vectors, popularity)
     return _node_order(vectors, row_node, num_nodes)
 
 

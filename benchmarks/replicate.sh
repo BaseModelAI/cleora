@@ -18,6 +18,7 @@
 #   --no-baselines       do not run the nine baseline methods
 #   --no-previous        do not run the pycleora 3.2 default (whitening, 40 iterations)
 #   --no-tuned           no iteration sweep and no "Cleora, tuned" rows
+#   --no-popularity      no measurement of the exponents of the popularity prior
 #   --no-timing          no separate time / memory measurement
 #   --no-figures         no UMAP figures
 #   --no-report          do not write benchmarks/RESULTS.md and the tables of the READMEs
@@ -26,14 +27,14 @@
 # machine that does nothing else.
 set -euo pipefail
 
-[ $# -ge 1 ] || { sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+[ $# -ge 1 ] || { sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
 mkdir -p "$1"
 data=$(cd "$1" && pwd)
 shift
 here=$(cd "$(dirname "$0")" && pwd)
 
 tiers=S datasets="" dim=1024 threads=$(getconf _NPROCESSORS_ONLN)
-setup=1 baselines=1 previous=1 tuned=1 timing=1 figures=1 report=1
+setup=1 baselines=1 previous=1 tuned=1 popularity=1 timing=1 figures=1 report=1
 while [ $# -gt 0 ]; do
     case $1 in
         --tiers) tiers=$2; shift ;;
@@ -44,6 +45,7 @@ while [ $# -gt 0 ]; do
         --no-baselines) baselines=0 ;;
         --no-previous) previous=0 ;;
         --no-tuned) tuned=0 ;;
+        --no-popularity) popularity=0 ;;
         --no-timing) timing=0 ;;
         --no-figures) figures=0 ;;
         --no-report) report=0 ;;
@@ -85,6 +87,10 @@ for tier in $(echo "$tiers" | grep -o .); do
             --methods "$(configurations "c.sweep('hyperedge') + c.sweep('pair')")"
         "$python" "$here/select_iterations.py" --data "$data"
         run --dim "$dim" --seeds "$seeds" --tasks nc,lp --methods cleora_tuned
+    fi
+    if [ $popularity = 1 ] && [ "$tier" != L ]; then
+        # how the exponent of the popularity prior was chosen: validation scores by exponent
+        "$python" "$here/popularity_exponent.py" --data "$data" "${selection[@]}" --threads "$threads"
     fi
     if [ $timing = 1 ]; then
         run --results timing --dim "$dim" --seeds 0,1,2 --tasks time \

@@ -43,7 +43,7 @@ def _write_json(path, payload):
     os.replace(path + ".tmp", path)
 
 
-def _link_split(graph, seed, cache):
+def link_split(graph, seed, cache):
     """The link split of (dataset, seed): drawn once, then shared by every method."""
     path = os.path.join(cache, graph["meta"]["name"], f"link_split_seed{seed}.npz")
     if not os.path.exists(path):
@@ -64,7 +64,7 @@ def _save_sample(directory, vectors):
     np.savez(os.path.join(directory, "sample.npz"), rows=rows, vectors=vectors[rows].astype(np.float16))
 
 
-def _embed(method, params, edges, num_nodes, weights, dim, seed, threads, work, timeout):
+def embed(method, params, edges, num_nodes, weights, dim, seed, threads, work, timeout):
     """Runs the method on the nodes of ``edges`` that have an edge. Returns
     ``(vectors in the numbering of the caller or None, record)``."""
     compact_edges, ids = tasks.compact(edges, num_nodes)
@@ -107,7 +107,7 @@ def run_job(dataset, method_id, method, params, dim, seed, task, *, data_root, r
         if task == "nc":
             if "labels" not in graph:
                 raise ValueError(f"{dataset} has no node labels: it supports the link task only")
-            vectors, result["embedding"] = _embed(method, params, graph["edges"], num_nodes, graph.get("weights"),
+            vectors, result["embedding"] = embed(method, params, graph["edges"], num_nodes, graph.get("weights"),
                                                   dim, seed, threads, work, timeout)
             if vectors is not None:
                 result["probes"] = tasks.node_classification(vectors, graph, device, split_seeds, node_probes)
@@ -116,14 +116,14 @@ def run_job(dataset, method_id, method, params, dim, seed, task, *, data_root, r
         elif task in ("viz", "time"):
             # the whole graph is embedded and nothing is evaluated: "viz" keeps a sample of the
             # vectors of a graph without labels, "time" only the time and memory the method took
-            vectors, result["embedding"] = _embed(method, params, graph["edges"], num_nodes, graph.get("weights"),
+            vectors, result["embedding"] = embed(method, params, graph["edges"], num_nodes, graph.get("weights"),
                                                   dim, seed, threads, work, timeout)
             if vectors is not None and task == "viz":
                 _save_sample(directory, vectors)
         elif task == "lp":
-            split = _link_split(graph, seed, cache)
+            split = link_split(graph, seed, cache)
             # edge weights are not carried into the link task: the split is over unweighted edges
-            vectors, result["embedding"] = _embed(method, params, split["embed"], num_nodes, None,
+            vectors, result["embedding"] = embed(method, params, split["embed"], num_nodes, None,
                                                   dim, seed, threads, work, timeout)
             if vectors is not None:
                 result["probes"] = tasks.link_prediction(vectors, split, graph, device, seed, pair_probes)

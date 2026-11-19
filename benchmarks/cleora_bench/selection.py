@@ -5,7 +5,8 @@ dataset, task and family (setup x normalisation) the iteration count with the be
 *validation* score of the sweep is kept; test scores are never read here.
 
 The sweep is a cheap pass (one seed, one probe per task: ``SWEEP_PROBE``); the chosen
-configurations are then run like every other method, with all probes and seeds.
+iteration counts are then run like every other method, with all probes and seeds, as
+the configuration of the task's purpose (``configurations.for_purpose``).
 """
 
 import json
@@ -13,7 +14,7 @@ import os
 
 import numpy as np
 
-from . import configurations, report
+from . import configurations, display, report
 
 SWEEP_PROBE = {"nc": "logistic", "lp": "cosine"}
 SWEEP_DIRECTORY = "sweep"
@@ -22,7 +23,7 @@ TUNED = "cleora_tuned"  # in a list of methods: "the configurations chosen for t
 
 
 def choose(sweep_results):
-    """``{dataset: {task: {family: configuration}}}`` from the job files of a sweep."""
+    """``{dataset: {task: {family: configuration to run}}}`` from the job files of a sweep."""
     table = report.aggregate(report.load_jobs(sweep_results))
     chosen = {}
     for setup in configurations.SETUPS:
@@ -39,7 +40,8 @@ def choose(sweep_results):
                     score = float(np.mean(scores))
                     if best is None or score > best[1]:
                         chosen[dataset][task][family] = (name, score)
-    return {dataset: {task: {family: name for family, (name, _) in families.items()} for task, families in tasks.items()}
+    return {dataset: {task: {family: configurations.for_purpose(name, display.TASK_PURPOSE[task])
+                             for family, (name, _) in families.items()} for task, families in tasks.items()}
             for dataset, tasks in chosen.items()}
 
 

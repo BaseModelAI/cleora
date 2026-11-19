@@ -29,13 +29,18 @@ CONFIGURATIONS = {
 #   pair       two columns, "src dst": the plain adjacency matrix, without self-loops.
 SWEEP_ITERATIONS = (1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64)
 SETUPS = {"hyperedge": "complex::reflexive::node", "pair": "src dst"}
+# What the README recommends on top of normalisation and iteration count when the vectors
+# are used to find or rank links: the popularity prior of pycleora.scale_by_popularity, at
+# the library's default exponent (written out here so that a result names what produced it).
+SIMILARITY = {"popularity": 0.0625}
 for _setup, _columns in SETUPS.items():
     for _propagation, _tag in (("left", "left"), ("symmetric", "sym")):
         for _iterations in SWEEP_ITERATIONS:
             # the hyperedge names predate the pair setup and stay as they were
             _name = f"cleora_{_tag}_k{_iterations}" if _setup == "hyperedge" else f"cleora_pair_{_tag}_k{_iterations}"
-            CONFIGURATIONS[_name] = ("cleora_classic", {
-                "iterations": _iterations, "propagation": _propagation, "columns": _columns})
+            _parameters = {"iterations": _iterations, "propagation": _propagation, "columns": _columns}
+            CONFIGURATIONS[_name] = ("cleora_classic", _parameters)
+            CONFIGURATIONS[_name + "_sim"] = ("cleora_classic", {**_parameters, **SIMILARITY})
 
 
 # The library's own choice of the number of iterations (SparseMatrix.suggest_iterations):
@@ -48,7 +53,8 @@ for _setup, _columns in SETUPS.items():
         for _purpose, _suffix in PURPOSES.items():
             _name = f"cleora_{_tag}_{_suffix}" if _setup == "hyperedge" else f"cleora_pair_{_tag}_{_suffix}"
             CONFIGURATIONS[_name] = ("cleora_classic", {
-                "iterations": "auto", "purpose": _purpose, "propagation": _propagation, "columns": _columns})
+                "iterations": "auto", "purpose": _purpose, "propagation": _propagation, "columns": _columns,
+                **(SIMILARITY if _purpose == "similarity" else {})})
             AUTO[(_setup, _propagation, _purpose)] = _name
 
 
@@ -62,6 +68,17 @@ def sweep(setup, propagation=None):
     prefix = "cleora_" if setup == "hyperedge" else "cleora_pair_"
     tags = ("left", "sym") if propagation is None else (propagation,)
     return [f"{prefix}{tag}_k{k}" for tag in tags for k in SWEEP_ITERATIONS]
+
+
+def for_purpose(name, purpose):
+    """The fixed-iteration configuration ``name`` of the sweep as it is run for a purpose:
+    with the extras of ``SIMILARITY`` when the vectors are used for similarity."""
+    return name + "_sim" if purpose == "similarity" else name
+
+
+def iterations(name):
+    """The iteration count of a fixed-iteration configuration."""
+    return CONFIGURATIONS[name][1]["iterations"]
 
 
 CONFIGURATIONS["deepwalk_e5"] = ("deepwalk", {"epochs": 5})

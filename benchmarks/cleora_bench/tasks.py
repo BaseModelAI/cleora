@@ -336,24 +336,25 @@ def _evaluate_scorer(score, split, part, limit=None):
     return result
 
 
-def _retrieval(vectors_on_device, split, graph, seed):
-    """Ranks the test targets of sampled query nodes against *all* nodes of the graph
-    with a training-free score (the rows of ``vectors_on_device`` are compared by dot
-    product). Known neighbours other than test targets are removed from the candidates.
+def _retrieval(vectors_on_device, split, graph, seed, part="test"):
+    """Ranks the targets of ``part`` ('test' or 'valid') of sampled query nodes against
+    *all* nodes of the graph with a training-free score (the rows of
+    ``vectors_on_device`` are compared by dot product). Known neighbours other than
+    these targets are removed from the candidates.
 
     The queries are those of the candidate ranking; a split that comes as one official
     list of positive pairs has every distinct pair queried from both of its ends.
 
-    Returns MRR / Hits@k of the individual test edges and Recall / NDCG / MAP of the
+    Returns MRR / Hits@k of the individual edges and Recall / NDCG / MAP of the
     top-``RETRIEVAL_DEPTH`` list of every query node.
     """
     import torch
 
     num_nodes = graph["meta"]["num_nodes"]
-    if "test_queries" in split:
-        queries_all, targets_all = split["test_queries"], split["test_targets"]
+    if f"{part}_queries" in split:
+        queries_all, targets_all = split[f"{part}_queries"], split[f"{part}_targets"]
     else:
-        queries_all, targets_all = np.unique(np.stack(_both_directions(split["test_pos"]), axis=1), axis=0).T
+        queries_all, targets_all = np.unique(np.stack(_both_directions(split[f"{part}_pos"]), axis=1), axis=0).T
     rng = np.random.default_rng(seed)
     nodes = np.unique(queries_all)
     if len(nodes) > RETRIEVAL_QUERIES:
@@ -398,6 +399,16 @@ def _retrieval(vectors_on_device, split, graph, seed):
     result.update(metrics.retrieval_metrics(hits, ends - starts, ks=(10, 20, 50)))
     result["num_queries"] = int(len(starts))
     return result
+
+
+def validation_scores(vectors, split, graph, device, seed):
+    """What the dot product of ``vectors`` scores on the *validation* edges: the metrics
+    against the sampled candidates and those of the retrieval among all nodes. For
+    choosing between ways of making vectors without looking at the test edges."""
+    matrix = probes.to_device(vectors, device)
+    scores = _evaluate_scorer(probes.product_scorer(matrix), split, "valid")
+    scores.update(_retrieval(matrix, split, graph, seed, part="valid"))
+    return scores
 
 
 def link_prediction(vectors, split, graph, device, seed, which=PAIR_PROBES):
