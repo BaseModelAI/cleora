@@ -159,9 +159,10 @@ mixed with new ones. Requires Python 3.10 or newer; tested on 3.10 to 3.15.
   dolphins, Les Miserables, football, ogbn-arxiv. Multi-label datasets return a
   label matrix.
 - `benchmarks/`: the benchmark behind the numbers in the README - 26 public
-  graphs, nine baselines run from their authors' code, node classification and
-  link ranking with several probes and many metrics - replicable with one
-  script (`benchmarks/replicate.sh`). See `benchmarks/README.md`.
+  graphs, nine baselines run from their authors' code, similarity search among
+  all nodes, node classification and link ranking with many metrics -
+  replicable with one script (`benchmarks/replicate.sh`). See
+  `benchmarks/README.md`.
 - `SparseMatrix.from_cliques(cliques)`: a graph from an iterable of entity
   groups, without formatting strings; `SparseMatrix.isolated_entities`.
 - `left_markov_propagate_normalized_inplace` /

@@ -13,7 +13,7 @@ benchmarks/replicate.sh ~/cleora-bench --datasets cora,citeseer --no-timing   # 
 - [Datasets](#datasets)
 - [Methods](#methods)
 - [Node classification](#node-classification)
-- [Link ranking](#link-ranking)
+- [Similarity search and link ranking](#similarity-search-and-link-ranking)
 - [One configuration per method](#one-configuration-per-method)
 - [Number of iterations](#number-of-iterations)
 - [Time and memory](#time-and-memory)
@@ -24,16 +24,17 @@ benchmarks/replicate.sh ~/cleora-bench --datasets cora,citeseer --no-timing   # 
 ## What is measured
 
 Every method turns a graph into one vector per node, without seeing node labels or
-node features. The vectors are then frozen and judged by what small supervised models
-("probes") can do with them:
+node features. The vectors are then frozen and measured in the three ways embeddings
+are used in production:
 
-| Task | Graphs | Question |
-|---|---|---|
-| node classification | those with node labels | can a classifier predict the label of a node from its vector? |
-| link ranking | all | does the true neighbour of a node score higher than non-neighbours? |
+| Use | Graphs | What is measured | What it stands for |
+|---|---|---|---|
+| similarity search | all | the held-out neighbours of a node are retrieved among all nodes of the graph by dot product or cosine | a nearest-neighbour index over the vectors: candidate generation, "similar items" |
+| node classification | those with node labels | logistic regression and an MLP predict the label of a node from its vector | the vectors as input features of a downstream model |
+| link ranking | all | a held-out edge is ranked against 500 sampled non-edges by dot product or cosine, and by a dot product with one learned weight per dimension | scoring a short list of candidates |
 
 Not every graph has node labels: Facebook, MovieLens, roadNet-CA, LiveJournal and the
-OGB link datasets take part in link ranking only.
+OGB link datasets take part in similarity search and link ranking only.
 
 Every method produces **1024-dimensional** vectors, and every column of the main
 tables is **one configuration** of a method, the same for every graph: nothing is
@@ -159,14 +160,12 @@ and test: the official split where the dataset defines one, otherwise 10% / 10% 
 at random (stratified for single-label graphs), three splits per embedding. With three
 seeds that makes nine evaluations per number.
 
-Four probes, each fitted on train, tuned on validation and scored once on test:
+Two probes, each fitted on train, tuned on validation and scored once on test:
 
 | Probe | Model | Tuned on validation |
 |---|---|---|
 | logistic regression | multinomial (single-label) or one per label (multi-label), L-BFGS to convergence | L2 penalty from 10² … 10⁻⁸, feature scaling |
-| linear SVM | squared hinge loss, one-vs-rest, L-BFGS to convergence | the same |
 | MLP | one hidden layer of 512 units, dropout 0.5, 100 epochs of AdamC (warm-up, cosine decay) | weight decay 10⁻² or 10⁻¹, the epoch, feature scaling |
-| k-NN | cosine vote of the k nearest training nodes; no training | k from 1, 5, 10, 20, 50 |
 
 *Feature scaling* is one of: none, unit-norm rows, standardised columns. Embedding
 methods differ in what the scale of their coordinates means - standardising helps
@@ -184,14 +183,14 @@ Metrics (`pycleora.metrics`, checked against scikit-learn in the test suite):
   micro and macro ROC-AUC and average precision, label-ranking average precision,
   precision@1.
 
-## Link ranking
+## Similarity search and link ranking
 
 The edges are split at random into four disjoint sets:
 
 | Set | Share | Used for |
 |---|---:|---|
 | embed | 75% | the only edges the embedding method sees |
-| probe | 10% | positives for training the pair probes |
+| probe | 10% | positives for training the pair probe |
 | validation | 5% | model selection |
 | test | 10% | the reported numbers |
 
@@ -202,29 +201,26 @@ missing ones. On large graphs the three held-out sets are capped (500,000 / 20,0
 positives and negatives; only the probe positives are taken out of the official
 training edges.
 
-Every validation or test edge (u, v) is ranked, in both directions, against 500 random
-nodes that are not neighbours of the query node in the full graph. All methods and all
-probes rank the same candidates.
+A pair of nodes (x, y) is scored in three ways:
 
 | Probe | Score of a pair (x, y) | Training |
 |---|---|---|
 | dot product | xᵀy | none |
 | cosine | xᵀy / (‖x‖‖y‖) | none |
-| bilinear | xᵀMy, M initialised to the identity | AdamC, 30 epochs |
-| MLP | concatenation → 512 hidden units → sigmoid | AdamC, 30 epochs |
-| logistic regression | linear model on the element-wise product x∘y | L-BFGS |
-| linear SVM | the same, squared hinge loss | L-BFGS |
+| logistic regression | wᵀ(x∘y) + b: a dot product with one learned weight per dimension | L-BFGS on the probe positives and three sampled negatives per positive (at most one million pairs); L2 penalty chosen on validation MRR |
 
-The trained probes see the probe positives and three sampled negatives per positive
-(the two linear probes at most one million of these pairs); their weight decay / L2 penalty
-is chosen on validation MRR.
+**Similarity search among all nodes.** For the two training-free scores, the held-out
+neighbours of up to 10,000 query nodes are ranked among *all* nodes of the graph, with
+the known neighbours filtered out - what a nearest-neighbour index over the vectors
+returns. Metrics: recall@k, precision@k, hit rate@k, nDCG@k and MAP@k for k = 10, 20,
+50, and the MRR and Hits@k of every held-out edge in the full ranking. In a bipartite
+graph only nodes of the other side are candidates.
 
-Metrics: MRR, mean and median rank, Hits@1/3/10/50/100, ROC-AUC and average precision
-against the 500 sampled candidates. For the two training-free scores additionally
-*retrieval among all nodes*: the held-out neighbours of 10,000 query nodes are ranked
-among all nodes of the graph with the known neighbours filtered out, which is what a
-nearest-neighbour index over the vectors does - recall@k, precision@k, hit rate@k,
-nDCG@k and MAP@k for k = 10, 20, 50, and the MRR and Hits@k of the full ranking.
+**Link ranking against sampled candidates.** Every validation or test edge (u, v) is
+ranked, in both directions, against 500 random nodes that are not neighbours of the
+query node in the full graph (the OGB link datasets: against their official
+negatives). All methods and all probes rank the same candidates. Metrics: MRR, mean
+and median rank, Hits@1/3/10/50/100, ROC-AUC and average precision.
 
 Edge weights (Wikipedia POS) are used for node classification and ignored in the link
 task, whose split is over unweighted edges.
@@ -233,7 +229,7 @@ task, whose split is over unweighted edges.
 
 Every column of the main tables is a single configuration at 1024 dimensions, applied
 unchanged to every graph. Validation data is used inside the probes (their
-regularisation, feature scaling, number of neighbours) and nowhere else; test scores
+regularisation and feature scaling) and nowhere else; test scores
 are never used to choose anything.
 
 Two decisions about Cleora were made once, for all graphs, and not on test scores:
@@ -251,8 +247,9 @@ Two decisions about Cleora were made once, for all graphs, and not on test score
 - *The number of iterations.* A rule on two statistics of the graph, fitted on
   validation curves ([next section](#number-of-iterations)).
 
-For the training-free link scores a method is given the better of dot product and
-cosine on validation; for Cleora, whose vectors have unit length, the two coincide.
+In similarity search and in link ranking a method is given the better of dot product
+and cosine on validation (the validation MRR against sampled candidates); for Cleora,
+whose vectors have unit length, the two coincide.
 
 A number is the mean over seeds and splits; ± is the standard deviation over them.
 The best number of a row is bold, the second best underlined. *mean rank* is the
@@ -309,7 +306,7 @@ reported separately:
 | MovieLens-1M | 0.148 | 0.148 | +0.0 | HOPE 0.149 |
 | ogbl-ddi | 0.027 | 0.027 | +0.0 | HOPE 0.083 |
 | ogbn-arxiv | **0.671** | **0.671** | +0.0 | RandNE 0.606 |
-| ogbl-collab | 0.057 | 0.055 | -0.2 | node2vec 0.099 |
+| ogbl-collab | 0.057 | 0.055 | -0.2 | DeepWalk 0.095 |
 | roadNet-CA | 0.752 | 0.752 | +0.0 | ProNE 0.778 |
 | Yelp | 0.495 | 0.504 | +0.8 | RandNE 0.513 |
 | Reddit | 0.605 | **0.745** | +14.0 | ProNE 0.626 |
@@ -525,7 +522,10 @@ Everything is seeded: the initial vectors of Cleora depend only on node names an
 seed, the splits and the sampled negatives only on the dataset and the seed. Cleora's
 output is bit-identical between runs and thread counts. Skip-gram training with several
 threads is not deterministic, so DeepWalk, node2vec and Walklets vary slightly from run
-to run; the standard deviations show by how much.
+to run; the standard deviations show by how much. The scores themselves are computed
+on the accelerator, whose rounding differs between machines: where many nodes have
+nearly equal vectors (small sparse graphs) the order of near-ties changes, and the
+retrieval metrics with it, by up to 0.004.
 
 ## What the benchmark does not show
 
@@ -534,6 +534,15 @@ to run; the standard deviations show by how much.
   iterations are in the *tuned* tables; at a few times to a few thousand times
   Cleora's cost per run this was not done, which is why the tuned numbers are kept out
   of the main tables.
+- **A trained ranking model.** The ranking stage of a production recommender feeds
+  both vectors, together with many other features, to a model trained on interaction
+  logs; a benchmark on bare graphs cannot reproduce that. An earlier version of this
+  suite had a stand-in for it - an untuned MLP over the two concatenated vectors - on
+  which ProNE ranked ahead of Cleora. It was removed together with three probes that
+  are rarely applied to embeddings in practice: k-NN classification (node2vec and
+  ProNE ranked ahead of Cleora), a full bilinear form (six of the nine baselines did)
+  and linear SVMs (Cleora ranked first). Their tables are in the history of
+  `RESULTS.md`.
 - **Other dimensionalities.** Everything is at 1024 dimensions. Most baselines were
   published at 128, and some of them are better there than at 1024.
 - **Methods that use node features or labels** (GCN, GraphSAGE, ...). All methods here
