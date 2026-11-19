@@ -3,6 +3,11 @@ import sys
 import time
 import numpy as np
 
+# node2vec with p = q = 1 walks exactly like DeepWalk. q < 1 is the "outward"
+# (exploring) setting of the node2vec paper, so that the name stands for another method.
+NODE2VEC_P = 1.0
+NODE2VEC_Q = 0.5
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -24,6 +29,11 @@ def main():
     embed_parser.add_argument("--algorithm", "-a", default="cleora",
                               choices=["cleora", "prone", "randne", "hope", "netmf", "grarep", "deepwalk", "node2vec"])
     embed_parser.add_argument("--seed", type=int, default=0)
+    embed_parser.add_argument("--p", type=float, default=NODE2VEC_P,
+                              help=f"node2vec only: return parameter of the walks (default: {NODE2VEC_P})")
+    embed_parser.add_argument("--q", type=float, default=NODE2VEC_Q,
+                              help=f"node2vec only: in-out parameter of the walks (default: {NODE2VEC_Q}); "
+                                   "p = q = 1 is DeepWalk")
     embed_parser.add_argument("--whiten", action="store_true",
                               help="PCA-whiten the columns after every iteration (the default of pycleora 3.2): "
                                    "much slower, needs many more entities than dimensions")
@@ -116,7 +126,7 @@ def _cmd_embed(args):
         "netmf": lambda: embed_netmf(graph, args.dim),
         "grarep": lambda: embed_grarep(graph, args.dim),
         "deepwalk": lambda: embed_deepwalk(graph, args.dim, seed=args.seed),
-        "node2vec": lambda: embed_node2vec(graph, args.dim, seed=args.seed),
+        "node2vec": lambda: embed_node2vec(graph, args.dim, p=args.p, q=args.q, seed=args.seed),
     }
 
     emb = algo_map[args.algorithm]()
@@ -171,7 +181,10 @@ def _cmd_benchmark(args):
 
     dim = args.dim
     if graph.num_entities < 4 * dim:
-        # embeddings with (nearly) as many dimensions as there are nodes say nothing
+        # Only the whitened row needs this: whitening estimates a dim x dim covariance
+        # from the entities and is useless without several times more entities than
+        # dimensions (see embed()). The other rows work at any dimension - the SVD-based
+        # ones pad with zero columns - but one table compares all rows at the same one.
         dim = max(2, graph.num_entities // 4)
         print(f"Using {dim} dimensions instead of {args.dim}: the graph has only {graph.num_entities} nodes.")
 
@@ -181,7 +194,7 @@ def _cmd_benchmark(args):
         "prone": lambda g: embed_prone(g, dim),
         "randne": lambda g: embed_randne(g, dim),
         "deepwalk": lambda g: embed_deepwalk(g, dim),
-        "node2vec": lambda g: embed_node2vec(g, dim),
+        "node2vec": lambda g: embed_node2vec(g, dim, p=NODE2VEC_P, q=NODE2VEC_Q),
     }
 
     print(f"Benchmarking on {ds['name']} ({ds['num_nodes']} nodes)...")
