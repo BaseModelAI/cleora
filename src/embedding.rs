@@ -64,13 +64,13 @@ const ROWS_PER_TASK: usize = 64;
 /// number of entries, not rows, and entities are numbered by first appearance, which
 /// puts the busiest ones next to each other at the start: tasks of equal *row* counts
 /// would leave most of the work to the one thread that got the first rows.
-const TASK_NNZ: usize = 4096;
+pub(crate) const TASK_NNZ: usize = 4096;
 /// Upper bound on the rows of one propagation task (rows cost something even when empty).
 const TASK_ROWS: usize = 1024;
 /// A row with more entries than this is a task of its own, summed in parallel in
 /// segments of `TASK_NNZ` entries that are combined in order. The segmentation depends
 /// on the row only, so the result is the same for any number of threads.
-const HUB_NNZ: usize = 4 * TASK_NNZ;
+pub(crate) const HUB_NNZ: usize = 4 * TASK_NNZ;
 /// How many entries ahead the first cache line of a source row is requested.
 const PREFETCH_DISTANCE: usize = 4;
 
@@ -102,12 +102,7 @@ fn prefetch(pointer: *const f32) {
 impl<'a> Product<'a> {
     #[inline(always)]
     fn coefficient(&self, k: usize) -> f32 {
-        let value = self.graph.values[k];
-        if self.symmetric {
-            value * self.graph.inv_sqrt_row[self.graph.indices[k] as usize]
-        } else {
-            value
-        }
+        self.graph.entry_factor(k, self.symmetric)
     }
 
     #[inline(always)]
@@ -192,11 +187,7 @@ impl<'a> Product<'a> {
         } else {
             self.accumulate(entries.start, entries.end, dst);
         }
-        let scale = if self.symmetric {
-            self.graph.inv_sqrt_row[row]
-        } else {
-            self.graph.inv_row[row]
-        };
+        let scale = self.graph.row_factor(row, self.symmetric);
         for d in dst.iter_mut() {
             *d *= scale;
         }
@@ -270,7 +261,7 @@ fn rows_dispatch<F: Fn(usize, &mut [f32])>(
 /// Groups a sequence of rows, given by their numbers of entries, into consecutive
 /// tasks of about `TASK_NNZ` entries (see the constants above). Returns the position
 /// of the first row of every task, followed by the number of rows.
-fn balanced_tasks(row_entries: impl Iterator<Item = usize>) -> Vec<usize> {
+pub(crate) fn balanced_tasks(row_entries: impl Iterator<Item = usize>) -> Vec<usize> {
     let mut bounds = vec![0usize];
     let mut entries = 0usize;
     let mut count = 0usize;
@@ -295,6 +286,23 @@ fn balanced_tasks(row_entries: impl Iterator<Item = usize>) -> Vec<usize> {
     bounds
 }
 
+/// Cuts `data`, which holds `width` elements per row, into the pieces of the tasks given
+/// by `bounds` (as [`balanced_tasks`] returns them).
+pub(crate) fn split_tasks<'a, T>(
+    data: &'a mut [T],
+    bounds: &[usize],
+    width: usize,
+) -> Vec<&'a mut [T]> {
+    let mut pieces = Vec::with_capacity(bounds.len() - 1);
+    let mut rest = data;
+    for task in bounds.windows(2) {
+        let (piece, tail) = rest.split_at_mut((task[1] - task[0]) * width);
+        pieces.push(piece);
+        rest = tail;
+    }
+    pieces
+}
+
 /// Computes the rows `rows` of the product into `out` (one row of `out` per entry of
 /// `rows`), in parallel tasks of about equal cost.
 fn run_product<F>(product: &Product<'_>, rows: Rows<'_>, out: &mut [f32], finish: F)
@@ -308,22 +316,18 @@ where
     };
     let count = out.len() / dim;
     let bounds = balanced_tasks((0..count).map(|p| product.graph.row_range(row_at(p)).len()));
-    let mut tasks: Vec<(Rows<'_>, &mut [f32])> = Vec::with_capacity(bounds.len() - 1);
-    let mut rest = out;
-    for task in bounds.windows(2) {
-        let (chunk, tail) = rest.split_at_mut((task[1] - task[0]) * dim);
-        let task_rows = match rows {
-            Rows::From(first_row) => Rows::From(first_row + task[0]),
-            Rows::List(list) => Rows::List(&list[task[0]..task[1]]),
-        };
-        tasks.push((task_rows, chunk));
-        rest = tail;
-    }
     // Every task may be stolen on its own: they are about equally expensive.
-    tasks
+    split_tasks(out, &bounds, dim)
         .into_par_iter()
+        .zip(bounds.par_windows(2))
         .with_max_len(1)
-        .for_each(|(task_rows, chunk)| rows_dispatch(product, task_rows, chunk, &finish));
+        .for_each(|(chunk, task)| {
+            let task_rows = match rows {
+                Rows::From(first_row) => Rows::From(first_row + task[0]),
+                Rows::List(list) => Rows::List(&list[task[0]..task[1]]),
+            };
+            rows_dispatch(product, task_rows, chunk, &finish)
+        });
 }
 
 /// `out = M * x` for the row-major `n x dim` matrices `x` and `out`, where `M` is

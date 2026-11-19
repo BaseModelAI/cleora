@@ -157,6 +157,30 @@ impl SparseMatrix {
         self.indptr[row] as usize..self.indptr[row + 1] as usize
     }
 
+    /// The part of entry `k` of the Markov matrix that does not depend on its row: the
+    /// raw weight, divided by the square root of the column's mass when `symmetric`.
+    /// The entry itself is this times [`row_factor`](Self::row_factor).
+    #[inline(always)]
+    pub(crate) fn entry_factor(&self, k: usize, symmetric: bool) -> f32 {
+        let value = self.values[k];
+        if symmetric {
+            value * self.inv_sqrt_row[self.indices[k] as usize]
+        } else {
+            value
+        }
+    }
+
+    /// What every entry of `row` is multiplied by: one over the mass of the row, or
+    /// over its square root when `symmetric`.
+    #[inline(always)]
+    pub(crate) fn row_factor(&self, row: usize, symmetric: bool) -> f32 {
+        if symmetric {
+            self.inv_sqrt_row[row]
+        } else {
+            self.inv_row[row]
+        }
+    }
+
     /// Index of the entity with the given name.
     pub fn index_of(&self, entity_id: &str) -> Option<usize> {
         let lookup = self.lookup.get_or_init(|| {
