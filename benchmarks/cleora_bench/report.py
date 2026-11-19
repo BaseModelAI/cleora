@@ -141,7 +141,7 @@ def format_cell(value, best, second, digits=3, show_std=True):
             if "memory" in reason:
                 return "out of memory"
             if "skipped" in reason:
-                return "n/a (dense)"
+                return "n/a (size)"
             return "failed"
         return "–"
     text = f"{value['mean']:.{digits}f}"
@@ -169,12 +169,15 @@ def markdown_table(rows, methods, labels, row_label="Dataset", digits=3, higher_
 
 
 def summary_rows(rows, methods, higher_is_better=True):
-    """Mean rank, number of wins (ties count) and number of rows with a result, per method."""
+    """Mean rank, number of wins (ties count) and number of rows with a result, per method.
+
+    Only rows on which at least two of the methods have a result are compared: being the
+    only method that ran on a graph is not a win, and says nothing about ranks."""
     rank_sum, wins, counted = defaultdict(float), defaultdict(int), defaultdict(int)
     used = 0
     for cells in rows.values():
         complete = {m: cells.get(m, {"missing": True}) for m in methods}
-        if not any("mean" in c for c in complete.values()):
+        if sum("mean" in c for c in complete.values()) < 2:
             continue
         used += 1
         row_ranks = ranks(complete, higher_is_better)

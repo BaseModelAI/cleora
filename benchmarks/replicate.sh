@@ -63,7 +63,9 @@ configurations() {  # names of a group of Cleora configurations
 for tier in $(echo "$tiers" | grep -o .); do
     if [ -n "$datasets" ]; then selection=(--datasets "$datasets"); else selection=(--tiers "$tier"); fi
     seeds=0,1,2; [ "$tier" = S ] || seeds=0
-    run() { "$python" "$here/run_benchmark.py" --data "$data" "${selection[@]}" --threads "$threads" "$@"; }
+    # hours a method may take on one graph: on the largest graphs Cleora needs minutes
+    limit=6; [ "$tier" = L ] && limit=1
+    run() { "$python" "$here/run_benchmark.py" --data "$data" "${selection[@]}" --threads "$threads" --timeout "$limit" "$@"; }
 
     "$python" "$here/prepare_datasets.py" --data "$data" "${selection[@]}"
 

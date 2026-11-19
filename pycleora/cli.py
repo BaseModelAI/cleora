@@ -175,7 +175,7 @@ def _cmd_benchmark(args):
         kind = "multi-label targets" if ds.get("multilabel") else "no node labels"
         raise SystemExit(
             f"Dataset '{args.dataset}' has {kind}; this command needs one label per node. "
-            "See benchmarks/run_benchmarks.py in the repository for multi-label evaluation."
+            "See benchmarks/ in the repository for multi-label evaluation."
         )
     graph = SparseMatrix.from_iterator(iter(ds["edges"]), ds["columns"])
 

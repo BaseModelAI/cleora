@@ -49,8 +49,11 @@ def _link_split(graph, seed, cache):
     if not os.path.exists(path):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         split = tasks.link_split(graph, seed)
-        np.savez(path + ".tmp.npz", **split)
-        os.replace(path + ".tmp.npz", path)
+        # several processes may draw the same (deterministic) split at once: each writes
+        # its own temporary file, and whichever finishes last puts an identical one in place
+        temporary = f"{path}.{os.getpid()}.tmp.npz"
+        np.savez(temporary, **split)
+        os.replace(temporary, path)
     with np.load(path) as archive:
         return {key: archive[key] for key in archive.files}
 
@@ -71,7 +74,7 @@ def _embed(method, params, edges, num_nodes, weights, dim, seed, threads, work, 
     out, stats = os.path.join(work, "vectors.npy"), os.path.join(work, "stats.json")
     limit = methods.METHODS[method][3]
     if limit is not None and len(ids) > limit:
-        return None, {"status": "skipped", "reason": f"needs dense n x n matrices; limited to {limit} nodes"}
+        return None, {"status": "skipped", "reason": f"this implementation is limited to {limit} nodes"}
     started = time.time()
     failure = embed_worker.run(method, graph_path, dim, seed, threads, out, stats, params=params, timeout=timeout)
     if failure is not None:

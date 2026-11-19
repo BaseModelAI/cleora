@@ -40,13 +40,13 @@ def test_the_variant_is_chosen_on_validation_and_its_test_score_reported(tmp_pat
 
 def test_failed_and_missing_runs_are_told_apart(tmp_path):
     job = {"dataset": "toy", "method": "netmf", "dim": 1024, "seed": 0, "task": "nc",
-           "embedding": {"status": "skipped", "reason": "needs dense n x n matrices; limited to 60000 nodes"}}
+           "embedding": {"status": "skipped", "reason": "this implementation is limited to 60000 nodes"}}
     path = tmp_path / "toy" / "netmf" / "dim1024" / "seed0" / "nc.json"
     path.parent.mkdir(parents=True)
     path.write_text(json.dumps(job))
     table = report.aggregate(report.load_jobs(str(tmp_path)))
     skipped = report.cell(table, "toy", "nc", "logistic", "accuracy", [("netmf", 1024)])
-    assert report.format_cell(skipped, None, None) == "n/a (dense)"
+    assert report.format_cell(skipped, None, None) == "n/a (size)"
     never_run = report.cell(table, "toy", "nc", "logistic", "accuracy", [("hope", 1024)])
     assert report.format_cell(never_run, None, None) == "–"
 
@@ -58,11 +58,15 @@ def test_ranks_share_ties_and_put_missing_results_last():
 
 
 def test_summary_counts_wins_and_averages_ranks():
-    rows = {"g1": {"a": {"mean": 0.9}, "b": {"mean": 0.8}}, "g2": {"a": {"mean": 0.5}, "b": {"mean": 0.7}},
-            "g3": {"a": {"mean": 0.6}, "b": {"missing": True}}, "empty": {"a": {"missing": True}, "b": {"missing": True}}}
-    summary = report.summary_rows(rows, ["a", "b"])
-    assert summary["a"] == {"mean_rank": pytest.approx(4 / 3), "wins": 2, "results": 3, "rows": 3}
-    assert summary["b"] == {"mean_rank": pytest.approx(5 / 3), "wins": 1, "results": 2, "rows": 3}
+    rows = {"g1": {"a": {"mean": 0.9}, "b": {"mean": 0.8}, "c": {"mean": 0.7}},
+            "g2": {"a": {"mean": 0.5}, "b": {"mean": 0.7}, "c": {"missing": True}},
+            # being the only method with a result is not a win: the row is not compared
+            "alone": {"a": {"mean": 0.6}, "b": {"missing": True}, "c": {"missing": True}},
+            "empty": {"a": {"missing": True}, "b": {"missing": True}, "c": {"missing": True}}}
+    summary = report.summary_rows(rows, ["a", "b", "c"])
+    assert summary["a"] == {"mean_rank": pytest.approx(1.5), "wins": 1, "results": 2, "rows": 2}
+    assert summary["b"] == {"mean_rank": pytest.approx(1.5), "wins": 1, "results": 2, "rows": 2}
+    assert summary["c"] == {"mean_rank": pytest.approx(3.0), "wins": 0, "results": 1, "rows": 2}
 
 
 def test_tuned_iterations_are_the_ones_that_validate_best(tmp_path):
