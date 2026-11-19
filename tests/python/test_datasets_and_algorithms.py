@@ -61,6 +61,53 @@ def test_synthetic_graphs_are_labelled_synthetic(tmp_path, monkeypatch):
         datasets.load_synthetic("karate_club")
 
 
+def test_wikipedia_pos_keeps_the_edge_weights(tmp_path, monkeypatch):
+    """The published POS.mat is weighted (0.5 to 1941.5, two entries in three are not 1);
+    the loader returned its edges without the weights."""
+    import scipy.io
+    import scipy.sparse
+
+    network = np.array([
+        [3.0, 0.5, 0.0, 7.0],  # 3.0: a self-loop, which is not an edge
+        [0.5, 0.0, 2.5, 0.0],
+        [0.0, 2.5, 0.0, 0.0],
+        [7.0, 0.0, 1.5, 0.0],  # 1.5: stored in one direction only
+    ])
+    groups = np.array([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0], [0.0, 0.0]])
+    for filename in ("node2vec_POS.mat", "node2vec_Homo_sapiens.mat"):
+        scipy.io.savemat(
+            str(tmp_path / filename),
+            {"network": scipy.sparse.csc_matrix(network), "group": scipy.sparse.csc_matrix(groups)},
+        )
+    monkeypatch.setattr(datasets, "_CACHE_DIR", str(tmp_path))
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("the files are in the cache: nothing is to be downloaded")
+
+    monkeypatch.setattr(datasets, "_download_with_progress", refuse)
+
+    data = datasets.load_wikipedia_pos()
+    assert list(data["edges"]) == ["0 1", "0 3", "1 2", "2 3"]
+    assert data["weights"] == [0.5, 7.0, 2.5, 1.5]
+    assert data["num_edges"] == 4 and data["multilabel"] is True
+
+    # one weight per edge, in the order of the edges: the graph built from them is the file's
+    graph = SparseMatrix.from_iterator(iter(data["edges"]), data["columns"], weights=data["weights"])
+    adjacency = algorithms._graph_to_adjacency(graph).toarray()
+    row = [graph.get_entity_index(str(node)) for node in range(4)]
+    expected = np.array([
+        [0.0, 0.5, 0.0, 7.0],
+        [0.5, 0.0, 2.5, 0.0],
+        [0.0, 2.5, 0.0, 1.5],
+        [7.0, 0.0, 1.5, 0.0],
+    ])
+    reordered = adjacency[np.ix_(row, row)]
+    np.testing.assert_allclose(reordered / reordered[0, 1], expected / expected[0, 1])
+
+    # the protein network of the same collection has no weights to report
+    assert "weights" not in datasets.load_ppi()
+
+
 NETWORK = pytest.mark.skipif(
     os.environ.get("PYCLEORA_TEST_DOWNLOADS") != "1",
     reason="downloads public datasets; set PYCLEORA_TEST_DOWNLOADS=1 to run",

@@ -666,7 +666,18 @@ def load_amazon_photo() -> Dict:
     )
 
 
-def _load_node2vec_mat(filename: str, display_name: str, description: str, column: str) -> Dict:
+def _undirected_weights(adjacency, src: np.ndarray, dst: np.ndarray) -> List[float]:
+    """The weight of every undirected edge ``src[i] - dst[i]`` of a sparse adjacency matrix.
+
+    A file may store an edge in one direction or in both: the larger entry is taken,
+    which in a symmetric matrix is simply the weight.
+    """
+    either_direction = adjacency.maximum(adjacency.T).tocsr()
+    return np.asarray(either_direction[src, dst], dtype=np.float64).ravel().tolist()
+
+
+def _load_node2vec_mat(filename: str, display_name: str, description: str, column: str,
+                       weighted: bool = False) -> Dict:
     """The multi-label networks distributed with node2vec (MATLAB files)."""
     import scipy.io
     import scipy.sparse
@@ -678,7 +689,7 @@ def _load_node2vec_mat(filename: str, display_name: str, description: str, colum
     src, dst = _undirected_unique(adjacency.row, adjacency.col)
     label_matrix = np.asarray(scipy.sparse.csr_matrix(content["group"]).todense()).astype(np.uint8)
     in_graph = np.union1d(src, dst)
-    return {
+    dataset = {
         "name": display_name,
         "edges": _LazyEdgeList(src, dst),
         # every node may carry several labels: see "label_matrix"
@@ -692,6 +703,9 @@ def _load_node2vec_mat(filename: str, display_name: str, description: str, colum
         "columns": f"complex::reflexive::{column}",
         "description": description,
     }
+    if weighted:
+        dataset["weights"] = _undirected_weights(adjacency, src, dst)
+    return dataset
 
 
 _NODE2VEC_CITATION = "A. Grover and J. Leskovec, node2vec, KDD 2016"
@@ -713,8 +727,9 @@ def load_wikipedia_pos() -> Dict:
     return _load_node2vec_mat(
         "POS.mat", "Wikipedia word co-occurrence (POS)",
         "Co-occurrence network of 4,777 words from a Wikipedia dump (node2vec version) with "
-        "40 part-of-speech labels. Multi-label ('label_matrix' / 'label_entities').",
-        column="word",
+        "40 part-of-speech labels. Multi-label ('label_matrix' / 'label_entities'). "
+        "'weights' holds the co-occurrence weight of every edge.",
+        column="word", weighted=True,
     )
 
 
@@ -1616,7 +1631,7 @@ _DATASETS = {
     "citeseer": (load_citeseer, 3279, 4552, 6, "CiteSeer citation network (Planetoid)"),
     "pubmed": (load_pubmed, 19717, 44324, 3, "PubMed diabetes citation network (Planetoid)"),
     "ppi": (load_ppi, 3860, 37845, 50, "Protein-protein interaction network (node2vec), multi-label"),
-    "wikipedia_pos": (load_wikipedia_pos, 4777, 92295, 40, "Wikipedia word co-occurrence network (node2vec), multi-label"),
+    "wikipedia_pos": (load_wikipedia_pos, 4777, 92295, 40, "Wikipedia word co-occurrence network (node2vec), weighted, multi-label"),
     "amazon_photo": (load_amazon_photo, 7535, 119081, 8, "Amazon co-purchase graph (photo)"),
     "amazon_computers": (load_amazon_computers, 13471, 245861, 10, "Amazon co-purchase graph (computers)"),
     "ppi_large": (load_ppi_large, 56688, 793632, 121, "PPI graphs of 24 tissues (GraphSAGE), multi-label"),
