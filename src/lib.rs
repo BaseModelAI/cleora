@@ -14,7 +14,7 @@ use pyo3::pybacked::PyBackedStr;
 use pyo3::types::{PyBytes, PyTuple};
 
 use crate::configuration::{resolve_num_workers, Configuration};
-use crate::embedding::{thread_pool, MarkovType};
+use crate::embedding::{thread_pool, MarkovType, Purpose};
 use crate::pipeline::{
     build_graph_from_files, build_graph_from_int_edges, build_graph_from_lines,
     build_graph_from_rows, build_graph_from_str_edges,
@@ -416,6 +416,33 @@ impl SparseMatrix {
         num_workers: Option<usize>,
     ) -> PyResult<()> {
         self.propagate_normalized_inplace(py, x, MarkovType::Symmetric, num_iterations, num_workers)
+    }
+
+    /// A number of iterations for `pycleora.embed` chosen from the graph: fewer on
+    /// dense graphs, more for a reflexive column and for the symmetric normalisation.
+    ///
+    /// `purpose` is `"similarity"` (nearest neighbours, link ranking), `"classification"`
+    /// (features for a classifier, about twice as many iterations) or `"general"`, a
+    /// compromise and what `num_iterations="auto"` uses. See `benchmarks/README.md`
+    /// for the rule and its evaluation.
+    #[pyo3(signature = (propagation = "left", purpose = "general"))]
+    fn suggest_iterations(&self, propagation: &str, purpose: &str) -> PyResult<usize> {
+        let purpose = match purpose {
+            "similarity" => Purpose::Similarity,
+            "general" => Purpose::General,
+            "classification" => Purpose::Classification,
+            _ => {
+                return Err(PyValueError::new_err(format!(
+                    "Unknown purpose '{}'. Use 'similarity', 'general' or 'classification'.",
+                    purpose
+                )))
+            }
+        };
+        Ok(embedding::suggested_iterations(
+            self,
+            parse_propagation(propagation)?,
+            purpose,
+        ))
     }
 
     /// Builds the matrix from an iterable of cliques: every element is a sequence of

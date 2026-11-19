@@ -79,6 +79,7 @@ class SparseMatrix:
     def symmetric_markov_propagate_normalized_inplace(
         self, x: NDArray[np.float32], num_iterations: int, num_workers: Optional[int] = None
     ) -> None: ...
+    def suggest_iterations(self, propagation: str = "left", purpose: str = "general") -> int: ...
     def embed_fast(
         self,
         feature_dim: int,

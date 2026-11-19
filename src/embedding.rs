@@ -484,6 +484,82 @@ pub fn iterate(
     rounds
 }
 
+/// What the vectors will be used for; see [`suggested_iterations`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Purpose {
+    /// Nearest neighbours, link ranking, recommendation: local structure matters.
+    Similarity,
+    /// One embedding for several uses.
+    General,
+    /// Features for a classifier: the wider neighbourhood matters.
+    Classification,
+}
+
+impl Purpose {
+    /// Random-walk steps for a graph whose entities have one neighbour on average.
+    fn steps(self) -> f64 {
+        match self {
+            Purpose::Similarity => 12.0,
+            Purpose::General => 16.0,
+            Purpose::Classification => 24.0,
+        }
+    }
+}
+
+/// The symmetric normalisation smooths more slowly and gets this many times more steps.
+const AUTO_SYMMETRIC_FACTOR: f64 = 1.5;
+/// With fewer steps than this, vectors of very dense graphs are still mostly noise.
+const AUTO_MIN_ITERATIONS: f64 = 2.0;
+/// Share of an entity's own initial (random) vector that may be left after the last
+/// round. A diagonal weight share `s` leaves `s^rounds` of it.
+const AUTO_SELF_REMAINDER: f64 = 1.0 / 256.0;
+/// Largest number of rounds the rule was validated for.
+const AUTO_MAX_ITERATIONS: usize = 64;
+
+/// Number of rounds for [`embed`] when there are no labels to choose it with:
+///
+/// ```text
+/// mixing = steps(purpose) / ((1 - s) * sqrt(mean neighbours))        (x 1.5 symmetric)
+/// forget = ln(1/256) / ln(s)                                          (0 when s = 0)
+/// rounds = max(mixing, forget, 2), at most 64
+/// ```
+///
+/// where `s` is the share of the weight that lies on the diagonal.
+///
+/// Every round moves the vectors one step along a random walk. Too few rounds and
+/// only the closest neighbourhood is visible; too many and all vectors converge to
+/// the same direction. Denser graphs mix faster, hence the square root of the mean
+/// number of neighbours (`mixing`). A matrix with weight on its diagonal - a reflexive
+/// column - describes a lazy walk: it only moves with probability `1 - s`, and every
+/// vector keeps a share `s` of what it was. `mixing` is scaled accordingly, and
+/// `forget` is the number of rounds after which the entity's own random initial
+/// vector has decayed to 1/256: 8 rounds for a reflexive column of two-entity
+/// hyperedges, however dense the graph.
+///
+/// The form and the constants were fitted leave-one-graph-out on iteration sweeps
+/// over graphs with 3 to 500 neighbours per node (`benchmarks/README.md`, "Number of
+/// iterations").
+pub fn suggested_iterations(graph: &SparseMatrix, kind: MarkovType, purpose: Purpose) -> usize {
+    let staying = graph.self_weight_share();
+    if staying >= 1.0 {
+        // nothing but self-loops: further rounds change nothing
+        return 1;
+    }
+    let factor = match kind {
+        MarkovType::Left => 1.0,
+        MarkovType::Symmetric => AUTO_SYMMETRIC_FACTOR,
+    };
+    let mixing =
+        purpose.steps() * factor / ((1.0 - staying) * graph.mean_neighbours().max(1.0).sqrt());
+    let forget = if staying > 0.0 {
+        AUTO_SELF_REMAINDER.ln() / staying.ln()
+    } else {
+        0.0
+    };
+    let rounds = mixing.max(forget).max(AUTO_MIN_ITERATIONS);
+    (rounds.round() as usize).clamp(1, AUTO_MAX_ITERATIONS)
+}
+
 /// Classic Cleora from the given initial vectors. Returns the embeddings and the
 /// number of rounds performed (see [`iterate`]).
 pub fn embed(
@@ -836,6 +912,88 @@ mod tests {
         }
         let mut empty: Vec<f32> = Vec::new();
         propagate_selected(&graph, &x, &[], &mut empty, dim, MarkovType::Left);
+    }
+
+    fn graph_of(columns: &str, lines: &[String]) -> SparseMatrix {
+        let config = crate::configuration::Configuration::new(columns, 16, Some(2)).unwrap();
+        crate::pipeline::build_graph_from_lines(&config, lines, None)
+            .unwrap()
+            .0
+    }
+
+    fn ring(nodes: usize, separator: &str) -> Vec<String> {
+        (0..nodes)
+            .map(|i| format!("v{}{}v{}", i, separator, (i + 1) % nodes))
+            .collect()
+    }
+
+    fn clique(nodes: usize, separator: &str) -> Vec<String> {
+        (0..nodes)
+            .flat_map(|i| (i + 1..nodes).map(move |j| format!("v{}{}v{}", i, separator, j)))
+            .collect()
+    }
+
+    #[test]
+    fn suggested_iterations_follow_density_purpose_and_normalisation() {
+        // a ring: every entity has exactly two neighbours
+        let pair = graph_of("a b", &ring(50, "\t"));
+        assert_eq!(pair.mean_neighbours(), 2.0);
+        assert_eq!(pair.self_weight_share(), 0.0);
+        let rounds = |purpose| suggested_iterations(&pair, MarkovType::Left, purpose);
+        assert_eq!(rounds(Purpose::Similarity), 8); // 12 / sqrt(2) = 8.5
+        assert_eq!(rounds(Purpose::General), 11); // 16 / sqrt(2) = 11.3
+        assert_eq!(rounds(Purpose::Classification), 17); // 24 / sqrt(2) = 17.0
+                                                         // symmetric: x 1.5
+        assert_eq!(
+            suggested_iterations(&pair, MarkovType::Symmetric, Purpose::General),
+            17
+        );
+        // a clique of 26: 25 neighbours each, 16 / 5 = 3.2
+        let dense = graph_of("a b", &clique(26, "\t"));
+        assert_eq!(
+            suggested_iterations(&dense, MarkovType::Left, Purpose::General),
+            3
+        );
+    }
+
+    #[test]
+    fn suggested_iterations_of_a_lazy_walk() {
+        // the ring as a reflexive column: half of every row is the self-loop
+        let lazy = graph_of("complex::reflexive::v", &ring(50, " "));
+        assert_eq!(lazy.mean_neighbours(), 2.0);
+        assert!((lazy.self_weight_share() - 0.5).abs() < 1e-12);
+        // twice the rounds of the plain ring: 2 * 16 / sqrt(2) = 22.6
+        assert_eq!(
+            suggested_iterations(&lazy, MarkovType::Left, Purpose::General),
+            23
+        );
+        // a dense lazy walk still needs 8 rounds to forget the initial vectors (0.5^8 = 1/256)
+        let dense = graph_of("complex::reflexive::v", &clique(40, " "));
+        for purpose in [
+            Purpose::Similarity,
+            Purpose::General,
+            Purpose::Classification,
+        ] {
+            assert_eq!(suggested_iterations(&dense, MarkovType::Left, purpose), 8);
+        }
+    }
+
+    #[test]
+    fn suggested_iterations_stay_in_range_on_degenerate_graphs() {
+        let general =
+            |graph: &SparseMatrix| suggested_iterations(graph, MarkovType::Left, Purpose::General);
+        assert_eq!(general(&SparseMatrix::empty()), 16);
+        // one hyperedge with a single entity: only a self-loop
+        let alone = graph_of("complex::reflexive::v", &["x".to_string()]);
+        assert_eq!(alone.self_weight_share(), 1.0);
+        assert_eq!(general(&alone), 1);
+        // a very dense plain graph gets the minimum of two rounds
+        let dense = graph_of("a b", &clique(100, "\t"));
+        assert_eq!(general(&dense), 2);
+        assert_eq!(
+            suggested_iterations(&dense, MarkovType::Symmetric, Purpose::Classification),
+            4 // 24 * 1.5 / sqrt(99) = 3.6
+        );
     }
 
     /// A star whose centre has more entries than `HUB_NNZ`, plus a ring among the leaves.

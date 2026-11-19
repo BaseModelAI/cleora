@@ -188,6 +188,39 @@ impl SparseMatrix {
             .collect()
     }
 
+    /// Mean number of neighbours (entities other than itself) of an entity.
+    pub fn mean_neighbours(&self) -> f64 {
+        let rows = self.num_entities();
+        if rows == 0 {
+            return 0.0;
+        }
+        let diagonal: usize = (0..rows)
+            .map(|row| {
+                self.row_range(row)
+                    .filter(|&k| self.indices[k] as usize == row)
+                    .count()
+            })
+            .sum();
+        (self.nnz() - diagonal) as f64 / rows as f64
+    }
+
+    /// Share of the total weight that lies on the diagonal: how lazy the random walk
+    /// over this matrix is. 0 for a plain adjacency matrix, 1/2 for a reflexive column
+    /// of two-entity hyperedges. Summed in row order, so the result does not depend
+    /// on the number of threads.
+    pub fn self_weight_share(&self) -> f64 {
+        let total: f64 = self.row_sums.iter().sum();
+        if total <= 0.0 {
+            return 0.0;
+        }
+        let diagonal: f64 = (0..self.num_entities())
+            .flat_map(|row| self.row_range(row).map(move |k| (row, k)))
+            .filter(|&(row, k)| self.indices[k] as usize == row)
+            .map(|(_, k)| self.values[k] as f64)
+            .sum();
+        diagonal / total
+    }
+
     /// Edge value under the requested normalisation.
     #[inline(always)]
     pub fn normalized_value(&self, row: usize, k: usize, kind: Normalization) -> f32 {
