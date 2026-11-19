@@ -653,3 +653,21 @@ def test_heterogeneous_graph_relations_carry_weights():
     plain = build(None).embed_per_relation(8, 3, whiten=False)[1]["buys"]
     weighted = build([5.0, 1.0, 1.0, 5.0]).embed_per_relation(8, 3, whiten=False)[1]["buys"]
     assert np.abs(plain - weighted).max() > 1e-3
+
+
+def test_popularity_prior_multiplies_the_cosine_by_the_degrees(graph):
+    unit = pycleora.embed(graph, 16, 3)
+    scaled = pycleora.scale_by_popularity(graph, unit, 0.5)
+    degrees = np.asarray(graph.entity_degrees, dtype=np.float64)
+    assert degrees.min() > 0 and degrees.max() > degrees.min()
+    expected = (unit.astype(np.float64) @ unit.T.astype(np.float64)) * np.sqrt(np.outer(degrees, degrees))
+    np.testing.assert_allclose(scaled.astype(np.float64) @ scaled.T.astype(np.float64), expected, rtol=1e-4, atol=1e-5)
+    # the default is a mild prior: longer vectors for better connected entities, same directions
+    default = pycleora.scale_by_popularity(graph, unit)
+    norms = np.linalg.norm(default, axis=1)
+    np.testing.assert_allclose(norms, degrees ** pycleora.DEFAULT_POPULARITY_EXPONENT, rtol=1e-4)
+    np.testing.assert_allclose(default / norms[:, None], unit, atol=1e-6)
+    np.testing.assert_allclose(np.linalg.norm(unit, axis=1), 1.0, rtol=1e-5)  # the input is left alone
+    np.testing.assert_array_equal(pycleora.scale_by_popularity(graph, unit, 0.0), unit)
+    with pytest.raises(ValueError, match="one row per entity"):
+        pycleora.scale_by_popularity(graph, unit[:-1])

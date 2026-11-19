@@ -21,6 +21,9 @@ DEFAULT_WHITEN = False
 # Whitening counteracts over-smoothing, so with it the number of iterations hardly
 # matters once it is large enough. 40 is what pycleora 3.2 used.
 WHITENED_ITERATIONS = 40
+# Exponent of the popularity prior of scale_by_popularity: the one with the best mean
+# validation score over the graphs of the benchmark (benchmarks/README.md).
+DEFAULT_POPULARITY_EXPONENT = 0.0625
 
 _NORMALIZATIONS = ("l2", "l1", "spectral", "none")
 _ROW_CHUNK = 65536
@@ -404,6 +407,40 @@ def embed_with_attention(
             callback(i, embeddings)
 
     return embeddings
+
+
+def scale_by_popularity(
+    graph: SparseMatrix,
+    embeddings: np.ndarray,
+    exponent: float = DEFAULT_POPULARITY_EXPONENT,
+) -> np.ndarray:
+    """Gives the vectors a popularity prior: row ``i`` times ``degree_i ** exponent``.
+
+    The vectors of ``embed`` have unit length. Their dot product is the cosine: how
+    alike two entities are. Which links exist depends on more than that - a well
+    connected entity is in more of them. After this scaling the dot product is
+    ``cosine(i, j) * (degree_i * degree_j) ** exponent``, similarity times a
+    popularity prior, which finds missing links and recommendations better on most
+    graphs (``benchmarks/README.md``). Search the scaled vectors by dot product.
+
+    ``degree`` is ``graph.entity_degrees``, the hyperedge mass of an entity. The
+    default exponent is small on purpose: the prior is to settle the order of
+    entities that are about equally similar, not to replace similarity. Keep the
+    unit vectors for classification and wherever "alike" is the question; where
+    there is validation data, compare the two.
+
+    Returns a new array; ``embeddings`` is not modified.
+    """
+    vectors = np.asarray(embeddings, dtype=np.float32)
+    if vectors.ndim != 2 or vectors.shape[0] != graph.num_entities:
+        raise ValueError(
+            f"embeddings must have one row per entity ({graph.num_entities}), got shape {vectors.shape}"
+        )
+    degrees = np.asarray(graph.entity_degrees, dtype=np.float64)
+    # an entity without mass has no vector to scale (and 0 ** negative is not a number)
+    factor = np.zeros_like(degrees)
+    np.power(degrees, exponent, out=factor, where=degrees > 0)
+    return vectors * factor[:, None].astype(np.float32)
 
 
 def embed_multiscale(
