@@ -45,6 +45,10 @@ Python 3.10 or newer.
   Missing files now raise `FileNotFoundError`, skipped lines raise a
   `RuntimeWarning` naming the first offender, and input with no usable line
   raises `ValueError`. Files may have any extension.
+- **Any call in a forked child process hung** once the parent had used the
+  library (for example in a `multiprocessing` pool with the `fork` start method):
+  the child waited for worker threads that only exist in the parent. Thread
+  pools are now created per process.
 - Fortran-ordered and strided arrays crashed `left_markov_propagate` /
   `symmetric_markov_propagate` with a Rust panic. Any layout is accepted now;
   wrong shapes and dtypes raise readable `TypeError` / `ValueError`.

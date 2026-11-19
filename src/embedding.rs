@@ -22,14 +22,27 @@ pub enum MarkovType {
 
 /// Returns a thread pool with the requested number of threads, creating it on
 /// first use. Pools are kept for the lifetime of the process.
+///
+/// A forked child inherits this table but not the worker threads behind it: handing
+/// out one of the parent's pools there would wait forever for threads that do not
+/// exist. The table therefore remembers which process filled it and starts afresh in
+/// another one.
 pub fn thread_pool(num_threads: usize) -> Arc<ThreadPool> {
-    static POOLS: OnceLock<Mutex<HashMap<usize, Arc<ThreadPool>>>> = OnceLock::new();
+    type Pools = (u32, HashMap<usize, Arc<ThreadPool>>);
+    static POOLS: OnceLock<Mutex<Pools>> = OnceLock::new();
     let num_threads = num_threads.max(1);
-    let mut pools = POOLS
-        .get_or_init(|| Mutex::new(HashMap::new()))
+    let process = std::process::id();
+    let mut guard = POOLS
+        .get_or_init(|| Mutex::new((process, HashMap::new())))
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
-    pools
+    if guard.0 != process {
+        // The parent's pools are never dropped here: their threads are not ours to stop.
+        std::mem::forget(std::mem::take(&mut guard.1));
+        guard.0 = process;
+    }
+    guard
+        .1
         .entry(num_threads)
         .or_insert_with(|| {
             Arc::new(
