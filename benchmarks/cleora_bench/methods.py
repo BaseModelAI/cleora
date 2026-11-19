@@ -144,7 +144,14 @@ def _skipgram_walks(edges, num_nodes, dim, seed, threads, weights, p, q, epochs)
     from pecanpy import pecanpy
 
     matrix = adjacency(edges, num_nodes, weights)
-    graph = pecanpy.SparseOTF(p=p, q=q, workers=threads, verbose=False, random_state=seed)
+    # PecanPy's own choice of walk engine: plain neighbour sampling for first-order walks
+    # (alias tables when edges are weighted), on-the-fly second-order probabilities for
+    # node2vec. All of them sample the same walks; the engines differ in speed only.
+    if p == 1.0 and q == 1.0:
+        engine = pecanpy.FirstOrderUnweighted if weights is None else pecanpy.PreCompFirstOrder
+    else:
+        engine = pecanpy.SparseOTF
+    graph = engine(p=p, q=q, workers=threads, verbose=False, random_state=seed)
     graph.set_node_ids([str(node) for node in range(num_nodes)])
     graph.indptr = matrix.indptr.astype(np.uint64)
     graph.indices = matrix.indices.astype(np.uint32)
@@ -153,7 +160,7 @@ def _skipgram_walks(edges, num_nodes, dim, seed, threads, weights, p, q, epochs)
     return graph.embed(dim=dim, num_walks=10, walk_length=80, window_size=10, epochs=epochs)
 
 
-@_method("deepwalk", "walks", "DeepWalk", note="PecanPy walks (p = q = 1) + gensim skip-gram")
+@_method("deepwalk", "walks", "DeepWalk", note="PecanPy first-order walks + gensim skip-gram")
 def deepwalk(edges, num_nodes, dim, seed, threads, weights, epochs=1):
     return _skipgram_walks(edges, num_nodes, dim, seed, threads, weights, 1.0, 1.0, epochs)
 
