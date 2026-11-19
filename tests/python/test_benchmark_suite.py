@@ -76,12 +76,13 @@ def test_tuned_iterations_are_the_ones_that_validate_best(tmp_path):
         write_job(sweep, "toy", name, 1024, 0, "nc", 1.0 - abs(iterations - 8) / 100, 1.0 - abs(iterations - 16) / 100)
         write_job(sweep, "toy", name, 1024, 0, "lp", 1.0 - abs(iterations - 3) / 100, 0.5, metric="mrr", probe="cosine")
     chosen = selection.write(str(tmp_path))
-    # the count chosen for the link task is run as the similarity configuration
-    assert chosen == {"toy": {"nc": {"hyperedge/left": "cleora_left_k8"}, "lp": {"hyperedge/left": "cleora_left_k3_sim"}}}
+    # a chosen count is run as the configuration of the task's purpose, with its popularity prior
+    assert chosen == {"toy": {"nc": {"hyperedge/left": "cleora_left_k8_cls"}, "lp": {"hyperedge/left": "cleora_left_k3_sim"}}}
     assert configurations.iterations("cleora_left_k3_sim") == 3
-    assert configurations.resolve("cleora_left_k3_sim")[1]["popularity"] == configurations.SIMILARITY["popularity"]
+    assert configurations.resolve("cleora_left_k3_sim")[1]["popularity"] == configurations.EXTRAS["similarity"]["popularity"]
+    assert configurations.resolve("cleora_left_k8_cls")[1]["popularity"] == configurations.EXTRAS["classification"]["popularity"]
     assert "popularity" not in configurations.resolve("cleora_left_k8")[1]
-    assert selection.configurations_for(str(tmp_path), "toy", "nc") == ["cleora_left_k8"]
+    assert selection.configurations_for(str(tmp_path), "toy", "nc") == ["cleora_left_k8_cls"]
     assert selection.configurations_for(str(tmp_path), "other", "nc") == []
 
 
@@ -92,8 +93,8 @@ def test_configuration_names():
     method, parameters = configurations.resolve("cleora_pair_sym_sim")
     assert method == "cleora_classic"
     assert parameters == {"iterations": "auto", "purpose": "similarity", "propagation": "symmetric", "columns": "src dst",
-                          **configurations.SIMILARITY}
-    assert "popularity" not in configurations.resolve("cleora_pair_sym_cls")[1]
+                          **configurations.EXTRAS["similarity"]}
+    assert "popularity" not in configurations.resolve("cleora_pair_sym_auto")[1]
     with pytest.raises(KeyError, match="Unknown configuration"):
         configurations.resolve("cleora_best")
 
@@ -109,17 +110,29 @@ def test_regret_is_measured_in_points_against_the_validated_optimum(tmp_path):
     assert iteration_fit.regret(record, np.sqrt(16 * 24)) == pytest.approx(-1.2)
 
 
-def test_popularity_table_follows_the_rule_of_the_benchmark(tmp_path):
-    # one graph that the prior helps (by validation MRR) and one that it hurts
+def write_exponents(data, task, dataset, scores):
+    target = pathlib.Path(popularity.path(str(data), task, dataset))
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(scores))
+
+
+def rows_of(table):
+    return {line.split("|")[1].strip(): [cell.strip().strip("*") for cell in line.split("|")[2:-1]] for line in table.splitlines()[2:]}
+
+
+def test_popularity_tables(tmp_path):
+    # links: one graph that the prior helps (by validation MRR) and one that it hurts
     helped = {str(e): {"mrr": 0.30 + (0.1 if e == 0.0625 else 0.05 if e > 0 else 0), "recall@10": 0.20 + e} for e in popularity.EXPONENTS}
     hurt = {str(e): {"mrr": 0.50 - e, "recall@10": 0.40 - e} for e in popularity.EXPONENTS}
-    for name, scores in (("helped", helped), ("hurt", hurt)):
-        target = pathlib.Path(popularity.path(str(tmp_path), name))
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(json.dumps(scores))
-    rows = {line.split("|")[1].strip(): [cell.strip().strip("*") for cell in line.split("|")[2:-1]]
-            for line in popularity.markdown(str(tmp_path / popularity.DIRECTORY)).splitlines()[2:]}
+    write_exponents(tmp_path, "lp", "helped", helped)
+    write_exponents(tmp_path, "lp", "hurt", hurt)
+    rows = rows_of(popularity.link_table(str(tmp_path)))
     # applied everywhere the prior is averaged over both graphs; under the rule the second graph keeps the cosine
     assert rows["0.0625"] == ["2", "0.4188", "0.3000", "0.4500", "0.3313", "1"]
     assert rows["0"] == ["2", "0.4000", "0.3000", "0.4000", "0.3000", "0"]
-    assert popularity.markdown(str(tmp_path / "nothing")) == ""
+    # classification: the mean score, and the graphs above and below the unit vectors
+    write_exponents(tmp_path, "nc", "a", {str(e): {"score": 0.5 + e} for e in popularity.EXPONENTS})
+    write_exponents(tmp_path, "nc", "b", {str(e): {"score": 0.7 - e / 2} for e in popularity.EXPONENTS})
+    rows = rows_of(popularity.classification_table(str(tmp_path)))
+    assert rows["0"] == ["2", "0.6000", "0", "0"] and rows["0.25"] == ["2", "0.6625", "1", "1"]
+    assert popularity.link_table(str(tmp_path / "nothing")) == popularity.classification_table(str(tmp_path / "nothing")) == ""

@@ -95,6 +95,10 @@ SCENARIOS = {
     "nc": ("Node classification", "logistic regression, accuracy / micro-F1", "nc", "logistic", None),
     "lp": ("Link ranking against sampled candidates", "dot product / cosine, MRR", "lp", "similarity", "mrr"),
 }
+# the graphs the summary at the top of the README takes its time and its memory figure from:
+# the largest ones on which the timing pass ran every method that scales
+SUMMARY_TIME_GRAPH, SUMMARY_MEMORY_GRAPH = "ogbn_arxiv", "yelp"
+
 # "Cleora, tuned" is chosen on what the sweep validates - the classification score and the
 # MRR against sampled candidates - so these are the scenarios it is reported for
 TUNED_SCENARIOS = ("nc", "lp")

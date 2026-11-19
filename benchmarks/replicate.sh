@@ -101,6 +101,7 @@ done
 
 if [ $figures = 1 ]; then
     "$python" "$here/make_figures.py" --data "$data" --out "$here/figures" --dim "$dim"
+    [ $timing = 1 ] && "$python" "$here/make_summary_figure.py" --data "$data" --out "$here/figures"
 fi
 if [ $report = 1 ]; then
     "$python" "$here/make_report.py" --data "$data" --out "$here/RESULTS.md" --dump "$here/results.csv.gz" \

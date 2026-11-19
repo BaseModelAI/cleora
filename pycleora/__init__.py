@@ -425,9 +425,10 @@ def scale_by_popularity(
 
     ``degree`` is ``graph.entity_degrees``, the hyperedge mass of an entity. The
     default exponent is small on purpose: the prior is to settle the order of
-    entities that are about equally similar, not to replace similarity. Keep the
-    unit vectors for classification and wherever "alike" is the question; where
-    there is validation data, compare the two.
+    entities that are about equally similar, not to replace similarity. As features
+    of a classifier the vectors gain from a larger one, ``exponent=0.25``: the
+    classifier then knows how well connected an entity is. Keep the unit vectors
+    wherever "alike" is the question; where there is validation data, compare.
 
     Returns a new array; ``embeddings`` is not modified.
     """

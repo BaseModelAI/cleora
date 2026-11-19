@@ -197,7 +197,7 @@ def iterations_table(results, task):
     return "\n".join(lines)
 
 
-def _duration(seconds):
+def duration(seconds):
     if seconds < 1:
         return f"{seconds * 1000:.0f} ms"
     if seconds < 100:
@@ -225,7 +225,7 @@ def timing_table(results, quantity):
                 cells[method] = report.format_cell({"failed": entry["failures"]}, None, None)
             else:
                 values[method] = float(np.median(entry[quantity]))
-                cells[method] = _duration(values[method]) if quantity == "seconds" else f"{values[method] / 1024:.2f} GB"
+                cells[method] = duration(values[method]) if quantity == "seconds" else f"{values[method] / 1024:.2f} GB"
         best = min(values.values()) if values else None
         lines.append(f"| {display.DATASET_LABELS[name]} | " + " | ".join(
             f"**{cells[m]}**" if m in values and values[m] == best else cells[m] for m in methods) + " |")
@@ -277,6 +277,45 @@ def tuned_table(results, scenario):
     if gains:
         lines.append(f"| *mean gain (points)* | | | {np.mean(gains):+.1f} | |")
     return "\n".join(lines)
+
+
+def timed(results, dataset, quantity):
+    """``{label: median}`` of time ("seconds") or memory ("peak_rss_mb") on a graph, for
+    Cleora as ``embed(graph)`` runs it and every baseline the timing pass measured."""
+    default = configurations.AUTO[("hyperedge", "left", "general")]
+    methods = {"Cleora": default, **{display.METHODS[name]["label"]: name for name in display.BASELINES}}
+    values = {}
+    for label, method in methods.items():
+        entry = results.timing.get((dataset, "time", method, display.MAIN_DIM))
+        if entry and entry[quantity]:
+            values[label] = float(np.median(entry[quantity]))
+    return values
+
+
+def hero(results):
+    """Three numbers for the top of the README: graphs won in similarity search, the time
+    on one graph and the memory on another, each next to what the baselines need."""
+    columns = ["cleora"] + list(display.BASELINES)
+    won = competition_summary(results.scenario_rows("retrieval", columns), columns)["cleora"]
+    seconds = timed(results, display.SUMMARY_TIME_GRAPH, "seconds")
+    memory = {label: megabytes / 1024 for label, megabytes in timed(results, display.SUMMARY_MEMORY_GRAPH, "peak_rss_mb").items()}
+    if "Cleora" not in seconds or "Cleora" not in memory or len(seconds) < 2 or len(memory) < 2:
+        return ""
+    size = lambda name: f"{results.meta[name]['num_nodes']:,} nodes, {results.meta[name]['num_edges'] / 1e6:.1f}M edges"
+    others = lambda values: sorted(value for label, value in values.items() if label != "Cleora")
+    slowest = max((label for label in seconds if label != "Cleora"), key=seconds.get)
+    tiles = [
+        (f"{won['wins']} of {won['rows']}",
+         f"graphs on which Cleora is the best of {len(columns)} methods at finding a node's held-out neighbours"),
+        (duration(seconds["Cleora"]),
+         f"to embed {display.DATASET_LABELS[display.SUMMARY_TIME_GRAPH]} ({size(display.SUMMARY_TIME_GRAPH)}) at 1024 dimensions. "
+         f"The baselines: {duration(others(seconds)[0])} to {duration(seconds[slowest])}"),
+        (f"{memory['Cleora']:.0f} GB",
+         f"of memory for {display.DATASET_LABELS[display.SUMMARY_MEMORY_GRAPH]} ({size(display.SUMMARY_MEMORY_GRAPH)}). "
+         f"The baselines: {others(memory)[0]:.0f} to {others(memory)[-1]:.0f} GB"),
+    ]
+    cells = "\n".join(f'<td align="center" width="33%"><h2>{number}</h2>{text}</td>' for number, text in tiles)
+    return f"<table>\n<tr>\n{cells}\n</tr>\n</table>"
 
 
 def _best_baseline(summary):
@@ -350,7 +389,8 @@ def build(results):
     """``{name: markdown}`` of every table, in the order of the report."""
     columns = list(display.MAIN_COLUMNS)
     single, multi, link = results.labelled(False), results.labelled(True), results.with_task("lp")
-    tables = {"datasets": dataset_table(results), "headline": headline(results), "caveats": caveats(results)}
+    tables = {"datasets": dataset_table(results), "headline": headline(results), "caveats": caveats(results),
+              "hero": hero(results)}
     tables["ranks_retrieval"] = rank_table(
         {label: results.rows("lp", "similarity", metric, link, columns) for metric, label in display.RETRIEVAL_METRICS.items()},
         columns, "Metric")
@@ -387,7 +427,8 @@ def build(results):
     if os.path.isdir(sweep):
         tables["iteration_rule_fit"] = iteration_fit.markdown(sweep)
         tables["iteration_rule_constants"] = iteration_fit.sensitivity_markdown(sweep)
-    tables["popularity_exponent"] = popularity.markdown(os.path.join(results.data, popularity.DIRECTORY))
+    tables["popularity_exponent"] = popularity.link_table(results.data)
+    tables["popularity_exponent_classification"] = popularity.classification_table(results.data)
     if results.timing:
         tables["time"] = timing_table(results, "seconds")
         tables["memory"] = timing_table(results, "peak_rss_mb")
@@ -450,12 +491,13 @@ SECTIONS = (
      "regression, link ranking against sampled candidates with dot product or cosine - the two scores the sweep "
      "validates.",
      [f"tuned_{scenario}" for scenario in display.TUNED_SCENARIOS]),
-    ("Cleora: the exponent of the popularity prior",
-     "Validation scores of the benchmark's similarity configuration with `scale_by_popularity(graph, vectors, "
-     "exponent)`, dot product, seed 0, mean over the graphs (`benchmarks/popularity_exponent.py`). `MRR`: against "
-     "the sampled candidates; `recall@10`: among all nodes. *prior or cosine*: the benchmark's rule, under which "
-     "a graph keeps the unit vectors when they validate better.",
-     ["popularity_exponent"]),
+    ("Cleora: the exponents of the popularity prior",
+     "Validation scores of the benchmark's Cleora configurations with `scale_by_popularity(graph, vectors, "
+     "exponent)`, seed 0, mean over the graphs (`benchmarks/popularity_exponent.py`). `popularity_exponent`: the "
+     "similarity configuration, dot product; `MRR` against the sampled candidates, `recall@10` among all nodes; "
+     "*prior or cosine* is the benchmark's rule, under which a graph keeps the unit vectors when they validate "
+     "better. `popularity_exponent_classification`: the classification configuration, logistic regression.",
+     ["popularity_exponent", "popularity_exponent_classification"]),
     ("Number of iterations: automatic rule against the sweep",
      "`auto`: iterations of `SparseMatrix.suggest_iterations` for the task. `tuned`: best of the sweep on "
      "validation. `loss`: points of the metric (x 100) the automatic count is behind the tuned one; negative: "

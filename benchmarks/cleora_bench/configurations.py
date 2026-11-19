@@ -29,10 +29,12 @@ CONFIGURATIONS = {
 #   pair       two columns, "src dst": the plain adjacency matrix, without self-loops.
 SWEEP_ITERATIONS = (1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64)
 SETUPS = {"hyperedge": "complex::reflexive::node", "pair": "src dst"}
-# What the README recommends on top of normalisation and iteration count when the vectors
-# are used to find or rank links: the popularity prior of pycleora.scale_by_popularity, at
-# the library's default exponent (written out here so that a result names what produced it).
-SIMILARITY = {"popularity": 0.0625}
+# What a Cleora configuration is called by the use of its vectors. "general" is what embed()
+# does by default; for the other two the README recommends more than an iteration count.
+PURPOSES = {"general": "auto", "similarity": "sim", "classification": "cls"}
+# That "more": the exponent of pycleora.scale_by_popularity, by purpose - the ones that
+# validated best (benchmarks/README.md, "The popularity prior").
+EXTRAS = {"similarity": {"popularity": 0.0625}, "classification": {"popularity": 0.25}}
 for _setup, _columns in SETUPS.items():
     for _propagation, _tag in (("left", "left"), ("symmetric", "sym")):
         for _iterations in SWEEP_ITERATIONS:
@@ -40,13 +42,12 @@ for _setup, _columns in SETUPS.items():
             _name = f"cleora_{_tag}_k{_iterations}" if _setup == "hyperedge" else f"cleora_pair_{_tag}_k{_iterations}"
             _parameters = {"iterations": _iterations, "propagation": _propagation, "columns": _columns}
             CONFIGURATIONS[_name] = ("cleora_classic", _parameters)
-            CONFIGURATIONS[_name + "_sim"] = ("cleora_classic", {**_parameters, **SIMILARITY})
+            for _purpose, _extras in EXTRAS.items():
+                CONFIGURATIONS[f"{_name}_{PURPOSES[_purpose]}"] = ("cleora_classic", {**_parameters, **_extras})
 
 
 # The library's own choice of the number of iterations (SparseMatrix.suggest_iterations):
-# nothing is chosen per dataset. "general" is what embed() does by default; the other
-# two are the library's suggestion when the use of the vectors is known.
-PURPOSES = {"general": "auto", "similarity": "sim", "classification": "cls"}
+# nothing is chosen per dataset.
 AUTO = {}  # (setup, propagation, purpose) -> configuration name
 for _setup, _columns in SETUPS.items():
     for _propagation, _tag in (("left", "left"), ("symmetric", "sym")):
@@ -54,7 +55,7 @@ for _setup, _columns in SETUPS.items():
             _name = f"cleora_{_tag}_{_suffix}" if _setup == "hyperedge" else f"cleora_pair_{_tag}_{_suffix}"
             CONFIGURATIONS[_name] = ("cleora_classic", {
                 "iterations": "auto", "purpose": _purpose, "propagation": _propagation, "columns": _columns,
-                **(SIMILARITY if _purpose == "similarity" else {})})
+                **EXTRAS.get(_purpose, {})})
             AUTO[(_setup, _propagation, _purpose)] = _name
 
 
@@ -72,8 +73,8 @@ def sweep(setup, propagation=None):
 
 def for_purpose(name, purpose):
     """The fixed-iteration configuration ``name`` of the sweep as it is run for a purpose:
-    with the extras of ``SIMILARITY`` when the vectors are used for similarity."""
-    return name + "_sim" if purpose == "similarity" else name
+    with the ``EXTRAS`` of that purpose."""
+    return f"{name}_{PURPOSES[purpose]}" if purpose in EXTRAS else name
 
 
 def iterations(name):
