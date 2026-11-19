@@ -140,8 +140,10 @@ All pycleora datasets are the real graphs, downloaded from their original source
 | Rust-native performance | **Yes** | C++/CUDA | No | **Yes** | No | C++/CUDA | No | No | C++/CUDA | No | C++ | No | No | No | No | C++ | C++ |
 | pip install (no build) | **Yes** | **Yes** | **Yes** | No | **Yes** | **Yes** | **Yes** | No | No | **Yes** | No | No | **Yes** | No | **Yes** | No | No |
 | Minimal dependencies | **Yes** | No | **Yes** | **Yes** | **Yes** | No | No | No | No | **Yes** | **Yes** | No | No | No | **Yes** | **Yes** | **Yes** |
-| Embedding 1M nodes (time) | ~10s | ~30s+GPU | ~60s | ~10s | ~300s | ~30s+GPU | ~60s+GPU | ~120s | ~5s+GPU | ~300s | ~60s | ~120s+GPU | ~30s | ~60s+GPU | ~600s | ~30s | ~20s |
 | Actively maintained | **Yes** | **Yes** | **Yes** | Minimal | **Yes** | **Yes** | Archived | Inactive | Inactive | Inactive | Inactive | Inactive | **Yes** | Inactive | Inactive | Inactive | Inactive |
+
+Measured embedding times and memory against nine other methods are in the
+[benchmark](README.md#time-and-memory); this table makes no claim about speed.
 
 ---
 
@@ -150,7 +152,7 @@ All pycleora datasets are the real graphs, downloaded from their original source
 ### Where pycleora leads:
 
 1. **All-in-one SDK** — No other single library combines: embedding + 5 algorithms + classification + community detection + evaluation + 23 datasets + visualization + heterogeneous graphs + streaming + I/O
-2. **CPU performance** — Rust backend matches or beats pure-Python alternatives by 10-100x
+2. **CPU performance** — see the measured [time and memory tables](README.md#time-and-memory)
 3. **Dynamic graphs** — Only library with incremental update, edge removal, streaming, AND inductive embedding
 4. **Zero-GPU deployment** — Full feature set works on CPU; GPU is optional
 5. **Built-in evaluation pipeline** — Link prediction, node classification, and clustering metrics without sklearn

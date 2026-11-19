@@ -6,7 +6,8 @@
 Every panel is a 2-D UMAP (umap-learn, cosine metric, fixed seed) of the same random
 sample of nodes, taken from the vectors the benchmark stored for the whole graph
 (``sample.npz`` of seed 0). Points are coloured by node class - the eight largest
-classes, the others in grey - or, for graphs without labels, by degree.
+classes, the others in grey; a node with several labels by its rarest one - or, for
+graphs without labels, by degree.
 
 The pictures illustrate; they are not evidence. Whether one method separates classes
 better than another is what the tables measure.
@@ -47,14 +48,16 @@ def coordinates(sample_path, seed=0):
 
 
 def point_classes(graph, rows):
-    """For every sampled node: the rank of its class by size (0 = largest; multi-label
-    nodes take their most common label), or ``None`` when the graph has no labels."""
+    """For every sampled node: the rank of its class by size (0 = largest), or ``None``
+    when the graph has no labels. A node with several labels is drawn with its rarest
+    one: its most common label is, for most nodes, the same one."""
     if "labels" not in graph:
         return None, None
     labels = graph["labels"]
     if labels.ndim == 2:
-        frequency = labels.sum(axis=0)
-        chosen = np.where(labels[rows].any(axis=1), (labels[rows] * frequency).argmax(axis=1), -1)
+        frequency = labels.sum(axis=0).astype(np.float64)
+        rarity = np.where(labels[rows], frequency, np.inf)
+        chosen = np.where(labels[rows].any(axis=1), rarity.argmin(axis=1), -1)
     else:
         chosen = labels[rows]
     known = chosen[chosen >= 0]
@@ -119,6 +122,10 @@ def draw_dataset(name, panels, graph, path, columns=4):
     figure.tight_layout(rect=(0, 0.05, 1, 0.975))
     figure.savefig(path, dpi=140, facecolor=SURFACE)
     plt.close(figure)
+    # a 256-colour palette: a third of the file size, no visible difference
+    from PIL import Image
+
+    Image.open(path).convert("RGB").quantize(colors=256, dither=Image.Dither.NONE).save(path, optimize=True)
 
 
 def main():

@@ -485,8 +485,12 @@ def main():
     parser.add_argument("--data", required=True, help="directory with datasets/, results/ and timing/")
     parser.add_argument("--out", required=True, help="Markdown file that receives every table")
     parser.add_argument("--readme", action="append", default=[], help="Markdown file with marked blocks to fill")
+    parser.add_argument("--dump", default=None, help="write every aggregated number to this .csv.gz file")
     args = parser.parse_args()
-    tables = build(Results(os.path.abspath(os.path.expanduser(args.data))))
+    results = Results(os.path.abspath(os.path.expanduser(args.data)))
+    tables = build(results)
+    if args.dump:
+        report.dump({**results.table, **results.timing}, args.dump)
     write_report(tables, args.out)
     print(f"{len(tables)} tables -> {args.out}")
     for path in args.readme:

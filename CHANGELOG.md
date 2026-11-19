@@ -1,9 +1,9 @@
 # 4.0.0 (unreleased)
 
-A correctness release. **Embeddings computed by this version differ from those of
-3.x** (the initial vectors changed, see below), so embeddings stored from earlier
-versions should be recomputed rather than mixed with new ones. Requires
-Python 3.10 or newer.
+A correctness and performance release. **Embeddings computed by this version differ
+from those of 3.x** (the initial vectors and the defaults of `embed()` changed, see
+below), so embeddings stored from earlier versions should be recomputed rather than
+mixed with new ones. Requires Python 3.10 or newer; tested on 3.10 to 3.15.
 
 ### Fixed
 - **Initial vectors were almost collinear.** `initialize_deterministically` derived
@@ -12,11 +12,7 @@ Python 3.10 or newer.
   random entities had a standard deviation of 0.45 (independent vectors give
   0.06) and the whole matrix had an effective rank of about 5, whatever the
   dimension. Values are now independent and uniform in [-1, 1), computed with
-  SplitMix64 from the entity name, the column and the seed. Classic Cleora
-  (8 iterations, 256 dimensions) gains from it: 0.804 -> 0.812 accuracy on Cora
-  and 0.715 -> 0.753 on email-Eu-core. The whitened default is unaffected
-  (0.814 -> 0.800-0.813 on Cora depending on the seed, 0.631 -> 0.630 on
-  email-Eu-core; the spread between random train/test splits is 0.01-0.02).
+  SplitMix64 from the entity name, the column and the seed.
 - **Graph construction depended on thread scheduling.** With more than one
   worker, edge weights were summed in a varying order and the entities kept
   when an oversized hyperedge is trimmed depended on which thread saw it
@@ -57,8 +53,8 @@ Python 3.10 or newer.
   `num_entities <= feature_dim + 1` the whitened vectors are, in general, all
   equidistant (every pairwise cosine equals -1/(N-1)), so the default `embed()`
   returned nothing usable for small graphs - including the quick start of the
-  README. `embed()` and its variants now warn about it, and the README examples
-  use settings that work.
+  README. Whitening now warns about it, and it is no longer the default (see
+  *Changed*).
 - **`pycleora.datasets` returned synthetic graphs under the names of real
   datasets** (`cora`, `citeseer`, `pubmed`, `ppi`, `amazon_*`, `dblp`, `reddit`,
   `flickr`, `yelp`, ...). These loaders now download the real graphs from their
@@ -67,9 +63,8 @@ Python 3.10 or newer.
   and `"source"`. The old generators remain available, clearly labelled, through
   `load_synthetic()`.
 - **Baseline algorithms** (`pycleora.algorithms`) were rewritten after their
-  papers. ProNE and RandNE returned embeddings at chance level on real graphs
-  (0.30 and 0.32 accuracy on Cora, where always predicting the largest class
-  gives 0.30; now 0.79 and 0.71). All baselines now start from the graph's
+  papers. ProNE and RandNE returned embeddings at chance level on real graphs.
+  All baselines now start from the graph's
   adjacency matrix; they used Cleora's row-normalised matrix, self-loops
   included. DeepWalk and node2vec are documented as what they are here: random
   walks factorised with PPMI + SVD, not skip-gram.
@@ -77,8 +72,28 @@ Python 3.10 or newer.
   and SciPy. NumPy is now declared; SciPy is optional (`pycleora[scipy]`,
   `pycleora[full]`) and imported only by the functions that need it.
 - `pycleora.benchmark` measured memory with `tracemalloc`, which does not see
-  allocations made by the Rust core. It reports peak resident memory on Linux
-  and says which method was used.
+  allocations made by the Rust core (0.00 MB for an embedding of megabytes). The
+  memory column is removed; the benchmark in `benchmarks/` measures the peak
+  resident memory of a separate process per method. A failing algorithm is
+  reported in its row with the error.
+- **`find_most_similar(exclude_self=True)` returned the query itself** when
+  `top_k` was at least the number of entities; **`predict_links` returned every
+  pair twice** (`top_k=10` gave five distinct pairs); **`embed_directed`** gave
+  entities without outgoing edges a zero vector, and the zeros spread upstream
+  with every iteration. `embed(residual_weight=...)` silently ignored values
+  outside [0, 1): they are an error now.
+- **`mlp_classify` and `gcn_classify` chose their checkpoint on the test set** and
+  reported the best test accuracy seen during training. The checkpoint is chosen
+  on a validation part of the training entities; the test entities are scored
+  once.
+- **`pycleora.metrics`**: `average_precision` was not average precision,
+  `clustering_scores` built its centroids from the true labels, and the ranking
+  metrics looped over all nodes in Python. The module is rewritten on NumPy with
+  the standard definitions and is tested against scikit-learn.
+- `pycleora embed --algorithm node2vec` ran with p = q = 1, which is DeepWalk.
+  `--p` and `--q` are passed on (defaults 1 and 0.5).
+- `load_wikipedia_pos` dropped the edge weights of the published graph; it
+  returns them as `"weights"`.
 - `load_embeddings` no longer unpickles `.npz` content; the Planetoid loaders
   use a restricted unpickler.
 
@@ -95,18 +110,28 @@ Python 3.10 or newer.
 - `SparseMatrix.entity_ids` is an immutable tuple that is built once. It used to
   be a new list on every access, which made loops over `graph.entity_ids[i]`
   quadratic. Assigning a new sequence of names still works.
-- The default `embed()` path (whitening after every iteration) computes the
-  covariance and the projection in the Rust core, in place, on all cores. For
-  100,000 nodes, 256 dimensions and 40 iterations on a 2-core machine: 32.0 s ->
-  16.5 s, and 2 instead of 6 embedding matrices of working memory (589 MB ->
-  197 MB). Results agree with the NumPy reference implementation up to floating
-  point error; the sign of every whitened column is now fixed instead of being
-  left to the LAPACK build.
+- **Speed.** The propagation schedules work by matrix entries instead of rows,
+  splits hub rows across threads, fuses the row normalisation into the product
+  and prefetches; graph construction is parallel and deterministic. On an R-MAT
+  graph with 0.6 million nodes and 12 million edges at 1024 dimensions
+  (`benchmarks/kernel_speed.py`):
+
+  | Machine | pycleora | Threads | Build | One iteration |
+  |---|---|---:|---:|---:|
+  | Intel Core Ultra 9 275HX (24 threads) | 3.2.1 | 24 | 17.8 s | 5.39 s |
+  | | 4.0.0 | 24 | 1.11 s | 1.48 s |
+  | | 4.0.0 | 1 | 6.38 s | 5.44 s |
+  | Apple M4 (Mac mini, 10 cores) | 3.2.1 | 10 | 5.70 s | 4.02 s |
+  | | 4.0.0 | 10 | 0.91 s | 1.29 s |
+  | | 4.0.0 | 1 | 3.36 s | 3.09 s |
+
+- The whitening path (`whiten=True`) computes the covariance and the projection
+  in the Rust core, in place, with 2 instead of 6 embedding matrices of working
+  memory. Results agree with the NumPy reference implementation up to floating
+  point error; the sign of every whitened column is fixed instead of being left
+  to the LAPACK build.
 - The sparse matrix stores each weight once (CSR, normalised on the fly):
-  8 instead of 12 bytes per non-zero entry. On the same machine and graph
-  (500,000 edges), building takes 0.34 s instead of 0.66 s, one propagation
-  step 107 ms instead of 148 ms, classic Cleora with 40 iterations 3.7 s instead
-  of 6.1 s, and `find_most_similar` 34 ms instead of 129 ms.
+  8 instead of 12 bytes per non-zero entry.
 - Entities are listed in order of first appearance in the input (the order
   used to depend on hashing and on the number of threads).
 - Empty tokens are ignored: repeated spaces or a trailing space no longer create
@@ -133,10 +158,22 @@ Python 3.10 or newer.
   and Photo, PPI and Wikipedia POS (node2vec), PPI (GraphSAGE), email-Eu-core,
   dolphins, Les Miserables, football, ogbn-arxiv. Multi-label datasets return a
   label matrix.
-- `benchmarks/run_benchmarks.py`: the reproducible benchmark behind the numbers
-  in the README.
-- A Python test suite (`tests/python`) and a CI job that runs it together with
-  the Rust tests; wheels are smoke-tested before upload; macOS x86_64 wheels.
+- `benchmarks/`: the benchmark behind the numbers in the README - 26 public
+  graphs, nine baselines run from their authors' code, node classification and
+  link ranking with several probes and many metrics - replicable with one
+  script (`benchmarks/replicate.sh`). See `benchmarks/README.md`.
+- `SparseMatrix.from_cliques(cliques)`: a graph from an iterable of entity
+  groups, without formatting strings; `SparseMatrix.isolated_entities`.
+- `left_markov_propagate_normalized_inplace` /
+  `symmetric_markov_propagate_normalized_inplace`: any number of iterations on
+  an existing array, in place.
+- `pycleora.metrics`: array-level functions for classification, multi-label,
+  ranking, retrieval and clustering metrics.
+- A Python test suite (`tests/python`) run by CI on Python 3.10 to 3.15 on Linux
+  x86-64 and arm64 and on Apple silicon, together with the Rust tests, `cargo
+  fmt` and `clippy`; wheels and the source distribution are installed and
+  smoke-tested before upload; macOS x86_64 wheels. There is no 32-bit Linux
+  wheel any more (NumPy has not published one since 1.22).
 - `SparseMatrix.suggest_iterations(propagation, purpose)`: the rule behind
   `num_iterations="auto"`, with `purpose="similarity"` or `"classification"` for
   embeddings that serve one use only.

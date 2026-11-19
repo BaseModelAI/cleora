@@ -97,6 +97,6 @@ if [ $figures = 1 ]; then
     "$python" "$here/make_figures.py" --data "$data" --out "$here/figures" --dim "$dim"
 fi
 if [ $report = 1 ]; then
-    "$python" "$here/make_report.py" --data "$data" --out "$here/RESULTS.md" \
+    "$python" "$here/make_report.py" --data "$data" --out "$here/RESULTS.md" --dump "$here/results.csv.gz" \
         --readme "$here/README.md" --readme "$here/../README.md"
 fi

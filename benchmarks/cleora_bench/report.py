@@ -67,6 +67,34 @@ def aggregate(jobs):
     return table
 
 
+def dump(table, path):
+    """Every aggregated number as one CSV row (gzip): dataset, task, configuration, dim,
+    probe, metric, mean, std, runs - plus the embedding seconds and the validation score
+    as pseudo-metrics. This is the machine-readable form of the result tables."""
+    import csv
+    import gzip
+
+    with gzip.open(path, "wt", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["dataset", "task", "configuration", "dim", "probe", "metric", "mean", "std", "runs"])
+        for (dataset, task, method, dim), entry in sorted(table.items()):
+            if entry["seconds"]:
+                writer.writerow([dataset, task, method, dim, "", "embedding_seconds",
+                                 f"{np.mean(entry['seconds']):.6g}", f"{np.std(entry['seconds']):.6g}", len(entry["seconds"])])
+            for failure in sorted(set(entry["failures"])):
+                writer.writerow([dataset, task, method, dim, "", failure, "", "", entry["failures"].count(failure)])
+            for probe, runs in sorted(entry["probes"].items()):
+                columns = {"validation": runs["validation"]}
+                for metrics in runs["metrics"]:
+                    for metric, value in metrics.items():
+                        columns.setdefault(metric, []).append(value)
+                for metric, values in sorted(columns.items()):
+                    values = [v for v in values if v == v]
+                    if values:
+                        writer.writerow([dataset, task, method, dim, probe, metric,
+                                         f"{np.mean(values):.6g}", f"{np.std(values):.6g}", len(values)])
+
+
 def select_variant(table, dataset, task, probe, variants):
     """Among ``variants`` (``(method id, dim)`` pairs) of one method: the one with the
     highest mean validation score for this probe. Returns ``(variant, entry)`` or
