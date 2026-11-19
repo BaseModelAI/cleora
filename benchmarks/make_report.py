@@ -315,7 +315,56 @@ def hero(results):
          f"The baselines: {others(memory)[0]:.0f} to {others(memory)[-1]:.0f} GB"),
     ]
     cells = "\n".join(f'<td align="center" width="33%"><h2>{number}</h2>{text}</td>' for number, text in tiles)
-    return f"<table>\n<tr>\n{cells}\n</tr>\n</table>"
+    ahead, count, lowest = _head_to_head_totals(head_to_head_record(results))
+    # "dominates" is written only when Cleora is ahead of every baseline on most of the graphs they share, in every use
+    verdict = "dominates every one of the nine baselines head to head" if lowest > 0.5 else "against the nine baselines, head to head"
+    summary = (f'<p align="center"><b>Cleora {verdict}:</b> ahead in {ahead} of {count} comparisons ({100 * ahead / count:.0f}%), '
+               f'and on at least {100 * lowest:.0f}% of the graphs against each of them, in every use '
+               f'(<a href="#head-to-head">table</a>).</p>') if count else ""
+    return f"<table>\n<tr>\n{cells}\n</tr>\n</table>\n\n{summary}"
+
+
+def head_to_head_record(results):
+    """Cleora against every baseline, one at a time, on the headline measurement of each
+    scenario: ``{baseline: {scenario: (graphs Cleora is ahead on, graphs both finished)}}``.
+    A graph a baseline did not finish counts for nobody."""
+    columns = ["cleora"] + list(display.BASELINES)
+    rows = {scenario: results.scenario_rows(scenario, columns) for scenario in display.SCENARIOS}
+    record = {}
+    for baseline in display.BASELINES:
+        record[baseline] = {}
+        for scenario in display.SCENARIOS:
+            pairs = [(cells["cleora"]["mean"], cells[baseline]["mean"]) for cells in rows[scenario].values()
+                     if "mean" in cells["cleora"] and "mean" in cells[baseline]]
+            record[baseline][scenario] = (sum(ours > theirs for ours, theirs in pairs), len(pairs))
+    return record
+
+
+def _head_to_head_totals(record):
+    """``(comparisons Cleora is ahead in, comparisons, its lowest share against one baseline in one scenario)``."""
+    cells = [cell for scenarios in record.values() for cell in scenarios.values() if cell[1]]
+    if not cells:
+        return 0, 0, 0.0
+    return sum(a for a, _ in cells), sum(n for _, n in cells), min(a / n for a, n in cells)
+
+
+def head_to_head(results):
+    """The head-to-head record as a table, one row per baseline."""
+    record = head_to_head_record(results)
+    ahead, count, lowest = _head_to_head_totals(record)
+    if not count:
+        return ""
+    lines = ["| Cleora against | " + " | ".join(label for label, *_ in display.SCENARIOS.values()) + " |",
+             "|---|" + "---:|" * len(display.SCENARIOS)]
+    for baseline, scenarios in record.items():
+        cells = [f"{a} of {n}" if n else "–" for a, n in scenarios.values()]
+        lines.append(f"| {display.METHODS[baseline]['label']} | " + " | ".join(cells) + " |")
+    totals = [(sum(record[b][scenario][0] for b in record), sum(record[b][scenario][1] for b in record)) for scenario in display.SCENARIOS]
+    lines.append("| **all nine** | " + " | ".join(f"**{a} of {n}** ({100 * a / n:.0f}%)" if n else "–" for a, n in totals) + " |")
+    lines += ["", f"Cleora is ahead in {ahead} of {count} head-to-head comparisons ({100 * ahead / count:.0f}%), and against "
+              f"every single baseline on at least {100 * lowest:.0f}% of the graphs both finished, in each of the three uses. "
+              "A graph a baseline did not finish - time limit, memory, size - is not counted as a win."]
+    return "\n".join(lines)
 
 
 def _best_baseline(summary):
@@ -390,7 +439,7 @@ def build(results):
     columns = list(display.MAIN_COLUMNS)
     single, multi, link = results.labelled(False), results.labelled(True), results.with_task("lp")
     tables = {"datasets": dataset_table(results), "headline": headline(results), "caveats": caveats(results),
-              "hero": hero(results)}
+              "hero": hero(results), "head_to_head": head_to_head(results)}
     tables["ranks_retrieval"] = rank_table(
         {label: results.rows("lp", "similarity", metric, link, columns) for metric, label in display.RETRIEVAL_METRICS.items()},
         columns, "Metric")
@@ -437,6 +486,10 @@ def build(results):
 
 SECTIONS = (
     ("In short", "One headline measurement for each use of the vectors; the full tables follow.", ["headline"]),
+    ("Cleora against each baseline",
+     "Head to head on the headline measurement of each use: recall@10 among all nodes, logistic regression, MRR "
+     "against sampled candidates.",
+     ["head_to_head"]),
     ("Where Cleora is not the best method", "", ["caveats"]),
     ("Datasets", "", ["datasets"]),
     ("Summary: mean rank of every method",

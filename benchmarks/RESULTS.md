@@ -16,6 +16,25 @@ One headline measurement for each use of the vectors; the full tables follow.
 
 With the number of iterations and the normalisation chosen on validation data - the baselines stay at their authors' settings, so this is not part of the comparison above - Cleora is ahead of every baseline on 15 of 17 graphs in node classification and on 23 of 26 graphs in link ranking against sampled candidates.
 
+## Cleora against each baseline
+
+Head to head on the headline measurement of each use: recall@10 among all nodes, logistic regression, MRR against sampled candidates.
+
+| Cleora against | Similarity search among all nodes | Node classification | Link ranking against sampled candidates |
+|---|---:|---:|---:|
+| DeepWalk | 22 of 22 | 13 of 16 | 21 of 22 |
+| node2vec | 22 of 22 | 13 of 16 | 21 of 22 |
+| Walklets | 14 of 15 | 12 of 12 | 15 of 15 |
+| NetMF | 15 of 15 | 9 of 12 | 15 of 15 |
+| GraRep | 15 of 15 | 11 of 12 | 15 of 15 |
+| HOPE | 14 of 15 | 12 of 12 | 13 of 15 |
+| ProNE | 22 of 23 | 14 of 16 | 19 of 23 |
+| FastRP | 26 of 26 | 16 of 17 | 26 of 26 |
+| RandNE | 26 of 26 | 15 of 17 | 21 of 26 |
+| **all nine** | **176 of 179** (98%) | **115 of 130** (88%) | **166 of 179** (93%) |
+
+Cleora is ahead in 457 of 488 head-to-head comparisons (94%), and against every single baseline on at least 75% of the graphs both finished, in each of the three uses. A graph a baseline did not finish - time limit, memory, size - is not counted as a win.
+
 ## Where Cleora is not the best method
 
 - **Similarity search among all nodes: a baseline is ahead of Cleora on** PubMed (Walklets 0.192, Cleora 0.185); MovieLens-1M (HOPE 0.107, Cleora 0.101); Reddit (ProNE 0.345, Cleora 0.311).

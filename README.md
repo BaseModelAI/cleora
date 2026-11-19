@@ -40,6 +40,8 @@ at finding what belongs together.
 <td align="center" width="33%"><h2>6 GB</h2>of memory for Yelp (716,847 nodes, 6.6M edges). The baselines: 15 to 62 GB</td>
 </tr>
 </table>
+
+<p align="center"><b>Cleora dominates every one of the nine baselines head to head:</b> ahead in 457 of 488 comparisons (94%), and on at least 75% of the graphs against each of them, in every use (<a href="#head-to-head">table</a>).</p>
 <!-- /benchmark:hero -->
 
 <p align="center">
@@ -68,8 +70,9 @@ step of *every* random walk at once, without sampling a single one.
   and 700 times faster than DeepWalk ([times](#time-and-memory)). An iteration over 12
   million edges takes 0.74 s ([Performance](#performance)).
 - **Accurate.** First of ten methods by mean rank in each of the three ways
-  embeddings are used - similarity search, node classification, link ranking - and
-  the best method outright on most graphs ([Benchmarks](#benchmarks)).
+  embeddings are used - similarity search, node classification, link ranking - the
+  best method outright on most graphs, and ahead of every single baseline head to
+  head ([Benchmarks](#head-to-head)).
 - **Lean.** Two embedding matrices of memory and nothing else: a fifth to a tenth of
   what the other fast methods need.
 - **Scales.** Graphs with tens of millions of edges take minutes. DeepWalk and
@@ -292,6 +295,29 @@ search and link ranking; the popularity prior for both. Both ways of feeding a g
 
 With the number of iterations and the normalisation chosen on validation data - the baselines stay at their authors' settings, so this is not part of the comparison above - Cleora is ahead of every baseline on 15 of 17 graphs in node classification and on 23 of 26 graphs in link ranking against sampled candidates.
 <!-- /benchmark:headline -->
+
+### Head to head
+
+Cleora against each baseline in turn, on the graphs both finished: on how many it is
+ahead in similarity search (recall@10), node classification (logistic regression) and
+link ranking (MRR).
+
+<!-- benchmark:head_to_head -->
+| Cleora against | Similarity search among all nodes | Node classification | Link ranking against sampled candidates |
+|---|---:|---:|---:|
+| DeepWalk | 22 of 22 | 13 of 16 | 21 of 22 |
+| node2vec | 22 of 22 | 13 of 16 | 21 of 22 |
+| Walklets | 14 of 15 | 12 of 12 | 15 of 15 |
+| NetMF | 15 of 15 | 9 of 12 | 15 of 15 |
+| GraRep | 15 of 15 | 11 of 12 | 15 of 15 |
+| HOPE | 14 of 15 | 12 of 12 | 13 of 15 |
+| ProNE | 22 of 23 | 14 of 16 | 19 of 23 |
+| FastRP | 26 of 26 | 16 of 17 | 26 of 26 |
+| RandNE | 26 of 26 | 15 of 17 | 21 of 26 |
+| **all nine** | **176 of 179** (98%) | **115 of 130** (88%) | **166 of 179** (93%) |
+
+Cleora is ahead in 457 of 488 head-to-head comparisons (94%), and against every single baseline on at least 75% of the graphs both finished, in each of the three uses. A graph a baseline did not finish - time limit, memory, size - is not counted as a win.
+<!-- /benchmark:head_to_head -->
 
 ### What the embeddings look like
 
