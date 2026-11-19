@@ -31,6 +31,8 @@ No sampling, no training, no GPU. Deterministic, and fast enough to tune in seco
 |---|---:|---:|---:|---:|---:|---|
 | Similarity search and link ranking (dot product / cosine, MRR) | 26 | **14** | 1.58 | 5 | 3.50 | RandNE (3.27) |
 | Node classification (logistic regression, accuracy / micro-F1) | 17 | **10** | 2.00 | 7 | 2.24 | node2vec (3.35) |
+
+With the number of iterations and the normalisation chosen on validation data - the baselines stay at their authors' settings, so this is not part of the comparison above - Cleora is ahead of every baseline on 20 of 26 graphs in link ranking and on 15 of 17 in node classification.
 <!-- /benchmark:headline -->
 
 Every number on this page is generated from the benchmark's result files, and the

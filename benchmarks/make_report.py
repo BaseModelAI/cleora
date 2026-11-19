@@ -305,7 +305,29 @@ def headline(results):
         one, two = summary["cleora"], summary["cleora_pair"]
         lines.append(f"| {label} | {one['rows']} | **{one['wins']}** | {one['mean_rank']:.2f} | "
                      f"{two['wins']} | {two['mean_rank']:.2f} | {_best_baseline(summary)} |")
+    ahead = {task: _tuned_ahead(results, task) for task in ("lp", "nc")}
+    lines += ["", "With the number of iterations and the normalisation chosen on validation data - the baselines stay at "
+              f"their authors' settings, so this is not part of the comparison above - Cleora is ahead of every baseline "
+              f"on {ahead['lp'][0]} of {ahead['lp'][1]} graphs in link ranking and on {ahead['nc'][0]} of {ahead['nc'][1]} "
+              "in node classification."]
     return "\n".join(lines)
+
+
+def _tuned_ahead(results, task):
+    """On how many graphs "Cleora, tuned" is ahead of every baseline (headline probe), out of
+    the graphs on which at least one baseline has a result."""
+    wins = graphs = 0
+    for name, cells in _task_rows(results, task).items():
+        dataset = next(d for d in results.datasets if display.DATASET_LABELS[d] == name)
+        metric = "mrr" if task == "lp" else ("micro_f1" if results.meta[dataset].get("multilabel") else "accuracy")
+        variants = results.variants("cleora_tuned", dataset, task)
+        tuned = (report.best_training_free(results.table, dataset, variants, metric) if task == "lp"
+                 else report.cell(results.table, dataset, task, "logistic", metric, variants))
+        rivals = [cells[m]["mean"] for m in display.BASELINES if "mean" in cells[m]]
+        if "mean" in tuned and rivals:
+            graphs += 1
+            wins += int(tuned["mean"] > max(rivals))
+    return wins, graphs
 
 
 def caveats(results):
