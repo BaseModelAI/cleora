@@ -22,6 +22,7 @@ use crate::pipeline::{
 use crate::sparse_matrix::{Normalization, SparseMatrix};
 use crate::sparse_matrix_builder::BuildStats;
 
+pub mod blocked;
 pub mod configuration;
 pub mod embedding;
 pub mod entity;
@@ -337,11 +338,10 @@ impl SparseMatrix {
         let rows = self.num_entities();
         let (embeddings, iterations) = py.detach(|| {
             pool.install(|| {
-                let initial = embedding::initialize(&self.entity_ids, feature_dim, seed);
                 embedding::embed(
                     self,
-                    initial,
                     feature_dim,
+                    seed,
                     markov_type,
                     num_iterations,
                     residual_weight,

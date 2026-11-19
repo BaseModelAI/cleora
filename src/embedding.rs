@@ -84,7 +84,7 @@ struct Product<'a> {
 }
 
 #[inline(always)]
-fn prefetch(pointer: *const f32) {
+pub(crate) fn prefetch(pointer: *const f32) {
     #[cfg(target_arch = "x86_64")]
     // Safety: prefetching is a hint; it never faults, whatever the address.
     unsafe {
@@ -577,18 +577,30 @@ pub fn suggested_iterations(graph: &SparseMatrix, kind: MarkovType, purpose: Pur
     (rounds.round() as usize).clamp(1, AUTO_MAX_ITERATIONS)
 }
 
-/// Classic Cleora from the given initial vectors. Returns the embeddings and the
-/// number of rounds performed (see [`iterate`]).
+/// Classic Cleora from the initial vectors of `seed` (see [`initialize`]). Returns the
+/// embeddings and the number of rounds performed (see [`iterate`]).
+///
+/// The plain loop - no residual, no convergence test - runs on a column-blocked
+/// matrix ([`crate::blocked`]), which is faster and gives the same bits.
 pub fn embed(
     graph: &SparseMatrix,
-    initial: Vec<f32>,
     dim: usize,
+    seed: i64,
     kind: MarkovType,
     num_iterations: usize,
     residual_weight: f32,
     convergence_threshold: f32,
 ) -> (Vec<f32>, usize) {
-    let mut current = initial;
+    let plain = !(residual_weight > 0.0 && residual_weight < 1.0) && convergence_threshold <= 0.0;
+    if plain && num_iterations >= crate::blocked::MIN_ROUNDS {
+        let initial = Initial::new(&graph.entity_ids, dim, seed);
+        let embeddings =
+            crate::blocked::embed(graph, dim, kind, num_iterations, |entity, column| {
+                initial.value(entity, column)
+            });
+        return (embeddings, num_iterations);
+    }
+    let mut current = initialize(&graph.entity_ids, dim, seed);
     let mut scratch = vec![0f32; current.len()];
     let rounds = iterate(
         graph,
@@ -627,24 +639,43 @@ fn init_value(entity_hash: u64, column_key: u64) -> f32 {
     (bits as f32) * (1.0 / 8_388_608.0) - 1.0
 }
 
-/// Deterministic pseudo-random initial embeddings.
+/// The deterministic pseudo-random initial embeddings, one coordinate at a time.
 ///
 /// Every entity gets a vector that depends only on its name, the seed and the
 /// dimension index, so it is the same in every graph and on every machine, and
 /// vectors of different entities (and of different seeds) are statistically
 /// independent.
+pub(crate) struct Initial {
+    hashes: Vec<u64>,
+    keys: Vec<u64>,
+}
+
+impl Initial {
+    pub(crate) fn new(entity_ids: &[String], dim: usize, seed: i64) -> Initial {
+        Initial {
+            hashes: entity_ids.par_iter().map(|id| hash_entity(id)).collect(),
+            keys: init_column_keys(dim, seed),
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) fn value(&self, entity: usize, column: usize) -> f32 {
+        init_value(self.hashes[entity], self.keys[column])
+    }
+}
+
+/// The initial embeddings ([`Initial`]) as a row-major matrix.
 pub fn initialize(entity_ids: &[String], dim: usize, seed: i64) -> Vec<f32> {
     let mut out = vec![0f32; entity_ids.len() * dim];
     if dim == 0 {
         return out;
     }
-    let keys = init_column_keys(dim, seed);
+    let initial = Initial::new(entity_ids, dim, seed);
     out.par_chunks_mut(dim)
-        .zip(entity_ids.par_iter())
-        .for_each(|(row, id)| {
-            let hash = hash_entity(id);
-            for (value, key) in row.iter_mut().zip(&keys) {
-                *value = init_value(hash, *key);
+        .enumerate()
+        .for_each(|(entity, row)| {
+            for (column, value) in row.iter_mut().enumerate() {
+                *value = initial.value(entity, column);
             }
         });
     out
@@ -1151,6 +1182,87 @@ mod tests {
             );
             assert_eq!(done, rounds);
             assert_eq!(current, expected, "{} rounds", rounds);
+        }
+    }
+
+    /// A matrix with weights of every size, an entity without any entry, and two rows
+    /// that are long enough to be summed in segments.
+    fn uneven_graph() -> SparseMatrix {
+        let n = 3 * HUB_NNZ;
+        let (mut indptr, mut indices, mut values) = (vec![0u64], Vec::new(), Vec::new());
+        let mut state = 0x2545_F491_4F6C_DD1Du64;
+        let mut next = move || {
+            state = splitmix64(state);
+            state
+        };
+        for row in 0..n {
+            let entries = match row {
+                7 => 0,
+                3 | 500 => HUB_NNZ + 1000 + row,
+                _ => 1 + (next() % 12) as usize,
+            };
+            for _ in 0..entries {
+                indices.push((next() % n as u64) as u32);
+                values.push(1.0 + (next() % 1000) as f32 / 97.0);
+            }
+            indptr.push(indices.len() as u64);
+        }
+        let row_sums = (0..n)
+            .map(|row| {
+                values[indptr[row] as usize..indptr[row + 1] as usize]
+                    .iter()
+                    .map(|&v| v as f64)
+                    .sum()
+            })
+            .collect();
+        SparseMatrix::from_parts(
+            vec![],
+            vec![],
+            ids(n),
+            vec![0; n],
+            row_sums,
+            indptr,
+            indices,
+            values,
+        )
+    }
+
+    /// The blocked loop behind `embed` must give, bit for bit, what the row-major
+    /// loop gives - whatever the dimension, the normalisation and the thread count.
+    #[test]
+    fn embedding_in_blocks_matches_the_row_major_loop() {
+        let graph = uneven_graph();
+        let n = graph.num_entities();
+        assert!(graph.row_range(3).len() > HUB_NNZ && graph.row_range(7).is_empty());
+        for (dim, rounds) in [(5, 2), (16, 3), (37, 2), (64, 4)] {
+            for kind in [MarkovType::Left, MarkovType::Symmetric] {
+                let mut expected = initialize(&graph.entity_ids, dim, 5);
+                let mut scratch = vec![f32::NAN; n * dim];
+                iterate(
+                    &graph,
+                    &mut expected,
+                    &mut scratch,
+                    dim,
+                    kind,
+                    rounds,
+                    0.0,
+                    0.0,
+                );
+                assert!(expected.iter().all(|v| v.is_finite()));
+                for threads in [1, 4] {
+                    let (blocked, done) = thread_pool(threads)
+                        .install(|| embed(&graph, dim, 5, kind, rounds, 0.0, 0.0));
+                    assert_eq!(done, rounds);
+                    assert!(
+                        blocked == expected,
+                        "dim {}, {} rounds, {:?}, {} threads",
+                        dim,
+                        rounds,
+                        kind,
+                        threads
+                    );
+                }
+            }
         }
     }
 

@@ -146,14 +146,7 @@ fn bench_embedding(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("8_iterations", workers),
             &workers,
-            |b, _| {
-                b.iter(|| {
-                    pool.install(|| {
-                        let initial = initialize(&graph.entity_ids, DIM, 0);
-                        embed(&graph, initial, DIM, MarkovType::Left, 8, 0.0, 0.0)
-                    })
-                })
-            },
+            |b, _| b.iter(|| pool.install(|| embed(&graph, DIM, 0, MarkovType::Left, 8, 0.0, 0.0))),
         );
     }
     group.finish();
