@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Dict, List, Optional, Tuple, Union
 from .pycleora import SparseMatrix
+from . import DEFAULT_FEATURE_DIM, DEFAULT_NUM_ITERATIONS, DEFAULT_WHITEN
 
 
 class HeteroGraph:
@@ -88,13 +89,13 @@ class HeteroGraph:
 
     def embed_per_relation(
         self,
-        feature_dim: int = 256,
-        num_iterations: int = 40,
+        feature_dim: int = DEFAULT_FEATURE_DIM,
+        num_iterations: int = DEFAULT_NUM_ITERATIONS,
         propagation: str = "left",
         normalization: str = "l2",
         combine: str = "concat",
         seed: int = 0,
-        whiten: bool = True,
+        whiten: bool = DEFAULT_WHITEN,
     ) -> Tuple[Dict[str, SparseMatrix], Dict[str, np.ndarray], Optional[np.ndarray]]:
         """Embeds every edge type on its own and optionally combines the results.
 
@@ -172,11 +173,11 @@ class HeteroGraph:
     def embed_metapath(
         self,
         metapath: List[str],
-        feature_dim: int = 256,
-        num_iterations: int = 40,
+        feature_dim: int = DEFAULT_FEATURE_DIM,
+        num_iterations: int = DEFAULT_NUM_ITERATIONS,
         normalization: str = "l2",
         seed: int = 0,
-        whiten: bool = True,
+        whiten: bool = DEFAULT_WHITEN,
     ) -> Tuple[SparseMatrix, np.ndarray]:
         from . import embed
 

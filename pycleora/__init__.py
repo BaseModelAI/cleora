@@ -16,6 +16,7 @@ __version__ = _core.__version__
 
 DEFAULT_FEATURE_DIM = 256
 DEFAULT_NUM_ITERATIONS = 40
+DEFAULT_WHITEN = True
 
 _NORMALIZATIONS = ("l2", "l1", "spectral", "none")
 _ROW_CHUNK = 65536
@@ -97,7 +98,7 @@ def embed(
     callback: Optional[Callable[[int, np.ndarray], None]] = None,
     residual_weight: float = 0.0,
     convergence_threshold: float = 0.0,
-    whiten: bool = True,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> np.ndarray:
     """Embeds the entities of ``graph``.
 
@@ -303,7 +304,7 @@ def embed_with_attention(
     seed: int = 0,
     num_workers: Optional[int] = None,
     callback: Optional[Callable[[int, np.ndarray], None]] = None,
-    whiten: bool = True,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> np.ndarray:
     _validate_propagation(propagation)
 
@@ -381,7 +382,7 @@ def embed_multiscale(
     normalization: str = "l2",
     seed: int = 0,
     num_workers: Optional[int] = None,
-    whiten: bool = True,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> np.ndarray:
     """Concatenates the embeddings after each of the given numbers of iterations.
 
@@ -427,7 +428,7 @@ def embed_weighted(
     seed: int = 0,
     hyperedge_trim_n: int = 16,
     num_workers: Optional[int] = None,
-    whiten: bool = True,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> Tuple[SparseMatrix, np.ndarray]:
     """Embeds a graph whose hyperedges carry weights.
 
@@ -464,7 +465,7 @@ def embed_directed(
     seed: int = 0,
     hyperedge_trim_n: int = 16,
     num_workers: Optional[int] = None,
-    whiten: bool = True,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> Tuple[SparseMatrix, np.ndarray]:
     """Embeds a directed graph: in every line, earlier entities point to later ones.
 
@@ -715,7 +716,7 @@ def embed_inductive(
     num_workers: Optional[int] = None,
     mode: str = "frozen",
     refine_iterations: int = 3,
-    whiten: bool = True,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> Tuple[SparseMatrix, np.ndarray]:
     """Adds new edges (and the entities they bring) to an embedded graph.
 
@@ -806,7 +807,7 @@ def embed_streaming(
     num_workers: Optional[int] = None,
     batch_callback: Optional[Callable[[int, SparseMatrix, np.ndarray], None]] = None,
     refresh_every: Optional[int] = None,
-    whiten: bool = True,
+    whiten: bool = DEFAULT_WHITEN,
     seed: int = 0,
 ) -> Tuple[SparseMatrix, np.ndarray]:
     """Embeds a graph that arrives in batches of edges.
@@ -920,7 +921,7 @@ def propagate_gpu(
     normalization: str = "l2",
     device: str = "cuda",
     callback: Optional[Callable[[int, np.ndarray], None]] = None,
-    whiten: bool = True,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> np.ndarray:
     _validate_propagation(propagation)
 
@@ -1024,7 +1025,7 @@ def embed_edge_features(
     normalization: str = "l2",
     combine: str = "concat",
     num_workers: Optional[int] = None,
-    whiten: bool = True,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> np.ndarray:
     from scipy.sparse import csr_matrix, diags
 
@@ -1097,7 +1098,7 @@ class CleoraEmbedder:
         seed: int = 0,
         hyperedge_trim_n: int = 16,
         num_workers: Optional[int] = None,
-        whiten: bool = True,
+        whiten: bool = DEFAULT_WHITEN,
     ):
         self.feature_dim = feature_dim
         self.num_iterations = num_iterations
