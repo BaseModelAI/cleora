@@ -15,16 +15,18 @@ def main():
     embed_parser.add_argument("--input", "-i", required=True, help="Input edge file (TSV/CSV/space-separated)")
     embed_parser.add_argument("--output", "-o", required=True, help="Output file (npz/csv/tsv)")
     embed_parser.add_argument("--dim", "-d", type=int, default=256, help="Embedding dimension (default: 256)")
-    embed_parser.add_argument("--iterations", "-n", type=int, default=40, help="Number of iterations (default: 40)")
+    embed_parser.add_argument("--iterations", "-n", type=_iterations, default="auto",
+                              help="Number of iterations, or 'auto' to take it from the density of the graph "
+                                   "(default: auto)")
     embed_parser.add_argument("--propagation", "-p", choices=["left", "symmetric"], default="left")
     embed_parser.add_argument("--normalization", choices=["l2", "l1", "none"], default="l2")
     embed_parser.add_argument("--columns", "-c", default="complex::reflexive::node", help="Column definition")
     embed_parser.add_argument("--algorithm", "-a", default="cleora",
                               choices=["cleora", "prone", "randne", "hope", "netmf", "grarep", "deepwalk", "node2vec"])
     embed_parser.add_argument("--seed", type=int, default=0)
-    embed_parser.add_argument("--no-whiten", action="store_true",
-                              help="Classic Cleora without per-iteration whitening: much faster, "
-                                   "use it with few iterations (e.g. -n 4 to -n 16)")
+    embed_parser.add_argument("--whiten", action="store_true",
+                              help="PCA-whiten the columns after every iteration (the default of pycleora 3.2): "
+                                   "much slower, needs many more entities than dimensions")
     embed_parser.add_argument("--verbose", "-v", action="store_true")
 
     info_parser = subparsers.add_parser("info", help="Show graph information")
@@ -56,6 +58,19 @@ def main():
         _cmd_benchmark(args)
     elif args.command == "similar":
         _cmd_similar(args)
+
+
+def _iterations(text):
+    """Argument type of --iterations: a non-negative integer or 'auto'."""
+    if text == "auto":
+        return text
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected a number or 'auto', got '{text}'")
+    if value < 0:
+        raise argparse.ArgumentTypeError(f"must not be negative, got {value}")
+    return value
 
 
 def _read_edges(filepath):
@@ -94,7 +109,7 @@ def _cmd_embed(args):
     t0 = time.time()
     algo_map = {
         "cleora": lambda: embed(graph, args.dim, args.iterations, args.propagation, args.normalization,
-                                args.seed, whiten=not args.no_whiten),
+                                args.seed, whiten=args.whiten),
         "prone": lambda: embed_prone(graph, args.dim, seed=args.seed),
         "randne": lambda: embed_randne(graph, args.dim, seed=args.seed),
         "hope": lambda: embed_hope(graph, args.dim),
@@ -161,8 +176,8 @@ def _cmd_benchmark(args):
         print(f"Using {dim} dimensions instead of {args.dim}: the graph has only {graph.num_entities} nodes.")
 
     algorithms = {
-        "cleora": lambda g: embed(g, dim, 40),
-        "cleora-classic": lambda g: embed(g, dim, 8, whiten=False),
+        "cleora": lambda g: embed(g, dim),
+        "cleora-whitened": lambda g: embed(g, dim, whiten=True),
         "prone": lambda g: embed_prone(g, dim),
         "randne": lambda g: embed_randne(g, dim),
         "deepwalk": lambda g: embed_deepwalk(g, dim),

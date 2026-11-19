@@ -15,8 +15,12 @@ from . import compress
 __version__ = _core.__version__
 
 DEFAULT_FEATURE_DIM = 256
-DEFAULT_NUM_ITERATIONS = 40
-DEFAULT_WHITEN = True
+# "auto": SparseMatrix.suggest_iterations - or WHITENED_ITERATIONS with whitening.
+DEFAULT_NUM_ITERATIONS = "auto"
+DEFAULT_WHITEN = False
+# Whitening counteracts over-smoothing, so with it the number of iterations hardly
+# matters once it is large enough. 40 is what pycleora 3.2 used.
+WHITENED_ITERATIONS = 40
 
 _NORMALIZATIONS = ("l2", "l1", "spectral", "none")
 _ROW_CHUNK = 65536
@@ -59,8 +63,17 @@ def _to_scipy_sparse(graph: SparseMatrix, markov_type: str = "left"):
     return csr_matrix((data, indices, indptr), shape=(n, n))
 
 
-def _auto_iterations(feature_dim: int) -> int:
-    return DEFAULT_NUM_ITERATIONS
+def _resolve_iterations(
+    num_iterations: Union[int, str], graph: SparseMatrix, propagation: str, whiten: bool
+) -> int:
+    """The number of iterations as a non-negative int; ``"auto"`` is decided here."""
+    if isinstance(num_iterations, str):
+        if num_iterations != "auto":
+            raise ValueError(f"num_iterations must be an int or 'auto', got '{num_iterations}'")
+        return WHITENED_ITERATIONS if whiten else graph.suggest_iterations(propagation)
+    if num_iterations < 0:
+        raise ValueError(f"num_iterations must not be negative, got {num_iterations}")
+    return num_iterations
 
 
 def _warn_if_whitening_is_degenerate(num_entities: int, feature_dim: int) -> None:
@@ -102,28 +115,28 @@ def embed(
 ) -> np.ndarray:
     """Embeds the entities of ``graph``.
 
-    Every iteration propagates the embeddings along the graph, normalises the rows
-    and, with ``whiten=True`` (the default), whitens the columns.
+    Every iteration propagates the vectors along the graph and normalises the rows.
+    This is classic Cleora: it runs entirely in the Rust core and needs no more memory
+    than two embedding matrices.
 
-    ``whiten=False`` is the classic Cleora algorithm: it runs entirely in the Rust
-    core, needs no more memory than two embedding matrices and is typically an
-    order of magnitude faster. It needs far fewer iterations (around 4-16)
-    because nothing counteracts over-smoothing.
+    ``num_iterations="auto"`` (the default) takes the number of iterations from the
+    density of the graph: ``graph.suggest_iterations(propagation)``, a compromise
+    that needs no labels. Similarity search is best with somewhat fewer iterations
+    and classification with more: pass
+    ``graph.suggest_iterations(propagation, purpose="similarity")`` or
+    ``purpose="classification"`` when the use is known. When there is a validation
+    set, choosing the number on it is cheap (``callback`` receives the vectors after
+    every iteration) and usually worth another one or two per cent.
 
-    Whitening needs clearly more entities than dimensions. With
-    ``num_entities <= feature_dim + 1`` all whitened vectors are equidistant and
-    the result is useless (a ``RuntimeWarning`` says so): use ``whiten=False`` or a
-    smaller ``feature_dim`` for small graphs.
+    ``whiten=True`` additionally PCA-whitens the columns after every iteration, which
+    was the default of pycleora 3.2. It is 10-100 times slower and needs many more
+    entities than dimensions: with ``num_entities <= feature_dim + 1`` all whitened
+    vectors are equidistant and the result is useless (a ``RuntimeWarning`` says so).
+    With whitening, ``"auto"`` means 40 iterations.
     """
-    if isinstance(num_iterations, str):
-        if num_iterations == "auto":
-            num_iterations = _auto_iterations(feature_dim)
-        else:
-            raise ValueError(f"num_iterations must be an int or 'auto', got '{num_iterations}'")
-    if num_iterations < 0:
-        raise ValueError(f"num_iterations must not be negative, got {num_iterations}")
     _validate_propagation(propagation)
     _validate_normalization(normalization)
+    num_iterations = _resolve_iterations(num_iterations, graph, propagation, whiten)
     if whiten and num_iterations > 0:
         _warn_if_whitening_is_degenerate(graph.num_entities, feature_dim)
 
@@ -166,6 +179,17 @@ def embed(
 
     propagate_fn = _get_propagate_fn(graph, propagation)
     use_residual = 0.0 < residual_weight < 1.0
+
+    if normalization == "l2" and not whiten and callback is None and not use_residual and convergence_threshold <= 0:
+        # Nothing has to look at the vectors between iterations: the core runs them
+        # all, with the normalisation fused into the propagation.
+        iterate_inplace = (
+            graph.symmetric_markov_propagate_normalized_inplace
+            if propagation == "symmetric"
+            else graph.left_markov_propagate_normalized_inplace
+        )
+        iterate_inplace(embeddings, num_iterations, num_workers)
+        return embeddings
 
     if normalization == "spectral":
         # The SVD-based normalisation cannot work in place.
@@ -258,7 +282,7 @@ def whiten_embeddings(
 def embed_with_node_features(
     graph: SparseMatrix,
     node_features: Dict[str, np.ndarray],
-    num_iterations: int = DEFAULT_NUM_ITERATIONS,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     feature_weight: float = 0.5,
@@ -297,7 +321,7 @@ def embed_with_node_features(
 def embed_with_attention(
     graph: SparseMatrix,
     feature_dim: int = DEFAULT_FEATURE_DIM,
-    num_iterations: int = DEFAULT_NUM_ITERATIONS,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     attention_temperature: float = 1.0,
@@ -311,6 +335,7 @@ def embed_with_attention(
     if attention_temperature <= 0:
         raise ValueError(f"attention_temperature must be positive, got {attention_temperature}")
 
+    num_iterations = _resolve_iterations(num_iterations, graph, propagation, whiten)
     if num_iterations <= 0:
         raise ValueError(f"num_iterations must be positive, got {num_iterations}")
 
@@ -422,7 +447,7 @@ def embed_weighted(
     edges_with_weights: List[Tuple[str, float]],
     columns: str,
     feature_dim: int = DEFAULT_FEATURE_DIM,
-    num_iterations: int = DEFAULT_NUM_ITERATIONS,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     seed: int = 0,
@@ -460,7 +485,7 @@ def embed_directed(
     edges: List[str],
     columns: str,
     feature_dim: int = DEFAULT_FEATURE_DIM,
-    num_iterations: int = DEFAULT_NUM_ITERATIONS,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     normalization: str = "l2",
     seed: int = 0,
     hyperedge_trim_n: int = 16,
@@ -512,6 +537,7 @@ def embed_directed(
     if whiten:
         _warn_if_whitening_is_degenerate(graph.num_entities, feature_dim)
 
+    num_iterations = _resolve_iterations(num_iterations, graph, "left", whiten)
     embeddings = graph.initialize_deterministically(feature_dim, seed)
     for i in range(num_iterations):
         embeddings = (adj @ embeddings).astype(np.float32)
@@ -709,7 +735,7 @@ def embed_inductive(
     existing_edges: List[str],
     new_edges: List[str],
     columns: str,
-    num_iterations: int = DEFAULT_NUM_ITERATIONS,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     hyperedge_trim_n: int = 16,
@@ -800,7 +826,7 @@ def embed_streaming(
     edge_batches,
     columns: str,
     feature_dim: int = DEFAULT_FEATURE_DIM,
-    num_iterations: int = DEFAULT_NUM_ITERATIONS,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     hyperedge_trim_n: int = 16,
@@ -916,7 +942,7 @@ def predict_links(
 def propagate_gpu(
     graph: SparseMatrix,
     embeddings: np.ndarray,
-    num_iterations: int = DEFAULT_NUM_ITERATIONS,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     device: str = "cuda",
@@ -924,6 +950,7 @@ def propagate_gpu(
     whiten: bool = DEFAULT_WHITEN,
 ) -> np.ndarray:
     _validate_propagation(propagation)
+    num_iterations = _resolve_iterations(num_iterations, graph, propagation, whiten)
 
     if normalization not in ("l2", "l1", "none"):
         raise ValueError(f"GPU propagation supports 'l2', 'l1', or 'none' normalization. Got: '{normalization}'")
@@ -1020,7 +1047,7 @@ def embed_edge_features(
     graph: SparseMatrix,
     edge_features: Dict[str, np.ndarray],
     feature_dim: int = DEFAULT_FEATURE_DIM,
-    num_iterations: int = DEFAULT_NUM_ITERATIONS,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     combine: str = "concat",
@@ -1030,6 +1057,7 @@ def embed_edge_features(
     from scipy.sparse import csr_matrix, diags
 
     _validate_propagation(propagation)
+    num_iterations = _resolve_iterations(num_iterations, graph, propagation, whiten)
 
     struct_emb = embed(
         graph, feature_dim=feature_dim, num_iterations=num_iterations,
@@ -1091,7 +1119,7 @@ class CleoraEmbedder:
     def __init__(
         self,
         feature_dim: int = DEFAULT_FEATURE_DIM,
-        num_iterations: int = DEFAULT_NUM_ITERATIONS,
+        num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
         propagation: str = "left",
         normalization: str = "l2",
         columns: str = "complex::reflexive::node",

@@ -53,19 +53,53 @@ def test_classic_embedding_matches_numpy(graph, propagation):
     np.testing.assert_array_equal(result, graph.embed_fast(24, 5, propagation=propagation, seed=3))
 
 
-def test_default_embedding_matches_numpy(graph):
+def test_default_is_classic_with_automatic_iterations(graph):
+    """embed(graph) = classic Cleora with the number of iterations the graph suggests."""
+    default = embed(graph, 16)
+    assert graph.suggest_iterations() >= 1
+    np.testing.assert_array_equal(default, embed(graph, 16, graph.suggest_iterations(), whiten=False))
+    np.testing.assert_array_equal(default, embed(graph, 16, "auto"))
+    np.testing.assert_allclose(np.linalg.norm(default, axis=1), 1.0, atol=1e-5)
+    symmetric = embed(graph, 16, propagation="symmetric")
+    np.testing.assert_array_equal(
+        symmetric, embed(graph, 16, graph.suggest_iterations("symmetric"), propagation="symmetric"))
+
+
+def test_automatic_iterations_with_whitening_are_those_of_3_2(graph):
+    np.testing.assert_array_equal(embed(graph, 8, "auto", whiten=True), embed(graph, 8, 40, whiten=True))
+    assert pycleora.WHITENED_ITERATIONS == 40
+
+
+def test_whitened_embedding_matches_numpy(graph):
     transition = dense(graph, "left")
     expected = graph.initialize_deterministically(16).astype(np.float64)
     for _ in range(4):
         expected = reference_whiten(l2(transition @ expected))
-    result = embed(graph, 16, 4)
+    result = embed(graph, 16, 4, whiten=True)
     np.testing.assert_allclose(result, expected, atol=2e-3)
 
 
-def test_default_embedding_is_whitened(graph):
-    embeddings = embed(graph, 32, 6).astype(np.float64)
+def test_whitened_embedding_is_white(graph):
+    embeddings = embed(graph, 32, 6, whiten=True).astype(np.float64)
     np.testing.assert_allclose(embeddings.mean(axis=0), 0.0, atol=1e-5)
     np.testing.assert_allclose(np.cov(embeddings.T), np.eye(32), atol=1e-4)
+
+
+@pytest.mark.parametrize("propagation", ["left", "symmetric"])
+def test_initial_embeddings_are_iterated_as_in_numpy(graph, propagation):
+    """With initial vectors and nothing to observe in between, all iterations run in the core."""
+    transition = dense(graph, propagation)
+    initial = np.random.default_rng(5).standard_normal((graph.num_entities, 12)).astype(np.float32)
+    kept = initial.copy()
+    expected = initial.astype(np.float64)
+    for _ in range(3):
+        expected = l2(transition @ expected)
+    result = embed(graph, 12, 3, propagation=propagation, initial_embeddings=initial)
+    np.testing.assert_allclose(result, expected, atol=2e-5)
+    np.testing.assert_array_equal(initial, kept)  # the caller's array is not touched
+    seen = []
+    embed(graph, 12, 3, propagation=propagation, initial_embeddings=initial, callback=lambda i, e: seen.append(e))
+    np.testing.assert_array_equal(result, seen[-1])
 
 
 def test_rust_and_python_loops_agree(graph):
@@ -158,7 +192,10 @@ def test_argument_validation(graph):
         embed(graph, 8, -1)
     with pytest.raises(ValueError, match="'auto'"):
         embed(graph, 8, "many")
-    assert embed(graph, 8, "auto", whiten=False).shape == (graph.num_entities, 8)
+    assert embed(graph, 8, "auto").shape == (graph.num_entities, 8)
+    for function in (pycleora.embed_with_attention, pycleora.propagate_gpu):
+        with pytest.raises(ValueError, match="'auto'"):
+            function(graph, 8, "many")
 
 
 def test_whitening_more_dimensions_than_entities_is_reported():
@@ -169,15 +206,15 @@ def test_whitening_more_dimensions_than_entities_is_reported():
     assert graph.num_entities == 20
 
     with pytest.warns(RuntimeWarning, match="20 entities and the embedding 32 dimensions"):
-        useless = embed(graph, 32, 5)
+        useless = embed(graph, 32, 5, whiten=True)
     unit = l2(useless.astype(np.float64))
     cosines = (unit @ unit.T)[~np.eye(20, dtype=bool)]
     np.testing.assert_allclose(cosines, -1 / 19, atol=1e-4)  # a regular simplex: no information
 
     for function in (
-        lambda: pycleora.embed_multiscale(graph, 32, [1, 2]),
-        lambda: pycleora.embed_with_attention(graph, 32, 2),
-        lambda: pycleora.embed_directed(lines, COLUMNS, feature_dim=32, num_iterations=2),
+        lambda: pycleora.embed_multiscale(graph, 32, [1, 2], whiten=True),
+        lambda: pycleora.embed_with_attention(graph, 32, 2, whiten=True),
+        lambda: pycleora.embed_directed(lines, COLUMNS, feature_dim=32, num_iterations=2, whiten=True),
     ):
         with pytest.warns(RuntimeWarning, match="Whitening cannot work"):
             function()
@@ -186,8 +223,8 @@ def test_whitening_more_dimensions_than_entities_is_reported():
 
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        fine = embed(graph, 8, 5)  # enough entities for 8 dimensions
-        embed(graph, 32, 5, whiten=False)  # no whitening, no problem
+        fine = embed(graph, 8, 5, whiten=True)  # enough entities for 8 dimensions
+        embed(graph, 32, 5)  # no whitening, no problem
     unit = l2(fine.astype(np.float64))
     assert (unit @ unit.T)[~np.eye(20, dtype=bool)].std() > 0.1
 

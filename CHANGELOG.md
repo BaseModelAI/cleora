@@ -79,6 +79,15 @@ Python 3.10 or newer.
   use a restricted unpickler.
 
 ### Changed
+- **`embed()` runs classic Cleora with an automatic number of iterations by
+  default**: `num_iterations="auto"`, `whiten=False`. The number of iterations
+  comes from the graph (`SparseMatrix.suggest_iterations`): fewer on dense
+  graphs, more for a reflexive column and for the symmetric normalisation.
+  Up to 3.2 the default was 40 iterations with PCA whitening after each one;
+  `embed(graph, num_iterations=40, whiten=True)` still does that. The change
+  applies to every function that takes `whiten` and `num_iterations`, and to
+  the command line (`pycleora embed --whiten` replaces the default; `-n` accepts
+  `auto`). See the benchmark section of the README for the comparison.
 - `SparseMatrix.entity_ids` is an immutable tuple that is built once. It used to
   be a new list on every access, which made loops over `graph.entity_ids[i]`
   quadratic. Assigning a new sequence of names still works.
@@ -124,7 +133,9 @@ Python 3.10 or newer.
   in the README.
 - A Python test suite (`tests/python`) and a CI job that runs it together with
   the Rust tests; wheels are smoke-tested before upload; macOS x86_64 wheels.
-- `pycleora embed --no-whiten`.
+- `SparseMatrix.suggest_iterations(propagation, purpose)`: the rule behind
+  `num_iterations="auto"`, with `purpose="similarity"` or `"classification"` for
+  embeddings that serve one use only.
 
 # 2.0.0 (Nov 24, 2024)
 
