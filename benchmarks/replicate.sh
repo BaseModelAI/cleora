@@ -9,7 +9,7 @@
 #
 #   --tiers S|SM|SML     datasets by size: S up to ~1M edges (default), M up to ~60M, L larger
 #   --datasets a,b,c     these datasets instead of whole tiers
-#   --dim N              embedding dimensionality (default 1024)
+#   --dim N              embedding dimensionality of every method (default 1024)
 #   --threads N          threads per embedding method (default: all cores)
 #
 # Parts that can be switched off:
@@ -74,17 +74,10 @@ for tier in $(echo "$tiers" | grep -o .); do
     run --dim "$dim" --seeds "$seeds" --tasks lp,viz --methods "$(configurations "c.automatic('similarity')")"
 
     if [ $baselines = 1 ]; then
-        # the benchmark dimensionality and that of the papers; on the largest graphs the latter only
-        if [ "$tier" = L ]; then
-            run --dim 128 --seeds "$seeds"
-        else
-            run --dim "$dim" --seeds "$seeds"
-            run --dim 128 --seeds "$seeds" --tasks nc,lp
-        fi
+        run --dim "$dim" --seeds "$seeds"
     fi
     if [ $previous = 1 ]; then
         run --dim "$dim" --seeds "$seeds" --methods cleora_whiten40
-        run --dim 256 --seeds "$seeds" --tasks nc,lp --methods cleora_whiten40
     fi
     if [ $tuned = 1 ]; then
         # one cheap pass over the iteration counts, then the counts that validated best in full

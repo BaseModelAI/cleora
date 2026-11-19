@@ -1,25 +1,23 @@
 """What the tables and figures show, and under which names.
 
-Concern of this module: the rows (datasets), the columns (methods and their variants)
-and their labels. It holds no numbers and computes none.
+Concern of this module: the rows (datasets), the columns (methods) and their labels. It
+holds no numbers and computes none.
 
-A *method* of a table may stand for several configurations (*variants*); for every
-dataset, task and probe the report shows the variant with the best validation score
-(:func:`cleora_bench.report.select_variant`). The variants are:
+Every column of the main tables is one configuration at ``MAIN_DIM`` dimensions - the
+same for every graph, never chosen per dataset:
 
-- baselines: the benchmark dimensionality and the 128 dimensions their papers use;
-- ``cleora``: the four ways of running the library - the graph as one reflexive column
-  or as two columns, left or symmetric normalisation - each with the number of iterations
-  the library suggests for the task (``TASK_PURPOSE``). Nothing is tuned per dataset
-  beyond that choice;
-- ``cleora_tuned``: additionally the iteration counts found by the sweep (chosen on
-  validation, see ``select_iterations.py``).
+- a baseline: its authors' settings;
+- ``cleora`` / ``cleora_pair``: the graph as one reflexive column / as two columns, with
+  the number of iterations the library suggests for the task (``TASK_PURPOSE``) and the
+  normalisation the README recommends for it (``TASK_PROPAGATION``).
+
+``cleora_tuned`` is not a column of the main tables: it is what choosing the iteration
+count and the family on validation data adds, shown in tables of its own.
 """
 
 from . import configurations
 
 MAIN_DIM = 1024
-PAPER_DIM = 128
 
 DATASET_LABELS = {
     "cora": "Cora", "citeseer": "CiteSeer", "pubmed": "PubMed", "cora_full": "Cora-Full", "dblp": "DBLP",
@@ -40,32 +38,35 @@ DATASET_ORDER = (
 
 # what SparseMatrix.suggest_iterations is asked for, by task
 TASK_PURPOSE = {"nc": "classification", "lp": "similarity"}
+# The normalisation by task, for every graph alike. It is the one with the better mean
+# validation score over the graphs (table "families_validation"); test scores had no say.
+TASK_PROPAGATION = {"nc": "left", "lp": "symmetric"}
 
 
-def cleora_variants(task):
-    return [(name, MAIN_DIM) for name in configurations.automatic(TASK_PURPOSE[task])]
+def cleora_configuration(setup, task):
+    """The one Cleora configuration of a setup ("hyperedge" or "pair") for a task."""
+    return configurations.AUTO[(setup, TASK_PROPAGATION[task], TASK_PURPOSE[task])]
 
 
 _BASELINES = (
     ("deepwalk", "DeepWalk"), ("node2vec", "node2vec"), ("walklets", "Walklets"), ("netmf", "NetMF"),
     ("grarep", "GraRep"), ("hope", "HOPE"), ("prone", "ProNE"), ("fastrp", "FastRP"), ("randne", "RandNE"),
 )
+BASELINES = tuple(name for name, _ in _BASELINES)
 
-# key -> label, variants ((configuration, dim), ...; None: they depend on the task and the
-# dataset, see make_report.Results.variants), configurations drawn in the figures (the
-# first one that has vectors: labelled graphs are drawn from the classification run)
+# key -> label, and for the methods whose configuration does not depend on the task, its name
 METHODS = {
-    "cleora": {"label": "Cleora", "variants": None,
-               "figure": [configurations.AUTO[("hyperedge", "left", purpose)] for purpose in ("classification", "similarity")]},
-    "cleora_tuned": {"label": "Cleora, tuned", "variants": None, "figure": []},
-    "cleora_3_2": {"label": "pycleora 3.2 default", "variants": [("cleora_whiten40", 256), ("cleora_whiten40", MAIN_DIM)],
-                   "figure": ["cleora_whiten40"]},
+    "cleora": {"label": "Cleora", "setup": "hyperedge"},
+    "cleora_pair": {"label": "Cleora, two columns", "setup": "pair"},
+    "cleora_tuned": {"label": "Cleora, tuned"},
+    "cleora_3_2": {"label": "pycleora 3.2 default", "configuration": "cleora_whiten40"},
 }
 for _name, _label in _BASELINES:
-    METHODS[_name] = {"label": _label, "variants": [(_name, MAIN_DIM), (_name, PAPER_DIM)], "figure": [_name]}
+    METHODS[_name] = {"label": _label, "configuration": _name}
 
-MAIN_COLUMNS = ("cleora", "cleora_tuned") + tuple(name for name, _ in _BASELINES)
-BASELINES = tuple(name for name, _ in _BASELINES)
+MAIN_COLUMNS = ("cleora", "cleora_pair") + BASELINES
+# columns that are the same method fed differently: they are not ranked against each other
+SAME_METHOD = ("cleora", "cleora_pair")
 
 # the four ways of feeding and normalising a graph, for the ablation tables
 FAMILIES = {
@@ -73,8 +74,11 @@ FAMILIES = {
     "two columns, left": ("pair", "left"), "two columns, symmetric": ("pair", "symmetric"),
 }
 
-FIGURE_METHODS = [{"label": METHODS[key]["label"], "configurations": METHODS[key]["figure"]}
-                  for key in ("cleora",) + BASELINES + ("cleora_3_2",)]
+# panels of the figures: label and the configurations to look for (labelled graphs are drawn
+# from the classification run, the others from the similarity run)
+FIGURE_METHODS = [{"label": "Cleora", "configurations": [cleora_configuration("hyperedge", task) for task in ("nc", "lp")]}]
+FIGURE_METHODS += [{"label": METHODS[name]["label"], "configurations": [name]} for name in BASELINES]
+FIGURE_METHODS.append({"label": METHODS["cleora_3_2"]["label"], "configurations": ["cleora_whiten40"]})
 
 NODE_PROBES = {"logistic": "logistic regression", "svm": "linear SVM", "mlp": "MLP (AdamC)", "knn": "k-NN (cosine)"}
 PAIR_PROBES = {
