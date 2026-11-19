@@ -1,0 +1,15 @@
+# Environment "walks" (Python 3.11): DeepWalk and node2vec = PecanPy walks + gensim skip-gram.
+# PecanPy 2.0.9 depends on nptyping, which needs NumPy < 2.
+numpy==1.26.4
+scipy==1.13.1
+numba==0.60.0
+llvmlite==0.43.0
+gensim==4.3.3
+pecanpy==2.0.9
+nptyping==2.5.0
+numba-progress==1.2.0
+smart-open==9.0.5
+tqdm==4.70.1
+typing-extensions==4.16.0
+wrapt==2.5.2
+psutil==7.2.2

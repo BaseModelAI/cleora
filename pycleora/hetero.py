@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Dict, List, Optional, Tuple, Union
 from .pycleora import SparseMatrix
+from . import DEFAULT_FEATURE_DIM, DEFAULT_NUM_ITERATIONS, DEFAULT_WHITEN
 
 
 class HeteroGraph:
@@ -88,15 +89,25 @@ class HeteroGraph:
 
     def embed_per_relation(
         self,
-        feature_dim: int = 256,
-        num_iterations: int = 40,
+        feature_dim: int = DEFAULT_FEATURE_DIM,
+        num_iterations: int = DEFAULT_NUM_ITERATIONS,
         propagation: str = "left",
         normalization: str = "l2",
         combine: str = "concat",
         seed: int = 0,
-        whiten: bool = True,
+        whiten: bool = DEFAULT_WHITEN,
     ) -> Tuple[Dict[str, SparseMatrix], Dict[str, np.ndarray], Optional[np.ndarray]]:
-        from . import embed
+        """Embeds every edge type on its own and optionally combines the results.
+
+        Edge weights given to ``add_edge_type`` are used. ``combine="concat"``
+        concatenates the per-relation vectors of every entity (zeros where an
+        entity does not take part in a relation). ``combine="mean"`` averages them;
+        because embeddings of separate runs live in unrelated coordinate systems,
+        every relation is first rotated onto the first one (orthogonal Procrustes
+        over the shared entities) so that the average is meaningful.
+        """
+        from . import embed, _align_to_previous
+        from .io_utils import from_arrays
 
         graphs = {}
         embeddings = {}
@@ -104,16 +115,10 @@ class HeteroGraph:
         for et_name, et_info in self._edge_types.items():
             src_type = et_info["source_type"]
             tgt_type = et_info["target_type"]
+            sources = [f"{src_type}_{src}" for src, _ in et_info["edges"]]
+            targets = [f"{tgt_type}_{tgt}" for _, tgt in et_info["edges"]]
 
-            columns = f"complex::reflexive::node"
-
-            edge_strs = []
-            for src, tgt in et_info["edges"]:
-                s_id = f"{src_type}_{src}"
-                t_id = f"{tgt_type}_{tgt}"
-                edge_strs.append(f"{s_id} {t_id}")
-
-            graph = SparseMatrix.from_iterator(iter(edge_strs), columns)
+            graph = from_arrays(sources, targets, weights=et_info["weights"])
             emb = embed(graph, feature_dim=feature_dim, num_iterations=num_iterations,
                        propagation=propagation, normalization=normalization, seed=seed,
                        whiten=whiten)
@@ -122,50 +127,43 @@ class HeteroGraph:
             embeddings[et_name] = emb
 
         combined = None
-        if combine == "concat" and len(embeddings) > 1:
+        if combine in ("concat", "mean") and len(embeddings) > 1:
             all_entities = set()
             for g in graphs.values():
                 all_entities.update(g.entity_ids)
             all_entities = sorted(all_entities)
             entity_to_idx = {e: i for i, e in enumerate(all_entities)}
+            rows_of = {
+                et_name: np.fromiter(
+                    (entity_to_idx[eid] for eid in graphs[et_name].entity_ids),
+                    dtype=np.int64,
+                    count=graphs[et_name].num_entities,
+                )
+                for et_name in self._edge_types
+            }
 
-            parts = []
-            for et_name in self._edge_types:
-                g = graphs[et_name]
-                emb = embeddings[et_name]
-                part = np.zeros((len(all_entities), emb.shape[1]), dtype=np.float32)
-                for i, eid in enumerate(g.entity_ids):
-                    if eid in entity_to_idx:
-                        part[entity_to_idx[eid]] = emb[i]
-                parts.append(part)
+            if combine == "concat":
+                parts = []
+                for et_name in self._edge_types:
+                    emb = embeddings[et_name]
+                    part = np.zeros((len(all_entities), emb.shape[1]), dtype=np.float32)
+                    part[rows_of[et_name]] = emb
+                    parts.append(part)
+                combined = np.concatenate(parts, axis=1)
+            else:
+                names = list(self._edge_types)
+                reference_ids = graphs[names[0]].entity_ids
+                reference = embeddings[names[0]]
+                combined = np.zeros((len(all_entities), feature_dim), dtype=np.float64)
+                counts = np.zeros(len(all_entities), dtype=np.float64)
+                for et_name in names:
+                    emb = embeddings[et_name]
+                    if et_name != names[0]:
+                        emb = _align_to_previous(emb, graphs[et_name].entity_ids, reference, reference_ids)
+                    combined[rows_of[et_name]] += emb
+                    counts[rows_of[et_name]] += 1
+                combined = (combined / np.maximum(counts, 1)[:, None]).astype(np.float32)
 
-            combined = np.concatenate(parts, axis=1)
-            norms = np.linalg.norm(combined, axis=1, keepdims=True)
-            norms = np.maximum(norms, 1e-10)
-            combined = combined / norms
-
-        elif combine == "mean" and len(embeddings) > 1:
-            all_entities = set()
-            for g in graphs.values():
-                all_entities.update(g.entity_ids)
-            all_entities = sorted(all_entities)
-            entity_to_idx = {e: i for i, e in enumerate(all_entities)}
-
-            dim = feature_dim
-            combined = np.zeros((len(all_entities), dim), dtype=np.float64)
-            counts = np.zeros(len(all_entities), dtype=np.float64)
-
-            for et_name in self._edge_types:
-                g = graphs[et_name]
-                emb = embeddings[et_name]
-                for i, eid in enumerate(g.entity_ids):
-                    if eid in entity_to_idx:
-                        idx = entity_to_idx[eid]
-                        combined[idx] += emb[i].astype(np.float64)
-                        counts[idx] += 1
-
-            counts = np.maximum(counts, 1)
-            combined = (combined / counts[:, None]).astype(np.float32)
             norms = np.linalg.norm(combined, axis=1, keepdims=True)
             norms = np.maximum(norms, 1e-10)
             combined = combined / norms
@@ -175,11 +173,11 @@ class HeteroGraph:
     def embed_metapath(
         self,
         metapath: List[str],
-        feature_dim: int = 256,
-        num_iterations: int = 40,
+        feature_dim: int = DEFAULT_FEATURE_DIM,
+        num_iterations: int = DEFAULT_NUM_ITERATIONS,
         normalization: str = "l2",
         seed: int = 0,
-        whiten: bool = True,
+        whiten: bool = DEFAULT_WHITEN,
     ) -> Tuple[SparseMatrix, np.ndarray]:
         from . import embed
 

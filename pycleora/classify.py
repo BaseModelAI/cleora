@@ -1,6 +1,32 @@
 import numpy as np
 from typing import Dict, Optional, Tuple, List
 
+# Share of the training entities that is not fitted on but used to choose the checkpoint.
+_VALIDATION_FRACTION = 0.2
+
+
+def _split_labelled(
+    rng: np.random.Generator, count: int, train_ratio: float
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Shuffled positions of ``count`` labelled entities as ``(fit, validation, test)``.
+
+    ``train_ratio`` of them are for training. The checkpoint must be chosen on data
+    the model was not fitted on, and choosing it on the test part would make the test
+    score an optimistic maximum: so a part of the training entities is held out for it.
+    """
+    order = rng.permutation(count)
+    num_train = int(count * train_ratio)
+    train, test = order[:num_train], order[num_train:]
+    if len(test) == 0:
+        raise ValueError("Test set is empty, reduce train_ratio")
+    if len(train) < 2:
+        raise ValueError(
+            f"Need at least 2 training entities (one to fit on, one for validation), got {len(train)}: "
+            "increase train_ratio"
+        )
+    num_validation = max(1, int(len(train) * _VALIDATION_FRACTION))
+    return train[num_validation:], train[:num_validation], test
+
 
 def label_propagation(
     graph,
@@ -64,6 +90,15 @@ def mlp_classify(
     seed: int = 42,
     l2_reg: float = 1e-4,
 ) -> Dict[str, float]:
+    """Trains a one-hidden-layer network on the embeddings and scores it on held-out entities.
+
+    ``train_ratio`` of the labelled entities are for training; a fifth of those is not
+    fitted on but used to choose the checkpoint (every 10th epoch is a candidate).
+    The test entities are scored once, with the chosen checkpoint: ``accuracy`` and
+    ``macro_f1`` are that score. (Earlier versions chose the checkpoint by its test
+    accuracy, so the two were the best of the test scores of all candidates.)
+    ``train_size`` counts all training entities, the validation part included.
+    """
     if not labels:
         raise ValueError("labels must be a non-empty dict")
     if not (0 < train_ratio < 1):
@@ -90,14 +125,10 @@ def mlp_classify(
     y_mapped = np.array([class_map[c] for c in y])
 
     rng = np.random.default_rng(seed)
-    perm = rng.permutation(len(y))
-    split = int(len(y) * train_ratio)
-    train_idx, test_idx = perm[:split], perm[split:]
+    fit_idx, validation_idx, test_idx = _split_labelled(rng, len(y), train_ratio)
 
-    if len(test_idx) == 0:
-        raise ValueError("Test set is empty, reduce train_ratio")
-
-    X_train, y_train = X[train_idx], y_mapped[train_idx]
+    X_train, y_train = X[fit_idx], y_mapped[fit_idx]
+    X_validation, y_validation = X[validation_idx], y_mapped[validation_idx]
     X_test, y_test = X[test_idx], y_mapped[test_idx]
 
     input_dim = X.shape[1]
@@ -156,10 +187,12 @@ def mlp_classify(
             b2 -= learning_rate * db2
 
         if epoch % 10 == 0 or epoch == num_epochs - 1:
-            _, _, _, test_probs = forward(X_test)
-            test_pred = np.argmax(test_probs, axis=1)
-            acc = float(np.mean(test_pred == y_test))
-            if acc > best_acc:
+            _, _, _, validation_probs = forward(X_validation)
+            validation_pred = np.argmax(validation_probs, axis=1)
+            acc = float(np.mean(validation_pred == y_validation))
+            # ">=": a small validation part gives many ties, and of equally good
+            # checkpoints the one trained longest is the better model.
+            if acc >= best_acc:
                 best_acc = acc
                 best_W1, best_b1 = W1.copy(), b1.copy()
                 best_W2, best_b2 = W2.copy(), b2.copy()
@@ -185,7 +218,7 @@ def mlp_classify(
         "accuracy": accuracy,
         "macro_f1": macro_f1,
         "num_classes": num_classes,
-        "train_size": len(train_idx),
+        "train_size": len(fit_idx) + len(validation_idx),
         "test_size": len(test_idx),
         "num_epochs": num_epochs,
         "hidden_dim": hidden_dim,
@@ -250,6 +283,13 @@ def gcn_classify(
     num_layers: int = 2,
     dropout: float = 0.5,
 ) -> Dict[str, float]:
+    """Trains a graph convolutional network on the embeddings and scores it on held-out entities.
+
+    The entities are divided as in :func:`mlp_classify`: the checkpoint is chosen on a
+    validation part of the training entities and the test entities are scored once,
+    which is what ``accuracy`` and ``macro_f1`` report. ``train_size`` counts all
+    training entities, the validation part included.
+    """
     from scipy.sparse import csr_matrix, diags, eye
 
     if not labels:
@@ -288,17 +328,14 @@ def gcn_classify(
     y_mapped = np.array([class_map[c] for c in y])
 
     rng = np.random.default_rng(seed)
-    perm = rng.permutation(len(y))
-    split = int(len(y) * train_ratio)
-    train_idx, test_idx = perm[:split], perm[split:]
-
-    if len(test_idx) == 0:
-        raise ValueError("Test set is empty, reduce train_ratio")
+    fit_idx, validation_idx, test_idx = _split_labelled(rng, len(y), train_ratio)
 
     node_indices = np.array(indices)
-    train_nodes = node_indices[train_idx]
+    train_nodes = node_indices[fit_idx]
+    validation_nodes = node_indices[validation_idx]
     test_nodes = node_indices[test_idx]
-    y_train = y_mapped[train_idx]
+    y_train = y_mapped[fit_idx]
+    y_validation = y_mapped[validation_idx]
     y_test = y_mapped[test_idx]
 
     X = embeddings.astype(np.float64)
@@ -375,9 +412,10 @@ def gcn_classify(
 
         if epoch % 10 == 0 or epoch == num_epochs - 1:
             activations, _ = forward(X, training=False)
-            preds = np.argmax(activations[-1][test_nodes], axis=1)
-            acc = float(np.mean(preds == y_test))
-            if acc > best_acc:
+            preds = np.argmax(activations[-1][validation_nodes], axis=1)
+            acc = float(np.mean(preds == y_validation))
+            # ">=": of equally good checkpoints the latest, as in mlp_classify
+            if acc >= best_acc:
                 best_acc = acc
                 best_weights = [w.copy() for w in weights]
 
@@ -402,7 +440,7 @@ def gcn_classify(
         "accuracy": accuracy,
         "macro_f1": macro_f1,
         "num_classes": num_classes,
-        "train_size": len(train_idx),
+        "train_size": len(fit_idx) + len(validation_idx),
         "test_size": len(test_idx),
         "num_layers": num_layers,
         "hidden_dim": hidden_dim,

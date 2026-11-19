@@ -4,7 +4,7 @@
 
 | Library | Language | Backend | Focus | Status |
 |---------|----------|---------|-------|--------|
-| **pycleora 2.3** | Rust + Python | CPU (Rust SpMM) | Full-stack graph embedding SDK | Active |
+| **pycleora 4.0** | Rust + Python | CPU (Rust SpMM) | Full-stack graph embedding SDK | Active |
 | **PyG (PyTorch Geometric)** | Python | GPU (PyTorch) | GNN training framework | Active |
 | **KarateClub** | Python | CPU (numpy/scipy) | Traditional graph embedding | Active |
 | **Cleora (BaseModelAI)** | Rust | CPU | Sparse embedding only | Minimal |
@@ -99,13 +99,15 @@
 
 ### Built-in Datasets
 
+All pycleora datasets are the real graphs, downloaded from their original sources (SNAP, Planetoid, OGB, ...) on first use; synthetic graphs are only available under explicit names (`pycleora.datasets.load_synthetic`, `pycleora.generators`).
+
 | Feature | pycleora | PyG | KarateClub | Cleora (Base) | Node2Vec | DGL | StellarGraph | GEM | GraphVite | DeepWalk | LINE | SDNE | graspologic | GraphSAGE | Struc2Vec | VERSE | NetSMF |
 |---------|:--------:|:---:|:----------:|:-------------:|:--------:|:---:|:------------:|:---:|:---------:|:--------:|:----:|:----:|:-----------:|:---------:|:---------:|:-----:|:------:|
 | Small graphs (Karate, etc.) | **4** | **4+** | **4+** | **0** | **0** | **4+** | **3+** | **2** | **0** | **0** | **0** | **0** | **3+** | **0** | **0** | **0** | **0** |
 | Citation networks (Cora, etc.) | **4** | **4+** | **0** | **0** | **0** | **4+** | **3+** | **1** | **3+** | **0** | **0** | **0** | **0** | **0** | **0** | **0** | **0** |
 | Amazon co-purchase | **2** | **2** | **0** | **0** | **0** | **0** | **0** | **0** | **0** | **0** | **0** | **0** | **0** | **0** | **0** | **0** | **0** |
-| Large-scale (PPI, Reddit, DBLP) | **2** | **5+** | **0** | **0** | **0** | **5+** | **4+** | **0** | **2+** | **0** | **0** | **0** | **2+** | **0** | **0** | **0** | **0** |
-| **Total datasets** | **14** | **70+** | **~5** | **0** | **0** | **40+** | **~10** | **~3** | **~5** | **0** | **0** | **0** | **~5** | **0** | **0** | **0** | **0** |
+| Biology, social and large-scale (PPI, Orkut, Twitter, etc.) | **13** | **5+** | **0** | **0** | **0** | **5+** | **4+** | **0** | **2+** | **0** | **0** | **0** | **2+** | **0** | **0** | **0** | **0** |
+| **Total datasets** | **23** | **70+** | **~5** | **0** | **0** | **40+** | **~10** | **~3** | **~5** | **0** | **0** | **0** | **~5** | **0** | **0** | **0** | **0** |
 
 ### I/O & Interoperability
 
@@ -136,10 +138,12 @@
 | Optional GPU support | **Yes** | **Yes** | No | No | No | **Yes** | **Yes** | No | **Yes** | No | No | **Yes** | No | **Yes** | No | No | No |
 | Multi-GPU support | Planned | **Yes** | No | No | No | **Yes** | Limited | No | **Yes** | No | No | No | No | No | No | No | No |
 | Rust-native performance | **Yes** | C++/CUDA | No | **Yes** | No | C++/CUDA | No | No | C++/CUDA | No | C++ | No | No | No | No | C++ | C++ |
-| pip install (no build) | No | **Yes** | **Yes** | No | **Yes** | **Yes** | **Yes** | No | No | **Yes** | No | No | **Yes** | No | **Yes** | No | No |
+| pip install (no build) | **Yes** | **Yes** | **Yes** | No | **Yes** | **Yes** | **Yes** | No | No | **Yes** | No | No | **Yes** | No | **Yes** | No | No |
 | Minimal dependencies | **Yes** | No | **Yes** | **Yes** | **Yes** | No | No | No | No | **Yes** | **Yes** | No | No | No | **Yes** | **Yes** | **Yes** |
-| Embedding 1M nodes (time) | ~10s | ~30s+GPU | ~60s | ~10s | ~300s | ~30s+GPU | ~60s+GPU | ~120s | ~5s+GPU | ~300s | ~60s | ~120s+GPU | ~30s | ~60s+GPU | ~600s | ~30s | ~20s |
 | Actively maintained | **Yes** | **Yes** | **Yes** | Minimal | **Yes** | **Yes** | Archived | Inactive | Inactive | Inactive | Inactive | Inactive | **Yes** | Inactive | Inactive | Inactive | Inactive |
+
+Measured embedding times and memory against nine other methods are in the
+[benchmark](README.md#time-and-memory); this table makes no claim about speed.
 
 ---
 
@@ -147,18 +151,18 @@
 
 ### Where pycleora leads:
 
-1. **All-in-one SDK** — No other single library combines: embedding + 5 algorithms + classification + community detection + evaluation + 14 datasets + visualization + heterogeneous graphs + streaming + I/O
-2. **CPU performance** — Rust backend matches or beats pure-Python alternatives by 10-100x
+1. **All-in-one SDK** — No other single library combines: embedding + 5 algorithms + classification + community detection + evaluation + 23 datasets + visualization + heterogeneous graphs + streaming + I/O
+2. **CPU performance** — see the measured [time and memory tables](README.md#time-and-memory)
 3. **Dynamic graphs** — Only library with incremental update, edge removal, streaming, AND inductive embedding
 4. **Zero-GPU deployment** — Full feature set works on CPU; GPU is optional
 5. **Built-in evaluation pipeline** — Link prediction, node classification, and clustering metrics without sklearn
-6. **Lightweight footprint** — ~5 MB install vs 200-600 MB for GPU-dependent competitors
+6. **Lightweight footprint** — a wheel under 1 MB with NumPy as its only required dependency, vs 200-600 MB for GPU-dependent competitors
 
 ### Where competitors lead:
 
 1. **PyG/DGL** — 50+ GNN architectures (GCN, GAT, GraphSAGE, etc.) with GPU training
 2. **KarateClub** — 30+ traditional algorithms (community detection, diffusion, etc.)
-3. **PyG/DGL** — 80+ real benchmark datasets (not synthetically generated)
+3. **PyG/DGL** — 80+ benchmark datasets (pycleora ships 23, structure and labels only)
 4. **PyG/DGL** — Active community, papers, tutorials, production deployments
 5. **Node2Vec** — Simplest API for random-walk based embeddings
 6. **GraphVite** — Fastest GPU-accelerated embedding (multi-GPU, C++/CUDA core)
@@ -172,9 +176,9 @@
 |----------|:--------:|:---:|:----------:|:-------------:|:--------:|:---:|:------------:|:---:|:---------:|:--------:|:----:|:----:|:-----------:|:---------:|:---------:|:-----:|:------:|
 | Public functions | **52** | 200+ | 40+ | **8** | ~5 | 200+ | ~80 | ~15 | ~10 | ~5 | ~3 | ~5 | 50+ | ~10 | ~5 | ~3 | ~3 |
 | Algorithms | 11 | 50+ | 30+ | 1 | 1 | 50+ | ~15 | ~8 | ~5 | 1 | 1 | 1 | ~5 | 1 | 1 | 1 | 1 |
-| Datasets | 14 | 70+ | ~5 | 0 | 0 | 40+ | ~10 | ~3 | ~5 | 0 | 0 | 0 | ~5 | 0 | 0 | 0 | 0 |
+| Datasets | 23 | 70+ | ~5 | 0 | 0 | 40+ | ~10 | ~3 | ~5 | 0 | 0 | 0 | ~5 | 0 | 0 | 0 | 0 |
 | Graph types | 6 | 6 | 3 | 2 | 2 | 6 | 5 | 3 | 3 | 1 | 2 | 2 | 3 | 4 | 1 | 3 | 2 |
 | Downstream tasks | 7 | 3 | 2 | 0 | 0 | 3 | 4 | 0 | 2 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 |
 | I/O formats | 6 | 3 | 2 | 1 | 1 | 3 | 2 | 1 | 0 | 1 | 0 | 0 | 2 | 0 | 1 | 0 | 0 |
-| Dependencies (required) | 3 | 10+ | 5+ | 0 | 2 | 10+ | 8+ | 5+ | 3+ | 3 | 1 | 5+ | 8+ | 5+ | 3 | 1 | 2 |
-| Install size | ~5 MB | ~500 MB+ | ~15 MB | ~3 MB | ~2 MB | ~400 MB+ | ~600 MB+ | ~50 MB | ~200 MB+ | ~5 MB | ~5 MB | ~300 MB+ | ~50 MB | ~500 MB+ | ~5 MB | ~5 MB | ~10 MB |
+| Dependencies (required) | 1 | 10+ | 5+ | 0 | 2 | 10+ | 8+ | 5+ | 3+ | 3 | 1 | 5+ | 8+ | 5+ | 3 | 1 | 2 |
+| Install size | < 1 MB | ~500 MB+ | ~15 MB | ~3 MB | ~2 MB | ~400 MB+ | ~600 MB+ | ~50 MB | ~200 MB+ | ~5 MB | ~5 MB | ~300 MB+ | ~50 MB | ~500 MB+ | ~5 MB | ~5 MB | ~10 MB |

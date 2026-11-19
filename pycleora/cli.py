@@ -3,6 +3,11 @@ import sys
 import time
 import numpy as np
 
+# node2vec with p = q = 1 walks exactly like DeepWalk. q < 1 is the "outward"
+# (exploring) setting of the node2vec paper, so that the name stands for another method.
+NODE2VEC_P = 1.0
+NODE2VEC_Q = 0.5
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -15,13 +20,23 @@ def main():
     embed_parser.add_argument("--input", "-i", required=True, help="Input edge file (TSV/CSV/space-separated)")
     embed_parser.add_argument("--output", "-o", required=True, help="Output file (npz/csv/tsv)")
     embed_parser.add_argument("--dim", "-d", type=int, default=256, help="Embedding dimension (default: 256)")
-    embed_parser.add_argument("--iterations", "-n", type=int, default=40, help="Number of iterations (default: 40)")
+    embed_parser.add_argument("--iterations", "-n", type=_iterations, default="auto",
+                              help="Number of iterations, or 'auto' to take it from the density of the graph "
+                                   "(default: auto)")
     embed_parser.add_argument("--propagation", "-p", choices=["left", "symmetric"], default="left")
     embed_parser.add_argument("--normalization", choices=["l2", "l1", "none"], default="l2")
     embed_parser.add_argument("--columns", "-c", default="complex::reflexive::node", help="Column definition")
     embed_parser.add_argument("--algorithm", "-a", default="cleora",
                               choices=["cleora", "prone", "randne", "hope", "netmf", "grarep", "deepwalk", "node2vec"])
     embed_parser.add_argument("--seed", type=int, default=0)
+    embed_parser.add_argument("--p", type=float, default=NODE2VEC_P,
+                              help=f"node2vec only: return parameter of the walks (default: {NODE2VEC_P})")
+    embed_parser.add_argument("--q", type=float, default=NODE2VEC_Q,
+                              help=f"node2vec only: in-out parameter of the walks (default: {NODE2VEC_Q}); "
+                                   "p = q = 1 is DeepWalk")
+    embed_parser.add_argument("--whiten", action="store_true",
+                              help="PCA-whiten the columns after every iteration (the default of pycleora 3.2): "
+                                   "much slower, needs many more entities than dimensions")
     embed_parser.add_argument("--verbose", "-v", action="store_true")
 
     info_parser = subparsers.add_parser("info", help="Show graph information")
@@ -53,6 +68,19 @@ def main():
         _cmd_benchmark(args)
     elif args.command == "similar":
         _cmd_similar(args)
+
+
+def _iterations(text):
+    """Argument type of --iterations: a non-negative integer or 'auto'."""
+    if text == "auto":
+        return text
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected a number or 'auto', got '{text}'")
+    if value < 0:
+        raise argparse.ArgumentTypeError(f"must not be negative, got {value}")
+    return value
 
 
 def _read_edges(filepath):
@@ -90,14 +118,15 @@ def _cmd_embed(args):
 
     t0 = time.time()
     algo_map = {
-        "cleora": lambda: embed(graph, args.dim, args.iterations, args.propagation, args.normalization, args.seed),
+        "cleora": lambda: embed(graph, args.dim, args.iterations, args.propagation, args.normalization,
+                                args.seed, whiten=args.whiten),
         "prone": lambda: embed_prone(graph, args.dim, seed=args.seed),
         "randne": lambda: embed_randne(graph, args.dim, seed=args.seed),
         "hope": lambda: embed_hope(graph, args.dim),
         "netmf": lambda: embed_netmf(graph, args.dim),
         "grarep": lambda: embed_grarep(graph, args.dim),
         "deepwalk": lambda: embed_deepwalk(graph, args.dim, seed=args.seed),
-        "node2vec": lambda: embed_node2vec(graph, args.dim, seed=args.seed),
+        "node2vec": lambda: embed_node2vec(graph, args.dim, p=args.p, q=args.q, seed=args.seed),
     }
 
     emb = algo_map[args.algorithm]()
@@ -142,14 +171,30 @@ def _cmd_benchmark(args):
     from .benchmark import benchmark_algorithms, format_benchmark_table
 
     ds = load_dataset(args.dataset)
+    if not ds.get("labels"):
+        kind = "multi-label targets" if ds.get("multilabel") else "no node labels"
+        raise SystemExit(
+            f"Dataset '{args.dataset}' has {kind}; this command needs one label per node. "
+            "See benchmarks/ in the repository for multi-label evaluation."
+        )
     graph = SparseMatrix.from_iterator(iter(ds["edges"]), ds["columns"])
 
+    dim = args.dim
+    if graph.num_entities < 4 * dim:
+        # Only the whitened row needs this: whitening estimates a dim x dim covariance
+        # from the entities and is useless without several times more entities than
+        # dimensions (see embed()). The other rows work at any dimension - the SVD-based
+        # ones pad with zero columns - but one table compares all rows at the same one.
+        dim = max(2, graph.num_entities // 4)
+        print(f"Using {dim} dimensions instead of {args.dim}: the graph has only {graph.num_entities} nodes.")
+
     algorithms = {
-        "cleora": lambda g: embed(g, args.dim, 40),
-        "prone": lambda g: embed_prone(g, args.dim),
-        "randne": lambda g: embed_randne(g, args.dim),
-        "deepwalk": lambda g: embed_deepwalk(g, args.dim),
-        "node2vec": lambda g: embed_node2vec(g, args.dim),
+        "cleora": lambda g: embed(g, dim),
+        "cleora-whitened": lambda g: embed(g, dim, whiten=True),
+        "prone": lambda g: embed_prone(g, dim),
+        "randne": lambda g: embed_randne(g, dim),
+        "deepwalk": lambda g: embed_deepwalk(g, dim),
+        "node2vec": lambda g: embed_node2vec(g, dim, p=NODE2VEC_P, q=NODE2VEC_Q),
     }
 
     print(f"Benchmarking on {ds['name']} ({ds['num_nodes']} nodes)...")

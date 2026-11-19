@@ -1,7 +1,10 @@
+import warnings
+
 import numpy as np
 from typing import Optional, List, Dict, Callable, Tuple, Union
 
 from .pycleora import SparseMatrix
+from . import pycleora as _core
 from . import stats
 from . import preprocess
 from . import align
@@ -9,8 +12,21 @@ from . import ensemble
 from . import search
 from . import compress
 
+__version__ = _core.__version__
+
 DEFAULT_FEATURE_DIM = 256
-DEFAULT_NUM_ITERATIONS = 40
+# "auto": SparseMatrix.suggest_iterations - or WHITENED_ITERATIONS with whitening.
+DEFAULT_NUM_ITERATIONS = "auto"
+DEFAULT_WHITEN = False
+# Whitening counteracts over-smoothing, so with it the number of iterations hardly
+# matters once it is large enough. 40 is what pycleora 3.2 used.
+WHITENED_ITERATIONS = 40
+# Exponent of the popularity prior of scale_by_popularity: the one with the best mean
+# validation score over the graphs of the benchmark (benchmarks/README.md).
+DEFAULT_POPULARITY_EXPONENT = 0.0625
+
+_NORMALIZATIONS = ("l2", "l1", "spectral", "none")
+_ROW_CHUNK = 65536
 
 
 def embed_using_baseline_cleora(graph, feature_dim: int, iter: int):
@@ -26,6 +42,13 @@ def _validate_propagation(propagation: str):
         raise ValueError(f"Unknown propagation type: '{propagation}'. Use 'left' or 'symmetric'.")
 
 
+def _validate_normalization(normalization: str):
+    if normalization not in _NORMALIZATIONS:
+        raise ValueError(
+            f"Unknown normalization method: {normalization}. Use 'l2', 'l1', 'spectral', or 'none'."
+        )
+
+
 def _get_propagate_fn(graph: SparseMatrix, propagation: str):
     _validate_propagation(propagation)
     return (
@@ -36,16 +59,47 @@ def _get_propagate_fn(graph: SparseMatrix, propagation: str):
 
 
 def _to_scipy_sparse(graph: SparseMatrix, markov_type: str = "left"):
+    """The graph as a scipy CSR matrix ('left', 'symmetric' or 'raw' weights)."""
     from scipy.sparse import csr_matrix
-    rows, cols, vals, n_rows, n_cols = graph.to_sparse_csr(markov_type)
-    return csr_matrix(
-        (vals, (rows.astype(np.int32), cols.astype(np.int32))),
-        shape=(n_rows, n_cols),
-    )
+    indptr, indices, data = graph.to_csr(markov_type)
+    n = graph.num_entities
+    return csr_matrix((data, indices, indptr), shape=(n, n))
 
 
-def _auto_iterations(feature_dim: int) -> int:
-    return DEFAULT_NUM_ITERATIONS
+def _resolve_iterations(
+    num_iterations: Union[int, str], graph: SparseMatrix, propagation: str, whiten: bool
+) -> int:
+    """The number of iterations as a non-negative int; ``"auto"`` is decided here."""
+    if isinstance(num_iterations, str):
+        if num_iterations != "auto":
+            raise ValueError(f"num_iterations must be an int or 'auto', got '{num_iterations}'")
+        return WHITENED_ITERATIONS if whiten else graph.suggest_iterations(propagation)
+    if num_iterations < 0:
+        raise ValueError(f"num_iterations must not be negative, got {num_iterations}")
+    return num_iterations
+
+
+def _warn_if_whitening_is_degenerate(num_entities: int, feature_dim: int) -> None:
+    """Whitening N points in D >= N - 1 dimensions turns them into the corners of a
+    regular simplex: every pair of vectors has the same cosine, -1 / (N - 1), and
+    nothing of the graph is left in the embedding."""
+    if 1 < num_entities <= feature_dim + 1:
+        warnings.warn(
+            f"Whitening cannot work here: the graph has {num_entities} entities and the embedding "
+            f"{feature_dim} dimensions. With no more entities than dimensions + 1, whitening leaves "
+            "nothing of the graph in the vectors (in general they all end up equidistant). "
+            "Use a smaller feature_dim or whiten=False.",
+            RuntimeWarning,
+            stacklevel=3,
+        )
+
+
+def _as_float32_matrix(array, name: str = "embeddings") -> np.ndarray:
+    """A private, C-contiguous float32 copy of a 2-D array."""
+    matrix = np.array(array, dtype=np.float32, order="C")
+    if matrix.ndim != 2:
+        raise ValueError(f"{name} must be a 2-dimensional array, got {matrix.ndim} dimension(s)")
+    return matrix
 
 
 def embed(
@@ -60,23 +114,48 @@ def embed(
     callback: Optional[Callable[[int, np.ndarray], None]] = None,
     residual_weight: float = 0.0,
     convergence_threshold: float = 0.0,
-    whiten: bool = True,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> np.ndarray:
-    if isinstance(num_iterations, str):
-        if num_iterations == "auto":
-            num_iterations = _auto_iterations(feature_dim)
-        else:
-            raise ValueError(f"num_iterations must be an int or 'auto', got '{num_iterations}'")
+    """Embeds the entities of ``graph``.
+
+    Every iteration propagates the vectors along the graph and normalises the rows.
+    This is classic Cleora: it runs entirely in the Rust core and needs no more memory
+    than two embedding matrices.
+
+    ``num_iterations="auto"`` (the default) takes the number of iterations from the
+    density of the graph: ``graph.suggest_iterations(propagation)``, a compromise
+    that needs no labels. Similarity search is best with somewhat fewer iterations
+    and classification with more: pass
+    ``graph.suggest_iterations(propagation, purpose="similarity")`` or
+    ``purpose="classification"`` when the use is known. When there is a validation
+    set, choosing the number on it is cheap (``callback`` receives the vectors after
+    every iteration) and usually worth another one or two per cent.
+
+    ``whiten=True`` additionally PCA-whitens the columns after every iteration, which
+    was the default of pycleora 3.2. It is 10-100 times slower and needs many more
+    entities than dimensions: with ``num_entities <= feature_dim + 1`` all whitened
+    vectors are equidistant and the result is useless (a ``RuntimeWarning`` says so).
+    With whitening, ``"auto"`` means 40 iterations.
+    """
+    _validate_propagation(propagation)
+    _validate_normalization(normalization)
+    # Both the Rust core and the loop below skip the residual for a weight outside
+    # (0, 1), so a wrong value would be ignored instead of reported.
+    if not 0.0 <= residual_weight < 1.0:
+        raise ValueError(f"residual_weight must be in [0, 1), got {residual_weight}")
+    num_iterations = _resolve_iterations(num_iterations, graph, propagation, whiten)
+    if whiten and num_iterations > 0:
+        _warn_if_whitening_is_degenerate(graph.num_entities, feature_dim)
+
     use_fast_path = (
         initial_embeddings is None
         and callback is None
         and normalization == "l2"
         and not whiten
     )
-
     if use_fast_path:
         if convergence_threshold > 0:
-            embeddings, actual_iters = graph.embed_fast_convergence(
+            embeddings, _ = graph.embed_fast_convergence(
                 feature_dim,
                 num_iterations,
                 propagation=propagation,
@@ -94,84 +173,129 @@ def embed(
                 residual_weight=residual_weight,
                 num_workers=num_workers,
             )
+        return embeddings
+
+    if initial_embeddings is not None:
+        embeddings = _as_float32_matrix(initial_embeddings, "initial_embeddings")
+        if embeddings.shape[0] != graph.num_entities:
+            raise ValueError(
+                f"initial_embeddings has {embeddings.shape[0]} rows but graph has {graph.num_entities} entities"
+            )
     else:
-        propagate_fn = _get_propagate_fn(graph, propagation)
+        embeddings = graph.initialize_deterministically(feature_dim, seed)
 
-        if initial_embeddings is not None:
-            embeddings = initial_embeddings.astype(np.float32)
-            if embeddings.shape[0] != graph.num_entities:
-                raise ValueError(
-                    f"initial_embeddings has {embeddings.shape[0]} rows but graph has {graph.num_entities} entities"
-                )
-        else:
-            embeddings = graph.initialize_deterministically(feature_dim, seed)
+    propagate_fn = _get_propagate_fn(graph, propagation)
+    use_residual = 0.0 < residual_weight < 1.0
 
+    if normalization == "l2" and not whiten and callback is None and not use_residual and convergence_threshold <= 0:
+        # Nothing has to look at the vectors between iterations: the core runs them
+        # all, with the normalisation fused into the propagation.
+        iterate_inplace = (
+            graph.symmetric_markov_propagate_normalized_inplace
+            if propagation == "symmetric"
+            else graph.left_markov_propagate_normalized_inplace
+        )
+        iterate_inplace(embeddings, num_iterations, num_workers)
+        return embeddings
+
+    if normalization == "spectral":
+        # The SVD-based normalisation cannot work in place.
         for i in range(num_iterations):
-            prev_embeddings = embeddings
-            prev = embeddings if residual_weight > 0 else None
+            previous = embeddings
             embeddings = propagate_fn(embeddings, num_workers=num_workers)
-
-            if residual_weight > 0 and prev is not None:
-                embeddings = (1 - residual_weight) * embeddings + residual_weight * prev
-
+            if use_residual:
+                _mix_residual_inplace(embeddings, previous, residual_weight)
             embeddings = _postprocess_iteration(embeddings, normalization, whiten)
-
             if callback is not None:
                 callback(i, embeddings)
-
-            if convergence_threshold > 0 and i > 0:
-                rmse = _compute_rmse(embeddings, prev_embeddings)
-                if rmse < convergence_threshold:
+            if convergence_threshold > 0 and i > 0 and embeddings.shape == previous.shape:
+                if _compute_rmse(embeddings, previous) < convergence_threshold:
                     break
+        return embeddings
+
+    # Two buffers are reused for all iterations; every step works in place.
+    buffer = np.empty_like(embeddings)
+    for i in range(num_iterations):
+        propagate_fn(embeddings, num_workers=num_workers, out=buffer)
+        if use_residual:
+            _mix_residual_inplace(buffer, embeddings, residual_weight)
+        _postprocess_inplace(buffer, normalization, whiten, num_workers)
+        converged = (
+            convergence_threshold > 0
+            and i > 0
+            and _compute_rmse(buffer, embeddings) < convergence_threshold
+        )
+        embeddings, buffer = buffer, embeddings
+        if callback is not None:
+            # The buffers are recycled, so the callback gets its own copy.
+            callback(i, embeddings.copy())
+        if converged:
+            break
 
     return embeddings
 
 
-def whiten_embeddings(embeddings: np.ndarray, n_components: Optional[int] = None) -> np.ndarray:
-    n, d = embeddings.shape
+def whiten_embeddings(
+    embeddings: np.ndarray,
+    n_components: Optional[int] = None,
+    num_workers: Optional[int] = None,
+    inplace: bool = False,
+) -> np.ndarray:
+    """PCA-whitens the columns: zero mean, unit variance, no correlation.
+
+    Columns come out ordered by decreasing variance of the input; the sign of every
+    column is fixed so that the result does not depend on the LAPACK build.
+    With ``inplace=True`` a C-contiguous float32 input is overwritten and returned
+    (only possible when all components are kept).
+    """
+    source = np.asarray(embeddings)
+    if source.ndim != 2:
+        raise ValueError(f"embeddings must be a 2-dimensional array, got {source.ndim} dimension(s)")
+    owned = False
+    if source.dtype != np.float32 or not source.flags.c_contiguous:
+        source = np.ascontiguousarray(source, dtype=np.float32)
+        owned = True
+    n, d = source.shape
     if n <= 1:
-        return embeddings.copy()
-    chunk = 50000
+        return source if (inplace or owned) else source.copy()
 
-    mean = embeddings.mean(axis=0, dtype=np.float64)
+    mean, covariance = _core.column_mean_cov(source, num_workers)
+    eigenvalues, eigenvectors = np.linalg.eigh(covariance)
 
-    cov = np.zeros((d, d), dtype=np.float64)
-    for i in range(0, n, chunk):
-        end = min(i + chunk, n)
-        block = embeddings[i:end].astype(np.float64) - mean
-        cov += block.T @ block
-    cov *= 1.0 / (n - 1)
-
-    eigenvalues, eigenvectors = np.linalg.eigh(cov)
-
-    idx = np.argsort(eigenvalues)[::-1]
-    eigenvalues = eigenvalues[idx]
-    eigenvectors = eigenvectors[:, idx]
-
+    order = np.argsort(eigenvalues)[::-1]
+    eigenvalues = eigenvalues[order]
+    eigenvectors = eigenvectors[:, order]
     if n_components is not None:
         eigenvalues = eigenvalues[:n_components]
         eigenvectors = eigenvectors[:, :n_components]
 
+    # Eigenvectors are defined up to sign: make the largest component positive.
+    pivot = np.argmax(np.abs(eigenvectors), axis=0)
+    signs = np.sign(eigenvectors[pivot, np.arange(eigenvectors.shape[1])])
+    signs[signs == 0] = 1.0
+    eigenvectors = eigenvectors * signs
+
     scale = 1.0 / np.sqrt(np.maximum(eigenvalues, 1e-10))
-    transform = (eigenvectors * scale).astype(np.float32)
+    transform = np.ascontiguousarray(eigenvectors * scale, dtype=np.float32)
     mean_f32 = mean.astype(np.float32)
 
-    out = np.empty((n, transform.shape[1]), dtype=np.float32)
-    for i in range(0, n, chunk):
-        end = min(i + chunk, n)
-        block = embeddings[i:end] - mean_f32
-        np.dot(block, transform, out=out[i:end])
-    return out
+    square = transform.shape[1] == d
+    if square and (owned or (inplace and source.flags.writeable)):
+        _core.center_project_inplace(source, mean_f32, transform, num_workers)
+        return source
+    return _core.center_project(source, mean_f32, transform, num_workers)
 
 
 def embed_with_node_features(
     graph: SparseMatrix,
     node_features: Dict[str, np.ndarray],
-    num_iterations: int = DEFAULT_NUM_ITERATIONS,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     feature_weight: float = 0.5,
     num_workers: Optional[int] = None,
+    seed: int = 0,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> np.ndarray:
     if not node_features:
         raise ValueError("node_features must be a non-empty dict of entity_id -> feature_vector")
@@ -179,7 +303,7 @@ def embed_with_node_features(
     sample_feat = next(iter(node_features.values()))
     feat_dim = len(sample_feat)
 
-    init_emb = graph.initialize_deterministically(feat_dim)
+    init_emb = graph.initialize_deterministically(feat_dim, seed)
 
     index_map = {eid: i for i, eid in enumerate(graph.entity_ids)}
     for eid, feat in node_features.items():
@@ -200,28 +324,33 @@ def embed_with_node_features(
         normalization=normalization,
         initial_embeddings=init_emb,
         num_workers=num_workers,
+        whiten=whiten,
     )
 
 
 def embed_with_attention(
     graph: SparseMatrix,
     feature_dim: int = DEFAULT_FEATURE_DIM,
-    num_iterations: int = DEFAULT_NUM_ITERATIONS,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     attention_temperature: float = 1.0,
     seed: int = 0,
     num_workers: Optional[int] = None,
     callback: Optional[Callable[[int, np.ndarray], None]] = None,
-    whiten: bool = True,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> np.ndarray:
     _validate_propagation(propagation)
 
     if attention_temperature <= 0:
         raise ValueError(f"attention_temperature must be positive, got {attention_temperature}")
 
+    num_iterations = _resolve_iterations(num_iterations, graph, propagation, whiten)
     if num_iterations <= 0:
         raise ValueError(f"num_iterations must be positive, got {num_iterations}")
+
+    if whiten:
+        _warn_if_whitening_is_degenerate(graph.num_entities, feature_dim)
 
     embeddings = graph.initialize_deterministically(feature_dim, seed)
     propagate_fn = _get_propagate_fn(graph, propagation)
@@ -235,37 +364,41 @@ def embed_with_attention(
     if num_iterations == 1:
         return embeddings
 
-    from scipy.sparse import csr_matrix, diags
+    from scipy.sparse import csr_matrix
     adj = _to_scipy_sparse(graph, propagation)
-    adj_rows, adj_cols = adj.nonzero()
+    n = adj.shape[0]
+    indptr, adj_cols = adj.indptr, adj.indices
+    row_lengths = np.diff(indptr)
+    adj_rows = np.repeat(np.arange(n, dtype=adj_cols.dtype), row_lengths)
+    nonempty = np.flatnonzero(row_lengths > 0)
+    edge_chunk = max(1, (1 << 24) // max(feature_dim, 1))
 
     for i in range(1, num_iterations):
-        norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
-        norms = np.maximum(norms, 1e-10)
-        emb_normed = embeddings / norms
+        norms = np.sqrt(np.einsum("ij,ij->i", embeddings, embeddings, dtype=np.float64))
+        inv_norms = (1.0 / np.maximum(norms, 1e-10)).astype(np.float32)
 
-        dot_products = np.sum(emb_normed[adj_rows] * emb_normed[adj_cols], axis=1)
+        # cosine of every edge, computed in bounded chunks instead of materialising
+        # two (edges x dim) arrays
+        dot_products = np.empty(len(adj_cols), dtype=np.float64)
+        for start in range(0, len(adj_cols), edge_chunk):
+            stop = start + edge_chunk
+            r, c = adj_rows[start:stop], adj_cols[start:stop]
+            dot_products[start:stop] = (
+                np.einsum("ij,ij->i", embeddings[r], embeddings[c], dtype=np.float64)
+                * inv_norms[r] * inv_norms[c]
+            )
         attention_scores = dot_products / attention_temperature
 
-        row_max = np.full(adj.shape[0], -np.inf, dtype=np.float64)
-        np.maximum.at(row_max, adj_rows, attention_scores)
-        row_max[row_max == -np.inf] = 0.0
+        row_max = np.zeros(n, dtype=np.float64)
+        if len(nonempty):
+            row_max[nonempty] = np.maximum.reduceat(attention_scores, indptr[:-1][nonempty])
+        exp_scores = np.exp(attention_scores - row_max[adj_rows])
 
-        shifted = attention_scores - row_max[adj_rows]
-        exp_scores = np.exp(shifted)
-        attn_exp = csr_matrix(
-            (exp_scores, (adj_rows, adj_cols)),
-            shape=adj.shape,
-        )
-        row_sums = np.array(attn_exp.sum(axis=1)).flatten()
-        row_sums = np.maximum(row_sums, 1e-10)
-        inv_sums = 1.0 / row_sums
-        norm_matrix = diags(inv_sums) @ attn_exp
-
-        weighted_adj = norm_matrix.multiply(adj)
-        row_sums_w = np.array(weighted_adj.sum(axis=1)).flatten()
-        row_sums_w = np.maximum(row_sums_w, 1e-10)
-        weighted_adj = diags(1.0 / row_sums_w) @ weighted_adj
+        # softmax over each row, applied on top of the graph weights and renormalised
+        weights = exp_scores * adj.data
+        row_sums = np.bincount(adj_rows, weights=weights, minlength=n)
+        weights /= np.maximum(row_sums, 1e-10)[adj_rows]
+        weighted_adj = csr_matrix((weights, adj_cols, indptr), shape=adj.shape)
 
         embeddings = (weighted_adj @ embeddings).astype(np.float32)
         embeddings = _postprocess_iteration(embeddings, normalization, whiten)
@@ -276,6 +409,41 @@ def embed_with_attention(
     return embeddings
 
 
+def scale_by_popularity(
+    graph: SparseMatrix,
+    embeddings: np.ndarray,
+    exponent: float = DEFAULT_POPULARITY_EXPONENT,
+) -> np.ndarray:
+    """Gives the vectors a popularity prior: row ``i`` times ``degree_i ** exponent``.
+
+    The vectors of ``embed`` have unit length. Their dot product is the cosine: how
+    alike two entities are. Which links exist depends on more than that - a well
+    connected entity is in more of them. After this scaling the dot product is
+    ``cosine(i, j) * (degree_i * degree_j) ** exponent``, similarity times a
+    popularity prior, which finds missing links and recommendations better on most
+    graphs (``benchmarks/README.md``). Search the scaled vectors by dot product.
+
+    ``degree`` is ``graph.entity_degrees``, the hyperedge mass of an entity. The
+    default exponent is small on purpose: the prior is to settle the order of
+    entities that are about equally similar, not to replace similarity. As features
+    of a classifier the vectors gain from a larger one, ``exponent=0.25``: the
+    classifier then knows how well connected an entity is. Keep the unit vectors
+    wherever "alike" is the question; where there is validation data, compare.
+
+    Returns a new array; ``embeddings`` is not modified.
+    """
+    vectors = np.asarray(embeddings, dtype=np.float32)
+    if vectors.ndim != 2 or vectors.shape[0] != graph.num_entities:
+        raise ValueError(
+            f"embeddings must have one row per entity ({graph.num_entities}), got shape {vectors.shape}"
+        )
+    degrees = np.asarray(graph.entity_degrees, dtype=np.float64)
+    # an entity without mass has no vector to scale (and 0 ** negative is not a number)
+    factor = np.zeros_like(degrees)
+    np.power(degrees, exponent, out=factor, where=degrees > 0)
+    return vectors * factor[:, None].astype(np.float32)
+
+
 def embed_multiscale(
     graph: SparseMatrix,
     feature_dim: int = DEFAULT_FEATURE_DIM,
@@ -284,9 +452,16 @@ def embed_multiscale(
     normalization: str = "l2",
     seed: int = 0,
     num_workers: Optional[int] = None,
-    whiten: bool = True,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> np.ndarray:
+    """Concatenates the embeddings after each of the given numbers of iterations.
+
+    The block of scale ``k`` is exactly ``embed(graph, feature_dim, k, ...)``.
+    """
     propagate_fn = _get_propagate_fn(graph, propagation)
+    _validate_normalization(normalization)
+    if whiten:
+        _warn_if_whitening_is_degenerate(graph.num_entities, feature_dim)
 
     if scales is None:
         scales = [10, 20, 30, 40]
@@ -296,12 +471,16 @@ def embed_multiscale(
 
     embeddings = graph.initialize_deterministically(feature_dim, seed)
     all_embeddings = []
+    in_place = normalization != "spectral"
 
     current_iter = 0
     for scale in sorted(scales):
         while current_iter < scale:
             embeddings = propagate_fn(embeddings, num_workers=num_workers)
-            embeddings = _postprocess_iteration(embeddings, normalization, whiten)
+            if in_place:
+                _postprocess_inplace(embeddings, normalization, whiten, num_workers)
+            else:
+                embeddings = _postprocess_iteration(embeddings, normalization, whiten)
             current_iter += 1
         snapshot = embeddings.copy()
         all_embeddings.append(snapshot)
@@ -313,49 +492,37 @@ def embed_weighted(
     edges_with_weights: List[Tuple[str, float]],
     columns: str,
     feature_dim: int = DEFAULT_FEATURE_DIM,
-    num_iterations: int = DEFAULT_NUM_ITERATIONS,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     seed: int = 0,
     hyperedge_trim_n: int = 16,
     num_workers: Optional[int] = None,
-    whiten: bool = True,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> Tuple[SparseMatrix, np.ndarray]:
-    from scipy.sparse import csr_matrix, diags
+    """Embeds a graph whose hyperedges carry weights.
 
-    edge_strs = [e for e, w in edges_with_weights]
-    weights = {e: w for e, w in edges_with_weights}
+    ``edges_with_weights`` holds ``(line, weight)`` pairs. A line with weight ``w``
+    contributes ``w`` times the mass of an unweighted line, so an integer weight
+    ``k`` is equivalent to repeating the line ``k`` times. Weights must be finite
+    and non-negative; a zero weight removes the line.
+    """
+    lines = [line for line, _ in edges_with_weights]
+    weights = np.fromiter((w for _, w in edges_with_weights), dtype=np.float64, count=len(lines))
 
-    graph = SparseMatrix.from_iterator(iter(edge_strs), columns, hyperedge_trim_n, num_workers)
-
-    embeddings = graph.initialize_deterministically(feature_dim, seed)
-
-    rows, cols, vals, n, _ = graph.to_sparse_csr(propagation)
-    adj = csr_matrix(
-        (vals.astype(np.float64), (rows.astype(np.int32), cols.astype(np.int32))),
-        shape=(n, n),
+    graph = SparseMatrix.from_iterator(
+        iter(lines), columns, hyperedge_trim_n, num_workers, weights=weights
     )
-
-    weight_diag = np.ones(n, dtype=np.float64)
-    index_map = {eid: i for i, eid in enumerate(graph.entity_ids)}
-
-    for edge_str, w in edges_with_weights:
-        entities = edge_str.strip().split()
-        for ent in entities:
-            idx = index_map.get(ent)
-            if idx is not None:
-                weight_diag[idx] = max(weight_diag[idx], w)
-
-    W = diags(weight_diag)
-    weighted_adj = W @ adj
-    row_sums = np.array(weighted_adj.sum(axis=1)).flatten()
-    row_sums = np.maximum(row_sums, 1e-10)
-    weighted_adj = diags(1.0 / row_sums) @ weighted_adj
-
-    for i in range(num_iterations):
-        embeddings = (weighted_adj @ embeddings).astype(np.float32)
-        embeddings = _postprocess_iteration(embeddings, normalization, whiten)
-
+    embeddings = embed(
+        graph,
+        feature_dim=feature_dim,
+        num_iterations=num_iterations,
+        propagation=propagation,
+        normalization=normalization,
+        seed=seed,
+        num_workers=num_workers,
+        whiten=whiten,
+    )
     return graph, embeddings
 
 
@@ -363,45 +530,63 @@ def embed_directed(
     edges: List[str],
     columns: str,
     feature_dim: int = DEFAULT_FEATURE_DIM,
-    num_iterations: int = DEFAULT_NUM_ITERATIONS,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     normalization: str = "l2",
     seed: int = 0,
     hyperedge_trim_n: int = 16,
     num_workers: Optional[int] = None,
-    whiten: bool = True,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> Tuple[SparseMatrix, np.ndarray]:
+    """Embeds a directed graph: in every line, earlier entities point to later ones.
+
+    Each entity is propagated from the entities it points to only. An entity that
+    points to nothing (a sink) keeps its own vector, so no row of the result is zero.
+    """
     from scipy.sparse import csr_matrix, diags
 
     graph = SparseMatrix.from_iterator(iter(edges), columns, hyperedge_trim_n, num_workers)
-
-    directed_pairs = set()
-    for edge_str in edges:
-        parts = edge_str.strip().split()
-        if len(parts) >= 2:
-            for i in range(len(parts)):
-                for j in range(i + 1, len(parts)):
-                    directed_pairs.add((parts[i], parts[j]))
-
+    n = graph.num_entities
     index_map = {eid: i for i, eid in enumerate(graph.entity_ids)}
-    rows_list, cols_list, vals_list = [], [], []
 
-    r_arr, c_arr, v_arr, n, _ = graph.to_sparse_csr("left")
-    for r, c, v in zip(r_arr, c_arr, v_arr):
-        r_id = graph.entity_ids[int(r)]
-        c_id = graph.entity_ids[int(c)]
-        if (r_id, c_id) in directed_pairs:
-            rows_list.append(int(r))
-            cols_list.append(int(c))
-            vals_list.append(float(v))
+    sources: List[np.ndarray] = []
+    targets: List[np.ndarray] = []
+    pair_sources: List[int] = []
+    pair_targets: List[int] = []
+    for edge_str in edges:
+        tokens = [index_map.get(token, -1) for token in edge_str.strip().split()]
+        if len(tokens) == 2:
+            if tokens[0] >= 0 and tokens[1] >= 0:
+                pair_sources.append(tokens[0])
+                pair_targets.append(tokens[1])
+        elif len(tokens) > 2:
+            ids = np.asarray(tokens, dtype=np.int64)
+            first, second = np.triu_indices(len(ids), k=1)
+            keep = (ids[first] >= 0) & (ids[second] >= 0)
+            sources.append(ids[first][keep])
+            targets.append(ids[second][keep])
+    sources.append(np.asarray(pair_sources, dtype=np.int64))
+    targets.append(np.asarray(pair_targets, dtype=np.int64))
+    source_idx = np.concatenate(sources)
+    target_idx = np.concatenate(targets)
 
-    adj = csr_matrix(
-        (vals_list, (rows_list, cols_list)),
-        shape=(n, n),
+    direction = csr_matrix(
+        (np.ones(len(source_idx), dtype=np.float32), (source_idx, target_idx)), shape=(n, n)
     )
-    row_sums = np.array(adj.sum(axis=1)).flatten()
-    row_sums = np.maximum(row_sums, 1e-10)
-    adj = diags(1.0 / row_sums) @ adj
+    direction.sum_duplicates()
+    direction.data[:] = 1.0
 
+    adj = _to_scipy_sparse(graph, "left").multiply(direction).tocsr().astype(np.float64)
+    row_sums = np.asarray(adj.sum(axis=1)).ravel()
+    # A sink has nothing to be propagated from. Its row would be zero, and the zeros
+    # would spread to everything upstream, one step per iteration: a self-loop makes
+    # it keep its own vector instead.
+    is_sink = (row_sums == 0).astype(np.float64)
+    adj = (diags(1.0 / np.maximum(row_sums, 1e-10)) @ adj + diags(is_sink)).tocsr()
+
+    if whiten:
+        _warn_if_whitening_is_degenerate(graph.num_entities, feature_dim)
+
+    num_iterations = _resolve_iterations(num_iterations, graph, "left", whiten)
     embeddings = graph.initialize_deterministically(feature_dim, seed)
     for i in range(num_iterations):
         embeddings = (adj @ embeddings).astype(np.float32)
@@ -537,35 +722,123 @@ def remove_edges(
     return SparseMatrix.from_iterator(iter(remaining), columns, hyperedge_trim_n, num_workers)
 
 
+def _rows_are_unit_norm(embeddings: np.ndarray) -> bool:
+    sample = embeddings[: min(len(embeddings), 10000)]
+    if len(sample) == 0:
+        return False
+    norms = np.sqrt(np.einsum("ij,ij->i", sample, sample, dtype=np.float64))
+    return bool(np.all(np.abs(norms - 1.0) < 1e-3))
+
+
+def _frozen_inductive_update(
+    updated_graph: SparseMatrix,
+    old_entity_ids,
+    old_embeddings: np.ndarray,
+    propagation: str = "left",
+    refine_iterations: int = 3,
+    num_workers: Optional[int] = None,
+) -> np.ndarray:
+    """Embeddings for ``updated_graph`` that keep every already known entity where
+    it is and place each new entity at the weighted average of its neighbours.
+
+    Only the rows of the new entities are propagated, so the cost is proportional
+    to the number of their connections, not to the size of the graph."""
+    n = updated_graph.num_entities
+    dim = old_embeddings.shape[1]
+    old_index = {eid: i for i, eid in enumerate(old_entity_ids)}
+    source = np.fromiter(
+        (old_index.get(eid, -1) for eid in updated_graph.entity_ids), dtype=np.int64, count=n
+    )
+    known = source >= 0
+
+    embeddings = np.zeros((n, dim), dtype=np.float32)
+    embeddings[known] = old_embeddings[source[known]]
+    new_rows = np.flatnonzero(~known)
+    if len(new_rows) == 0:
+        return embeddings
+
+    propagate_fn = _get_propagate_fn(updated_graph, propagation)
+    available = known.astype(np.float32).reshape(n, 1)
+    unit_norm = _rows_are_unit_norm(old_embeddings)
+
+    for _ in range(max(1, refine_iterations)):
+        # Average over the neighbours that already have a vector. New entities that
+        # are only reachable through other new entities are placed in later rounds.
+        mass = propagate_fn(available, num_workers=num_workers, rows=new_rows).ravel()
+        placed = mass > 1e-12
+        estimate = propagate_fn(embeddings, num_workers=num_workers, rows=new_rows)
+        estimate[placed] /= mass[placed, None]
+        estimate[~placed] = 0.0
+        if unit_norm:
+            norms = np.sqrt(np.einsum("ij,ij->i", estimate, estimate, dtype=np.float64))
+            estimate /= np.maximum(norms, 1e-10)[:, None].astype(np.float32)
+        embeddings[new_rows] = estimate
+        available[new_rows, 0] = placed
+
+    return embeddings
+
+
 def embed_inductive(
     trained_graph: SparseMatrix,
     trained_embeddings: np.ndarray,
     existing_edges: List[str],
     new_edges: List[str],
     columns: str,
-    num_iterations: int = DEFAULT_NUM_ITERATIONS,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     hyperedge_trim_n: int = 16,
     num_workers: Optional[int] = None,
+    mode: str = "frozen",
+    refine_iterations: int = 3,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> Tuple[SparseMatrix, np.ndarray]:
+    """Adds new edges (and the entities they bring) to an embedded graph.
+
+    ``mode="frozen"`` (default): entities that were already embedded keep exactly
+    the vector they had, so models trained on the old embeddings stay valid. Each
+    new entity is placed at the weighted average of its neighbours' vectors
+    (``refine_iterations`` rounds, so chains of new entities are reached too).
+    A new entity with no path to a known one gets a zero vector.
+
+    ``mode="retrain"``: the whole graph is embedded again, starting from the old
+    vectors. All coordinates change (with whitening they are rotated arbitrarily),
+    so the result is not comparable with the old embeddings.
+    """
     if trained_embeddings.shape[0] != trained_graph.num_entities:
         raise ValueError(
             f"trained_embeddings has {trained_embeddings.shape[0]} rows but graph has {trained_graph.num_entities} entities"
         )
+    if mode not in ("frozen", "retrain"):
+        raise ValueError(f"Unknown mode '{mode}'. Use 'frozen' or 'retrain'.")
+    _validate_propagation(propagation)
 
     updated_graph = update_graph(
         existing_edges, new_edges, columns, hyperedge_trim_n, num_workers
     )
 
+    if mode == "frozen":
+        updated_embeddings = _frozen_inductive_update(
+            updated_graph,
+            trained_graph.entity_ids,
+            np.asarray(trained_embeddings, dtype=np.float32),
+            propagation,
+            refine_iterations,
+            num_workers,
+        )
+        return updated_graph, updated_embeddings
+
     old_index_map = {eid: i for i, eid in enumerate(trained_graph.entity_ids)}
-
     dim = trained_embeddings.shape[1]
-    init_embeddings = np.random.randn(updated_graph.num_entities, dim).astype(np.float32) * 0.01
-
-    for i, eid in enumerate(updated_graph.entity_ids):
-        if eid in old_index_map:
-            init_embeddings[i] = trained_embeddings[old_index_map[eid]]
+    # deterministic, small starting vectors for the entities that are new
+    init_embeddings = updated_graph.initialize_deterministically(dim) * np.float32(0.01)
+    source = np.fromiter(
+        (old_index_map.get(eid, -1) for eid in updated_graph.entity_ids),
+        dtype=np.int64,
+        count=updated_graph.num_entities,
+    )
+    known = source >= 0
+    init_embeddings[known] = trained_embeddings[source[known]]
 
     updated_embeddings = embed(
         updated_graph,
@@ -575,25 +848,67 @@ def embed_inductive(
         normalization=normalization,
         initial_embeddings=init_embeddings,
         num_workers=num_workers,
+        whiten=whiten,
     )
 
     return updated_graph, updated_embeddings
+
+
+def _align_to_previous(new_embeddings, new_entity_ids, old_embeddings, old_entity_ids):
+    """Rotates freshly computed embeddings onto the coordinates of the previous ones
+    (orthogonal Procrustes over the entities both have)."""
+    old_index = {eid: i for i, eid in enumerate(old_entity_ids)}
+    source = np.fromiter(
+        (old_index.get(eid, -1) for eid in new_entity_ids), dtype=np.int64, count=len(new_entity_ids)
+    )
+    shared = np.flatnonzero(source >= 0)
+    if len(shared) == 0 or new_embeddings.shape[1] != old_embeddings.shape[1]:
+        return new_embeddings
+    moving = new_embeddings[shared].astype(np.float64)
+    target = old_embeddings[source[shared]].astype(np.float64)
+    u, _, vt = np.linalg.svd(moving.T @ target)
+    rotation = (u @ vt).astype(np.float32)
+    return np.ascontiguousarray(new_embeddings @ rotation, dtype=np.float32)
 
 
 def embed_streaming(
     edge_batches,
     columns: str,
     feature_dim: int = DEFAULT_FEATURE_DIM,
-    num_iterations: int = DEFAULT_NUM_ITERATIONS,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     hyperedge_trim_n: int = 16,
     num_workers: Optional[int] = None,
     batch_callback: Optional[Callable[[int, SparseMatrix, np.ndarray], None]] = None,
+    refresh_every: Optional[int] = None,
+    whiten: bool = DEFAULT_WHITEN,
+    seed: int = 0,
 ) -> Tuple[SparseMatrix, np.ndarray]:
+    """Embeds a graph that arrives in batches of edges.
+
+    The first batch is embedded in full. For every later batch the entities that
+    are already embedded keep their vectors and new entities are placed next to
+    their neighbours (see ``embed_inductive``), so the coordinates stay stable.
+
+    With ``refresh_every=k`` every k-th batch re-embeds the whole graph and
+    rotates the result onto the previous coordinates, which lets old entities
+    move with the new evidence while keeping the space comparable.
+    """
+    if refresh_every is not None and refresh_every <= 0:
+        raise ValueError(f"refresh_every must be positive, got {refresh_every}")
+
     all_edges = []
     graph = None
     embeddings = None
+    entity_ids = None
+
+    def full_embedding(current_graph):
+        return embed(
+            current_graph, feature_dim=feature_dim, num_iterations=num_iterations,
+            propagation=propagation, normalization=normalization,
+            num_workers=num_workers, whiten=whiten, seed=seed,
+        )
 
     for batch_idx, batch in enumerate(edge_batches):
         all_edges.extend(batch)
@@ -601,31 +916,18 @@ def embed_streaming(
             iter(all_edges), columns, hyperedge_trim_n, num_workers
         )
 
-        if embeddings is not None:
-            old_index_map = {}
-            for i, eid in enumerate(prev_entity_ids):
-                old_index_map[eid] = i
-
-            init = np.random.randn(graph.num_entities, feature_dim).astype(np.float32) * 0.01
-            for i, eid in enumerate(graph.entity_ids):
-                if eid in old_index_map:
-                    old_idx = old_index_map[eid]
-                    if old_idx < embeddings.shape[0]:
-                        init[i] = embeddings[old_idx]
-
-            embeddings = embed(
-                graph, feature_dim=feature_dim, num_iterations=num_iterations,
-                propagation=propagation, normalization=normalization,
-                initial_embeddings=init, num_workers=num_workers,
+        if embeddings is None:
+            embeddings = full_embedding(graph)
+        elif refresh_every is not None and batch_idx % refresh_every == 0:
+            embeddings = _align_to_previous(
+                full_embedding(graph), graph.entity_ids, embeddings, entity_ids
             )
         else:
-            embeddings = embed(
-                graph, feature_dim=feature_dim, num_iterations=num_iterations,
-                propagation=propagation, normalization=normalization,
-                num_workers=num_workers,
+            embeddings = _frozen_inductive_update(
+                graph, entity_ids, embeddings, propagation, num_workers=num_workers
             )
 
-        prev_entity_ids = list(graph.entity_ids)
+        entity_ids = graph.entity_ids
 
         if batch_callback is not None:
             batch_callback(batch_idx, graph, embeddings)
@@ -640,42 +942,56 @@ def predict_links(
     exclude_existing: bool = True,
     source_entities: Optional[List[str]] = None,
 ) -> List[Dict]:
-    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
-    norms = np.maximum(norms, 1e-10)
-    normed = embeddings / norms
+    """The ``top_k`` highest-cosine pairs (source, target) among the candidates of
+    the given source entities (all entities by default).
 
-    existing_edges = set()
-    if exclude_existing:
-        rows, cols, _, _, _ = graph.to_sparse_csr()
-        for r, c in zip(rows, cols):
-            existing_edges.add((int(r), int(c)))
+    A pair is unordered and comes back once: of two sources, the one with the
+    lower index is reported as the source."""
+    n = graph.num_entities
+    if top_k <= 0 or n == 0:
+        return []
+    norms = np.sqrt(np.einsum("ij,ij->i", embeddings, embeddings, dtype=np.float64))
+    normed = (embeddings / np.maximum(norms, 1e-10)[:, None]).astype(np.float32)
 
     if source_entities is not None:
-        source_indices = []
-        for eid in source_entities:
-            source_indices.append(graph.get_entity_index(eid))
+        # distinct, so that a source named twice does not repeat its pairs
+        source_indices = np.unique(np.asarray(graph.get_entity_indices(list(source_entities)), dtype=np.int64))
     else:
-        source_indices = list(range(graph.num_entities))
+        source_indices = np.arange(n, dtype=np.int64)
+    is_source = np.zeros(n, dtype=bool)
+    is_source[source_indices] = True
+    columns = np.arange(n, dtype=np.int64)
 
+    if exclude_existing:
+        indptr, indices, _ = graph.to_csr()
+
+    entity_ids = graph.entity_ids
+    keep = min(top_k, n)
+    block = max(1, (1 << 26) // max(n, 1))
     predictions = []
-    for src_idx in source_indices:
-        sims = normed @ normed[src_idx]
-        sims[src_idx] = -2.0
-
+    for start in range(0, len(source_indices), block):
+        sources = source_indices[start:start + block]
+        sims = normed[sources] @ normed.T
+        # The cosine is symmetric, so a pair of two sources is in the rows of both:
+        # it is left in the row of the lower index only. This also removes the diagonal.
+        sims[is_source & (columns <= sources[:, None])] = -2.0
         if exclude_existing:
-            for other_idx in range(graph.num_entities):
-                if (src_idx, other_idx) in existing_edges or (other_idx, src_idx) in existing_edges:
-                    sims[other_idx] = -2.0
-
-        top_indices = np.argsort(sims)[::-1][:top_k]
-        for tgt_idx in top_indices:
-            if sims[tgt_idx] <= -2.0:
-                continue
-            predictions.append({
-                "source": graph.entity_ids[src_idx],
-                "target": graph.entity_ids[int(tgt_idx)],
-                "score": float(sims[int(tgt_idx)]),
-            })
+            # the matrix is symmetric: the row of a source lists all its existing links
+            for local, src in enumerate(sources):
+                sims[local, indices[indptr[src]:indptr[src + 1]]] = -2.0
+        candidates = np.argpartition(-sims, keep - 1, axis=1)[:, :keep]
+        for local, src in enumerate(sources):
+            row = candidates[local]
+            row = row[np.argsort(-sims[local, row], kind="stable")]
+            for tgt in row:
+                score = float(sims[local, tgt])
+                if score <= -2.0:
+                    continue
+                predictions.append({
+                    "source": entity_ids[int(src)],
+                    "target": entity_ids[int(tgt)],
+                    "score": score,
+                })
 
     predictions.sort(key=lambda x: x["score"], reverse=True)
     return predictions[:top_k]
@@ -684,14 +1000,15 @@ def predict_links(
 def propagate_gpu(
     graph: SparseMatrix,
     embeddings: np.ndarray,
-    num_iterations: int = DEFAULT_NUM_ITERATIONS,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     device: str = "cuda",
     callback: Optional[Callable[[int, np.ndarray], None]] = None,
-    whiten: bool = True,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> np.ndarray:
     _validate_propagation(propagation)
+    num_iterations = _resolve_iterations(num_iterations, graph, propagation, whiten)
 
     if normalization not in ("l2", "l1", "none"):
         raise ValueError(f"GPU propagation supports 'l2', 'l1', or 'none' normalization. Got: '{normalization}'")
@@ -757,24 +1074,35 @@ def find_most_similar(
     top_k: int = 10,
     exclude_self: bool = True,
 ) -> List[Dict]:
+    """The ``top_k`` entities with the highest cosine similarity to ``query_entity``.
+
+    With ``exclude_self=True`` the query is never among them: a graph of ``n``
+    entities gives at most ``n - 1`` results."""
     query_idx = graph.get_entity_index(query_entity)
     query_vec = embeddings[query_idx]
 
-    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    norms = np.sqrt(np.einsum("ij,ij->i", embeddings, embeddings, dtype=np.float64))
     norms = np.maximum(norms, 1e-10)
-    normalized = embeddings / norms
+    query_norm = max(float(norms[query_idx]), 1e-10)
+    similarities = ((embeddings @ query_vec) / (norms * query_norm)).astype(np.float32)
 
-    query_norm = query_vec / max(np.linalg.norm(query_vec), 1e-10)
-    similarities = normalized @ query_norm
-
+    num_candidates = len(similarities)
     if exclude_self:
-        similarities[query_idx] = -1.0
+        # Below every cosine (-1 is one an entity can really have), and with one
+        # candidate fewer the query cannot be among those that are kept.
+        similarities[query_idx] = -np.inf
+        num_candidates -= 1
 
-    top_indices = np.argsort(similarities)[::-1][:top_k]
+    keep = min(max(top_k, 0), num_candidates)
+    if keep == 0:
+        return []
+    top_indices = np.argpartition(-similarities, keep - 1)[:keep]
+    top_indices = top_indices[np.argsort(-similarities[top_indices], kind="stable")]
+    entity_ids = graph.entity_ids
     results = []
     for idx in top_indices:
         results.append({
-            "entity_id": graph.entity_ids[idx],
+            "entity_id": entity_ids[int(idx)],
             "index": int(idx),
             "similarity": float(similarities[idx]),
         })
@@ -785,16 +1113,17 @@ def embed_edge_features(
     graph: SparseMatrix,
     edge_features: Dict[str, np.ndarray],
     feature_dim: int = DEFAULT_FEATURE_DIM,
-    num_iterations: int = DEFAULT_NUM_ITERATIONS,
+    num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
     propagation: str = "left",
     normalization: str = "l2",
     combine: str = "concat",
     num_workers: Optional[int] = None,
-    whiten: bool = True,
+    whiten: bool = DEFAULT_WHITEN,
 ) -> np.ndarray:
     from scipy.sparse import csr_matrix, diags
 
     _validate_propagation(propagation)
+    num_iterations = _resolve_iterations(num_iterations, graph, propagation, whiten)
 
     struct_emb = embed(
         graph, feature_dim=feature_dim, num_iterations=num_iterations,
@@ -856,14 +1185,14 @@ class CleoraEmbedder:
     def __init__(
         self,
         feature_dim: int = DEFAULT_FEATURE_DIM,
-        num_iterations: int = DEFAULT_NUM_ITERATIONS,
+        num_iterations: Union[int, str] = DEFAULT_NUM_ITERATIONS,
         propagation: str = "left",
         normalization: str = "l2",
         columns: str = "complex::reflexive::node",
         seed: int = 0,
         hyperedge_trim_n: int = 16,
         num_workers: Optional[int] = None,
-        whiten: bool = True,
+        whiten: bool = DEFAULT_WHITEN,
     ):
         self.feature_dim = feature_dim
         self.num_iterations = num_iterations
@@ -971,9 +1300,50 @@ def _postprocess_iteration(
     return embeddings
 
 
+def _l1_normalize_inplace(embeddings: np.ndarray) -> None:
+    for start in range(0, embeddings.shape[0], _ROW_CHUNK):
+        block = embeddings[start:start + _ROW_CHUNK]
+        norms = np.abs(block).sum(axis=1, keepdims=True)
+        np.maximum(norms, 1e-10, out=norms)
+        block /= norms
+
+
+def _postprocess_inplace(
+    embeddings: np.ndarray,
+    normalization: str,
+    whiten: bool,
+    num_workers: Optional[int] = None,
+) -> np.ndarray:
+    """Row normalisation and whitening of a C-contiguous float32 matrix, in place."""
+    if normalization == "l2":
+        _core.l2_normalize_inplace(embeddings, num_workers)
+    elif normalization == "l1":
+        _l1_normalize_inplace(embeddings)
+    elif normalization != "none":
+        raise ValueError(
+            f"Unknown normalization method: {normalization}. Use 'l2', 'l1', 'spectral', or 'none'."
+        )
+    if whiten:
+        whiten_embeddings(embeddings, num_workers=num_workers, inplace=True)
+    return embeddings
+
+
+def _mix_residual_inplace(target: np.ndarray, previous: np.ndarray, residual_weight: float) -> None:
+    """target = (1 - w) * target + w * previous, without a full-size temporary."""
+    weight = np.float32(residual_weight)
+    keep = np.float32(1.0 - residual_weight)
+    for start in range(0, target.shape[0], _ROW_CHUNK):
+        block = target[start:start + _ROW_CHUNK]
+        block *= keep
+        block += weight * previous[start:start + _ROW_CHUNK]
+
+
 def _compute_rmse(current: np.ndarray, previous: np.ndarray) -> float:
-    diff = current.astype(np.float64, copy=False) - previous.astype(np.float64, copy=False)
-    return float(np.sqrt(np.mean(diff * diff)))
+    total = 0.0
+    for start in range(0, current.shape[0], _ROW_CHUNK):
+        diff = current[start:start + _ROW_CHUNK].astype(np.float64) - previous[start:start + _ROW_CHUNK]
+        total += float(np.einsum("ij,ij->", diff, diff))
+    return float(np.sqrt(total / max(current.size, 1)))
 
 
 def _whiten_embeddings_torch(embeddings):

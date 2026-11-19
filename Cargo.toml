@@ -1,45 +1,54 @@
 [package]
 name = "pycleora"
-version = "3.2.1"
-edition = "2018"
+version = "4.0.0"
+edition = "2021"
+rust-version = "1.85"
 license-file = "LICENSE"
 readme = "README.md"
 documentation = "https://cleora.ai/docs"
 homepage = "https://cleora.ai"
 repository = "https://github.com/BaseModelAI/cleora"
 description = """
-Sparse hypergraph structure and markov-propagation for node embeddings embeddings exposed via Python bindings.
+Sparse hypergraph structure and markov-propagation for node embeddings exposed via Python bindings.
 """
+# Not part of the source distribution: the benchmark suite with its results and
+# figures, images, the pre-Python CLI, and files that only serve the repository.
+exclude = [
+    ".github/",
+    "benchmarks/",
+    "files/",
+    "legacy/",
+    "scripts/",
+    "run.py",
+    "requirements.txt",
+    "COMPARISON.md",
+]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[build]
-rustflags = ["-C", "target-cpu=native"]
-
 [dependencies]
-log = "0.4.17"
-rayon = "1.5.3"
-rustc-hash = "1.1.0"
-smallvec = "1.8.1"
+rayon = "1.10"
+rustc-hash = "2"
+smallvec = "1.13"
+# Kept on 1.x on purpose: entity hashes (XXH64, seed 0) feed the deterministic initialisation.
 twox-hash = "1.6.3"
-ndarray = { version = "0.15.4", features = ["rayon"] }
-ndarray-npy = "0.8.1"
-uuid = { version = "1.1.2", features = ["v4"] }
-crossbeam = "0.8.1"
-dashmap = { version = "5.3.4", features = ["rayon"] }
-num_cpus = "1.13.1"
-itertools = "0.10.3"
-serde = { version = "1.0.163", features = ["derive"] }
+ndarray = "0.17"
+dashmap = "6"
+crossbeam-channel = "0.5"
+serde = { version = "1", features = ["derive"] }
 bincode = "1.3.3"
 
-pyo3 = "0.18.1"
-numpy = "0.18"
+# abi3: one wheel per platform works on every CPython >= 3.10.
+pyo3 = { version = "0.30", features = ["abi3-py310"] }
+numpy = "0.30"
 
 [dev-dependencies]
-criterion = "0.3.3"
-insta = "1.3.0"
-ndarray-rand = "0.14.0"
+criterion = "0.5"
+insta = "1"
+# rand 0.8 is pinned so that the snapshot tests keep drawing the exact random
+# streams the stored snapshots were generated from.
+rand = "0.8"
 
 [[bench]]
 name = "cleora_benchmark"
@@ -49,11 +58,3 @@ harness = false
 opt-level = 3
 lto = true
 codegen-units = 1
-
-[target.aarch64-apple-darwin]
-linker = "aarch64-apple-darwin21.4-clang"
-ar = "aarch64-apple-darwin21.4-ar"
-rustflags = [
-  "-C", "link-arg=-undefined",
-  "-C", "link-arg=dynamic_lookup",
-]

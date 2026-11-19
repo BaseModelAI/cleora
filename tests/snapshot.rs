@@ -1,12 +1,10 @@
 #[cfg(test)]
 mod tests {
     use insta::assert_debug_snapshot;
-    use ndarray;
-    use ndarray::{Array, Array2, ArrayBase, Dim, Ix, OwnedRepr};
-    use ndarray_rand::rand::rngs::StdRng;
-    use ndarray_rand::rand::{RngCore, SeedableRng};
-    use ndarray_rand::rand_distr::Uniform;
-    use ndarray_rand::RandomExt;
+    use ndarray::Array2;
+    use rand::distributions::{Distribution, Uniform};
+    use rand::rngs::StdRng;
+    use rand::{RngCore, SeedableRng};
 
     use pycleora::embedding::{MarkovType, NdArrayMatrix};
     use pycleora::sparse_matrix::SparseMatrix;
@@ -49,8 +47,7 @@ mod tests {
         assert_debug_snapshot!(embedding_out);
     }
 
-    fn create_graph_embeddings_complex_complex(
-    ) -> (SparseMatrix, ArrayBase<OwnedRepr<f32>, Dim<[Ix; 2]>>) {
+    fn create_graph_embeddings_complex_complex() -> (SparseMatrix, Array2<f32>) {
         let num_embeddings: usize = 100;
         let mut rng: StdRng = SeedableRng::seed_from_u64(21_37);
 
@@ -78,16 +75,16 @@ mod tests {
 
         let feature_dim: usize = 32;
 
-        let embeddings = Array::random_using(
-            (num_embeddings, feature_dim),
-            Uniform::new(0., 10.),
-            &mut rng,
-        );
+        // Same stream as `ndarray_rand::RandomExt::random_using`, which the stored
+        // snapshots were generated with: one sample per element, in row-major order.
+        let distribution = Uniform::new(0.0f32, 10.0);
+        let embeddings = Array2::from_shape_simple_fn((num_embeddings, feature_dim), || {
+            distribution.sample(&mut rng)
+        });
         (graph, embeddings)
     }
 
-    fn create_graph_embeddings_complex_reflexive(
-    ) -> (SparseMatrix, ArrayBase<OwnedRepr<f32>, Dim<[Ix; 2]>>) {
+    fn create_graph_embeddings_complex_reflexive() -> (SparseMatrix, Array2<f32>) {
         let num_embeddings: usize = 100;
         let mut rng: StdRng = SeedableRng::seed_from_u64(21_37);
 
@@ -108,11 +105,12 @@ mod tests {
 
         let feature_dim: usize = 32;
 
-        let embeddings = Array::random_using(
-            (num_embeddings, feature_dim),
-            Uniform::new(0., 10.),
-            &mut rng,
-        );
+        // Same stream as `ndarray_rand::RandomExt::random_using`, which the stored
+        // snapshots were generated with: one sample per element, in row-major order.
+        let distribution = Uniform::new(0.0f32, 10.0);
+        let embeddings = Array2::from_shape_simple_fn((num_embeddings, feature_dim), || {
+            distribution.sample(&mut rng)
+        });
         (graph, embeddings)
     }
 }

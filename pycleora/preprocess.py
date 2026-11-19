@@ -1,9 +1,11 @@
 import numpy as np
-from scipy.sparse import csr_matrix
 from collections import deque
 
 
 def _graph_to_adjacency(graph):
+    # scipy is an optional dependency: import it only when it is needed
+    from scipy.sparse import csr_matrix
+
     rows, cols, vals, n, _ = graph.to_sparse_csr()
     A = csr_matrix(
         (vals.astype(np.float64), (rows.astype(np.int32), cols.astype(np.int32))),

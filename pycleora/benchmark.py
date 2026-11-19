@@ -1,7 +1,12 @@
 import numpy as np
 import time
-import tracemalloc
-from typing import Dict, List, Optional, Callable, Tuple
+from typing import Dict, List, Optional, Callable
+
+
+def _error_entry(error: Exception) -> Dict:
+    """The table row of an algorithm or dataset that failed: one failure must not
+    cost the measurements of the others, and the row says what happened."""
+    return {"error": f"{type(error).__name__}: {error}"}
 
 
 def benchmark_algorithms(
@@ -12,6 +17,12 @@ def benchmark_algorithms(
     num_runs: int = 1,
     seed: int = 42,
 ) -> Dict:
+    """Time and classification scores of every algorithm on one graph.
+
+    Memory is not measured: the peak of a call cannot be told apart from what the
+    process already holds (allocators reuse freed memory), so a number taken here
+    would say nothing about the algorithm. Measure it with one process per run.
+    """
     from .metrics import node_classification_scores
 
     if metrics_fn is None:
@@ -21,24 +32,18 @@ def benchmark_algorithms(
     for name, algo_fn in algorithms.items():
         times = []
         scores_list = []
-        memory_peaks = []
 
         for run in range(num_runs):
-            tracemalloc.start()
-            t0 = time.time()
             try:
+                t0 = time.perf_counter()
                 emb = algo_fn(graph)
-                elapsed = time.time() - t0
-                _, peak = tracemalloc.get_traced_memory()
-                tracemalloc.stop()
+                elapsed = time.perf_counter() - t0
 
                 scores = metrics_fn(graph, emb, labels)
                 times.append(elapsed)
                 scores_list.append(scores)
-                memory_peaks.append(peak / 1024 / 1024)
             except Exception as e:
-                tracemalloc.stop()
-                results[name] = {"error": str(e)}
+                results[name] = _error_entry(e)
                 break
 
         if name not in results:
@@ -52,7 +57,6 @@ def benchmark_algorithms(
             results[name] = {
                 "avg_time": float(np.mean(times)),
                 "std_time": float(np.std(times)) if len(times) > 1 else 0.0,
-                "avg_memory_mb": float(np.mean(memory_peaks)),
                 "scores": avg_scores,
                 "num_runs": num_runs,
             }
@@ -74,10 +78,10 @@ def benchmark_datasets(
     for ds_name in dataset_names:
         try:
             ds = load_dataset(ds_name)
-            t0 = time.time()
+            t0 = time.perf_counter()
             graph = SparseMatrix.from_iterator(iter(ds["edges"]), ds["columns"])
             emb = embed_fn(graph)
-            elapsed = time.time() - t0
+            elapsed = time.perf_counter() - t0
 
             scores = node_classification_scores(graph, emb, ds["labels"], seed=seed)
             results[ds_name] = {
@@ -88,14 +92,14 @@ def benchmark_datasets(
                 "scores": scores,
             }
         except Exception as e:
-            results[ds_name] = {"error": str(e)}
+            results[ds_name] = _error_entry(e)
 
     return results
 
 
 def format_benchmark_table(results: Dict, metric: str = "accuracy") -> str:
     lines = []
-    header = f"{'Algorithm':<15} {'Time (s)':<12} {'Memory (MB)':<14} {metric.capitalize():<12}"
+    header = f"{'Algorithm':<15} {'Time (s)':<12} {metric.capitalize():<12}"
     lines.append(header)
     lines.append("-" * len(header))
 
@@ -104,9 +108,8 @@ def format_benchmark_table(results: Dict, metric: str = "accuracy") -> str:
             lines.append(f"{name:<15} ERROR: {data['error']}")
         else:
             t = data.get("avg_time", 0)
-            m = data.get("avg_memory_mb", 0)
             s = data.get("scores", {}).get(metric, 0)
-            lines.append(f"{name:<15} {t:<12.4f} {m:<14.2f} {s:<12.4f}")
+            lines.append(f"{name:<15} {t:<12.4f} {s:<12.4f}")
 
     return "\n".join(lines)
 
