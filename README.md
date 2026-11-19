@@ -296,17 +296,43 @@ With the number of iterations and the normalisation chosen on validation data - 
 ### What the embeddings look like
 
 UMAP projections of the 1024-dimensional vectors, coloured by node class: one panel
-per method, the same nodes in every panel. All 26 graphs are in
+per method, the same nodes in every panel. Classes that form compact, separate groups
+are what a classifier and a nearest-neighbour index can work with. Five graphs of
+different kinds and sizes follow; the figures of all 26 are in
 [`benchmarks/figures`](benchmarks/figures).
+
+<details open>
+<summary><b>ogbn-products</b> - 2.4 million nodes, 62 million edges, 47 classes. Of the nine baselines only FastRP and RandNE finished this graph: DeepWalk and node2vec ran out of time, ProNE out of memory.</summary>
+
+![UMAP of ogbn-products](benchmarks/figures/umap_ogbn_products.png)
+
+</details>
+
+<details open>
+<summary><b>ogbn-arxiv</b> - 169,343 papers, 40 subject areas. Next to the other methods that take seconds - ProNE, FastRP, RandNE - and to the random-walk methods, which take 700 times longer.</summary>
 
 ![UMAP of ogbn-arxiv](benchmarks/figures/umap_ogbn_arxiv.png)
 
-![UMAP of Amazon Photo](benchmarks/figures/umap_amazon_photo.png)
+</details>
 
-<details>
-<summary>Cora</summary>
+<details open>
+<summary><b>Coauthor CS</b> - 18,333 authors, 15 fields of computer science.</summary>
 
-![UMAP of Cora](benchmarks/figures/umap_cora.png)
+![UMAP of Coauthor CS](benchmarks/figures/umap_coauthor_cs.png)
+
+</details>
+
+<details open>
+<summary><b>Coauthor Physics</b> - 34,493 authors, 5 fields of physics.</summary>
+
+![UMAP of Coauthor Physics](benchmarks/figures/umap_coauthor_physics.png)
+
+</details>
+
+<details open>
+<summary><b>PubMed</b> - 19,717 papers, 3 classes: a sparse graph, 2.2 edges per paper.</summary>
+
+![UMAP of PubMed](benchmarks/figures/umap_pubmed.png)
 
 </details>
 
