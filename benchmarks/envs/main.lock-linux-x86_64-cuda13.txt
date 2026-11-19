@@ -16,6 +16,7 @@ filelock==4.2.12
 fonttools==4.68.0
 frozenlist==1.8.0
 fsspec==2026.9.0
+gensim==4.4.0
 h11==0.16.0
 hf-xet==1.8.0
 httpcore2==2.16.2
@@ -72,6 +73,7 @@ scikit-learn==1.9.1
 scipy==1.18.1
 setuptools==84.2.1
 six==1.17.0
+smart-open==9.0.5
 sympy==1.14.0
 threadpoolctl==3.8.0
 timm==1.0.31
@@ -85,5 +87,6 @@ typing-extensions==4.16.0
 tzdata==2026.6
 umap-learn==0.6.0
 urllib3==2.8.0
+wrapt==2.5.2
 xxhash==4.1.0
 yarl==1.25.1

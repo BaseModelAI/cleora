@@ -135,8 +135,9 @@ def main():
     for name in names:
         panels = []
         for row in display.FIGURE_METHODS:
-            samples = [os.path.join(results, name, configuration, f"dim{args.dim}", "seed0", "sample.npz")
-                       for configuration in row["configurations"]]
+            # the benchmark dimensionality, else (baselines on the largest graphs) that of the papers
+            samples = [os.path.join(results, name, configuration, f"dim{dim}", "seed0", "sample.npz")
+                       for dim in (args.dim, display.PAPER_DIM) for configuration in row["configurations"]]
             sample = next((path for path in samples if os.path.exists(path)), None)
             if sample is None:
                 continue

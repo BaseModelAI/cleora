@@ -63,8 +63,8 @@ configurations() {  # names of a group of Cleora configurations
 for tier in $(echo "$tiers" | grep -o .); do
     if [ -n "$datasets" ]; then selection=(--datasets "$datasets"); else selection=(--tiers "$tier"); fi
     seeds=0,1,2; [ "$tier" = S ] || seeds=0
-    # hours a method may take on one graph: on the largest graphs Cleora needs minutes
-    limit=6; [ "$tier" = L ] && limit=1
+    # hours a method may take on one graph
+    limit=6; [ "$tier" = L ] && limit=3
     run() { "$python" "$here/run_benchmark.py" --data "$data" "${selection[@]}" --threads "$threads" --timeout "$limit" "$@"; }
 
     "$python" "$here/prepare_datasets.py" --data "$data" "${selection[@]}"
@@ -74,8 +74,13 @@ for tier in $(echo "$tiers" | grep -o .); do
     run --dim "$dim" --seeds "$seeds" --tasks lp,viz --methods "$(configurations "c.automatic('similarity')")"
 
     if [ $baselines = 1 ]; then
-        run --dim "$dim" --seeds "$seeds"
-        run --dim 128 --seeds "$seeds" --tasks nc,lp       # the dimensionality of the papers
+        # the benchmark dimensionality and that of the papers; on the largest graphs the latter only
+        if [ "$tier" = L ]; then
+            run --dim 128 --seeds "$seeds"
+        else
+            run --dim "$dim" --seeds "$seeds"
+            run --dim 128 --seeds "$seeds" --tasks nc,lp
+        fi
     fi
     if [ $previous = 1 ]; then
         run --dim "$dim" --seeds "$seeds" --methods cleora_whiten40
