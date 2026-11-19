@@ -80,9 +80,5 @@ FIGURE_METHODS = [{"label": "Cleora", "configurations": [cleora_configuration("h
 FIGURE_METHODS += [{"label": METHODS[name]["label"], "configurations": [name]} for name in BASELINES]
 FIGURE_METHODS.append({"label": METHODS["cleora_3_2"]["label"], "configurations": ["cleora_whiten40"]})
 
-NODE_PROBES = {"logistic": "logistic regression", "svm": "linear SVM", "mlp": "MLP (AdamC)", "knn": "k-NN (cosine)"}
-PAIR_PROBES = {
-    "dot": "dot product", "cosine": "cosine", "bilinear": "bilinear x'My (AdamC)",
-    "mlp": "concat -> MLP -> sigmoid (AdamC)", "logistic": "logistic regression on x*y",
-    "svm": "linear SVM on x*y",
-}
+NODE_PROBES = {"logistic": "logistic regression", "mlp": "MLP (AdamC)"}
+PAIR_PROBES = {"dot": "dot product", "cosine": "cosine", "logistic": "logistic regression on x*y"}

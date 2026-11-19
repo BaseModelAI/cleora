@@ -6,26 +6,26 @@ graphs, embedding methods or metrics.
 Every probe sees the same inputs for every embedding method, and every hyper-parameter
 is chosen on validation data only (the functions never receive test labels).
 
+The probes are the ways embeddings are used in practice: as features of a classifier
+and as vectors that are compared with each other.
+
 Node probes (one vector -> classes)
     ``logistic``  linear, logistic loss: multinomial (single-label) / one-vs-rest (multi-label)
-    ``svm``       linear, squared hinge loss, one-vs-rest (the objective of LinearSVC)
     ``mlp``       one hidden layer, trained with AdamC
-    ``knn``       cosine k-nearest-neighbours vote: no training at all
 
 Pair probes (two vectors -> link score)
-    ``dot`` / ``cosine``   no training
-    ``bilinear``           x^T M y, M trained with AdamC
-    ``mlp``                concatenation -> hidden layer -> sigmoid, trained with AdamC
-    ``logistic`` / ``svm`` linear model on the element-wise product of the two vectors
+    ``dot`` / ``cosine``   no training: what a nearest-neighbour index computes
+    ``logistic``           logistic regression on the element-wise product of the two
+                           vectors: a dot product with one learned weight per dimension
 
 Feature scaling. Embedding methods differ in what the scale of their coordinates means:
 standardising every dimension helps some and destroys the spectrum of others (the
 columns of an SVD-based embedding are ordered by importance). The scaling is therefore
 a hyper-parameter of the probe, chosen on validation like the others, from ``SCALINGS``.
 
-The linear probes minimise  mean_i loss_i + decay / 2 * ||W||^2  with full-batch L-BFGS,
-which finds the optimum of these convex problems to high precision, so the result does
-not depend on a learning-rate schedule. ``decay`` is chosen from ``DECAYS``.
+Logistic regression minimises  mean_i loss_i + decay / 2 * ||W||^2  with full-batch
+L-BFGS, which finds the optimum of this convex problem to high precision, so the result
+does not depend on a learning-rate schedule. ``decay`` is chosen from ``DECAYS``.
 """
 
 import math
@@ -60,9 +60,9 @@ def pick_device():
     return torch.device("cpu")
 
 
-# A linear probe on a matrix with fewer elements than this is fitted on the CPU: its
-# thousands of tiny L-BFGS steps are faster there than through a GPU. (The probes trained
-# with AdamC multiply large matrices at every step and always use the GPU when there is one.)
+# Logistic regression on a matrix with fewer elements than this is fitted on the CPU: its
+# thousands of tiny L-BFGS steps are faster there than through a GPU. (The MLP multiplies
+# large matrices at every step and always uses the GPU when there is one.)
 SMALL_PROBLEM = 1 << 24
 
 
@@ -119,15 +119,10 @@ def _targets(labels, num_classes, device):
     return to_device(labels, device, torch.long), False
 
 
-def _linear_loss(logits, targets, multilabel, kind):
-    if kind == "logistic":
-        if multilabel:
-            return torch.nn.functional.binary_cross_entropy_with_logits(logits, targets, reduction="sum") / len(logits)
-        return torch.nn.functional.cross_entropy(logits, targets)
-    if kind == "svm":
-        signs = targets * 2 - 1 if multilabel else torch.nn.functional.one_hot(targets, logits.shape[1]) * 2.0 - 1
-        return torch.clamp(1 - signs * logits, min=0).pow(2).sum() / len(logits)
-    raise ValueError(f"Unknown linear probe '{kind}'. Use 'logistic' or 'svm'.")
+def _logistic_loss(logits, targets, multilabel):
+    if multilabel:
+        return torch.nn.functional.binary_cross_entropy_with_logits(logits, targets, reduction="sum") / len(logits)
+    return torch.nn.functional.cross_entropy(logits, targets)
 
 
 def selection_score(scores, labels):
@@ -148,12 +143,12 @@ def _batched(function, features, device, batch=1 << 16):
     return np.concatenate(out)
 
 
-def fit_linear(train_x, train_y, kind, num_classes, device, validate, decays=DECAYS, max_iter=300, wrap=None):
-    """Fits a linear probe (``kind``: 'logistic' or 'svm') for every decay and keeps the
-    one for which ``validate(predict)`` is highest.
+def fit_logistic(train_x, train_y, num_classes, device, validate, decays=DECAYS, max_iter=300, wrap=None):
+    """Fits logistic regression for every decay and keeps the fit for which
+    ``validate(predict)`` is highest.
 
     ``predict(features) -> scores`` (numpy, one column per class); ``wrap(weight, bias)``
-    replaces it by another function of the fitted parameters (used by the pair probes).
+    replaces it by another function of the fitted parameters (used by the pair probe).
     Returns ``(predict, validation score, info)``.
     """
     x = train_x if torch.is_tensor(train_x) else to_device(train_x, device)
@@ -173,7 +168,7 @@ def fit_linear(train_x, train_y, kind, num_classes, device, validate, decays=DEC
 
         def closure():
             optimizer.zero_grad()
-            loss = _linear_loss(x @ weight.T + bias, y, multilabel, kind) + 0.5 * decay * weight.pow(2).sum()
+            loss = _logistic_loss(x @ weight.T + bias, y, multilabel) + 0.5 * decay * weight.pow(2).sum()
             loss.backward()
             return loss
 
@@ -204,9 +199,9 @@ def _adamc(parameters, peak_lr, weight_decay, total_steps, warmup=0.05):
 
 def _train_with_adamc(make_model, step_loss, num_examples, validate_model, seed, epochs, batch_size, peak_lr,
                       weight_decays, device):
-    """Shared training loop of the AdamC probes: for every weight decay, mini-batch
-    training with a warm-up + cosine schedule; the model state of the best validation
-    epoch over all decays is returned (with its score and what was tried)."""
+    """Training loop of the MLP probe: for every weight decay, mini-batch training with
+    a warm-up + cosine schedule; the model state of the best validation epoch over all
+    decays is returned (with its score and what was tried)."""
     # small training sets get small batches: at least ~32 steps per epoch
     batch_size = int(min(batch_size, max(32, num_examples // 32)))
     steps_per_epoch = max(1, math.ceil(num_examples / batch_size))
@@ -257,71 +252,16 @@ def fit_mlp(train_x, train_y, num_classes, device, seed, validate, hidden=512, d
         return lambda features: _batched(model, features, device)
 
     model, score, info = _train_with_adamc(
-        make_model, lambda model, rows: _linear_loss(model(x[rows]), y[rows], multilabel, "logistic"), len(x),
+        make_model, lambda model, rows: _logistic_loss(model(x[rows]), y[rows], multilabel), len(x),
         lambda model: validate(predictor(model)), seed, epochs, batch_size, peak_lr, weight_decays, device)
     return predictor(model), score, info
-
-
-def knn_votes(train_x, train_y, query_x, num_classes, neighbours, device, batch=1024):
-    """Cosine k-nearest-neighbour vote for every ``k`` in ``neighbours``.
-
-    Single-label targets: the score of a class is the summed similarity of the nearest
-    training vectors of that class. Multi-label targets: the share of the nearest
-    training vectors that carry the label, minus one half (so that 0 is the threshold).
-    Returns ``{k: scores}``.
-    """
-    unit = lambda array: torch.nn.functional.normalize(to_device(array, device), dim=1)
-    train = unit(train_x)
-    targets, multilabel = _targets(train_y, num_classes, device)
-    largest = min(max(neighbours), len(train))
-    scores = {k: [] for k in neighbours}
-    for start in range(0, len(query_x), batch):
-        similarity, nearest = (unit(query_x[start:start + batch]) @ train.T).topk(largest, dim=1)
-        for k in neighbours:
-            k_used = min(k, largest)
-            if multilabel:
-                votes = targets[nearest[:, :k_used]].mean(dim=1) - 0.5
-            else:
-                votes = torch.zeros(len(nearest), num_classes, device=device)
-                votes.scatter_add_(1, targets[nearest[:, :k_used]], similarity[:, :k_used])
-            scores[k].append(votes.cpu().numpy())
-    return {k: np.concatenate(parts) for k, parts in scores.items()}
 
 
 # ----------------------------------------------------------------------------- pair probes
 #
 # A pair scorer is a function  score(sources, targets) -> numpy scores  over arrays of
-# node indices. The trained ones learn from pairs with 0/1 labels (edges and non-edges)
-# and are selected by ``validate(score)``, which the caller defines (a ranking metric).
-
-
-class _Bilinear(torch.nn.Module):
-    """x^T (I + delta) y * temperature + bias. The matrix starts at the identity (the
-    plain dot product) and the weight decay acts on its difference from it."""
-
-    def __init__(self, dim):
-        super().__init__()
-        self.delta = torch.nn.Parameter(torch.zeros(dim, dim))
-        self.temperature = torch.nn.Parameter(torch.tensor(10.0))
-        self.bias = torch.nn.Parameter(torch.tensor(0.0))
-
-    def forward(self, left, right):
-        return self.temperature * ((left + left @ self.delta) * right).sum(dim=1) + self.bias
-
-
-class _PairMLP(torch.nn.Module):
-    """concatenation -> hidden layer -> one logit (the sigmoid is in the loss). The graph
-    is undirected, so a pair is scored in both orders and the logits are averaged."""
-
-    def __init__(self, dim, hidden, dropout):
-        super().__init__()
-        self.layers = torch.nn.Sequential(torch.nn.Linear(2 * dim, hidden), torch.nn.ReLU(), torch.nn.Dropout(dropout),
-                                          torch.nn.Linear(hidden, 1))
-
-    def forward(self, left, right):
-        forward = self.layers(torch.cat([left, right], dim=1))
-        backward = self.layers(torch.cat([right, left], dim=1))
-        return 0.5 * (forward + backward).squeeze(1)
+# node indices. The trained one learns from pairs with 0/1 labels (edges and non-edges)
+# and is selected by ``validate(score)``, which the caller defines (a ranking metric).
 
 
 def _pair_scorer(function, vectors, batch=1 << 15):
@@ -348,35 +288,11 @@ def product_scorer(matrix):
     return _pair_scorer(lambda left, right: (left * right).sum(dim=1), matrix)
 
 
-def fit_pair_model(kind, unit, pairs, labels, device, seed, validate, hidden=512, dropout=0.2,
-                   epochs=30, batch_size=8192, peak_lr=1e-3, weight_decays=(1e-2, 1e-1)):
-    """Trains a ``'bilinear'`` or ``'mlp'`` pair model with AdamC on labelled pairs
-    (binary cross-entropy on the sigmoid of the logit). Weight decay and epoch are chosen
-    by ``validate(score)``. Returns ``(score, validation score, info)``."""
-    dim = unit.shape[1]
-    sources = torch.as_tensor(pairs[:, 0], device=device)
-    targets = torch.as_tensor(pairs[:, 1], device=device)
-    truth = to_device(labels, device)
-    if kind == "bilinear":
-        make_model, inputs = (lambda: _Bilinear(dim)), unit
-    else:
-        # coordinates of order one, as a freshly initialised layer expects
-        make_model, inputs = (lambda: _PairMLP(dim, hidden, dropout)), unit * math.sqrt(dim)
-
-    def step_loss(model, rows):
-        logits = model(inputs[sources[rows]], inputs[targets[rows]])
-        return torch.nn.functional.binary_cross_entropy_with_logits(logits, truth[rows])
-
-    model, score, info = _train_with_adamc(
-        make_model, step_loss, len(pairs), lambda model: validate(_pair_scorer(model, inputs)),
-        seed, epochs, batch_size, peak_lr, weight_decays, device)
-    return _pair_scorer(model, inputs), score, info
-
-
-def fit_pair_linear(kind, unit, pairs, labels, device, validate):
-    """Linear model (``'logistic'`` or ``'svm'``) on the element-wise product of the two
-    vectors of a pair - the edge feature node2vec found to work best. The decay is chosen
-    by ``validate(score)``. Returns ``(score, validation score, info)``."""
+def fit_pair_logistic(unit, pairs, labels, device, validate):
+    """Logistic regression on the element-wise product of the two vectors of a pair - the
+    edge feature node2vec found to work best; the fitted model is a dot product with one
+    weight per dimension. The decay is chosen by ``validate(score)``.
+    Returns ``(score, validation score, info)``."""
     index = lambda column: torch.as_tensor(pairs[:, column], device=device)
     features = unit[index(0)] * unit[index(1)]
     targets = np.asarray(labels).reshape(-1, 1) > 0
@@ -384,4 +300,4 @@ def fit_pair_linear(kind, unit, pairs, labels, device, validate):
     def as_pair_scorer(weight, bias):
         return _pair_scorer(lambda left, right: ((left * right) @ weight.T + bias).squeeze(1), unit)
 
-    return fit_linear(features, targets, kind, 1, device, validate, wrap=as_pair_scorer)
+    return fit_logistic(features, targets, 1, device, validate, wrap=as_pair_scorer)

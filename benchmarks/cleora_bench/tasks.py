@@ -42,15 +42,14 @@ LINK_SPLIT = {"probe": 0.10, "valid": 0.05, "test": 0.10}  # the rest is embed
 LINK_CAPS = {"probe": 500_000, "valid": 20_000, "test": 50_000}  # positives, on large graphs
 NEGATIVES_PER_POSITIVE = 500
 PROBE_NEGATIVES_PER_POSITIVE = 3
-SELECTION_ROWS, SELECTION_NEGATIVES = 1000, 100  # part of validation the trained pair probes are selected on
-# Training pairs of the linear pair probes: their features (pairs x dimensions) are held in
+SELECTION_ROWS, SELECTION_NEGATIVES = 1000, 100  # part of validation the trained pair probe is selected on
+# Training pairs of the trained pair probe: their features (pairs x dimensions) are held in
 # memory at once, and a linear model in the dimensions of the embedding needs no more.
 PAIR_LINEAR_ROWS = 1_000_000
 RETRIEVAL_QUERIES = 10_000
 RETRIEVAL_DEPTH = 50
-NODE_PROBES = ("logistic", "svm", "mlp", "knn")
-PAIR_PROBES = ("dot", "cosine", "bilinear", "mlp", "logistic", "svm")
-KNN_NEIGHBOURS = (1, 5, 10, 20, 50)
+NODE_PROBES = ("logistic", "mlp")
+PAIR_PROBES = ("dot", "cosine", "logistic")
 
 
 # ----------------------------------------------------------------------------- graph helpers
@@ -148,17 +147,15 @@ def node_classification(vectors, graph, device, seeds, which=NODE_PROBES):
             scale = probes.scaler(scaling, vectors[train])
             return scale(vectors[train]), scale(vectors[valid]), scale(vectors[test])
 
-        # linear probes: scaling and decay chosen together on validation
         best = {}
-        for scaling in probes.SCALINGS:
-            x_train, x_valid, x_test = scaled(scaling)
-            for probe in which:
-                if probe not in ("logistic", "svm"):
-                    continue
-                predict, score, info = probes.fit_linear(x_train, y_train, probe, num_classes, linear_device,
-                                                         validate_on(x_valid))
-                if probe not in best or score > best[probe][0]:
-                    best[probe] = (score, predict(x_test), dict(info, scaling=scaling, validation_score=score))
+        if "logistic" in which:
+            # scaling and decay chosen together on validation
+            for scaling in probes.SCALINGS:
+                x_train, x_valid, x_test = scaled(scaling)
+                predict, score, info = probes.fit_logistic(x_train, y_train, num_classes, linear_device,
+                                                           validate_on(x_valid))
+                if "logistic" not in best or score > best["logistic"][0]:
+                    best["logistic"] = (score, predict(x_test), dict(info, scaling=scaling, validation_score=score))
         if "mlp" in which:
             # the scaling the logistic probe preferred (standardisation if it was not run)
             scaling = best["logistic"][2]["scaling"] if "logistic" in best else "standard"
@@ -166,12 +163,6 @@ def node_classification(vectors, graph, device, seeds, which=NODE_PROBES):
             predict, score, info = probes.fit_mlp(x_train, y_train, num_classes, device, split_number,
                                                   validate_on(x_valid))
             best["mlp"] = (score, predict(x_test), dict(info, scaling=scaling, validation_score=score))
-        if "knn" in which:
-            votes = probes.knn_votes(vectors[train], y_train, vectors[valid], num_classes, KNN_NEIGHBOURS, linear_device)
-            validation = {k: probes.selection_score(votes[k], y_valid) for k in KNN_NEIGHBOURS}
-            k = max(validation, key=validation.get)
-            votes_test = probes.knn_votes(vectors[train], y_train, vectors[test], num_classes, (k,), linear_device)[k]
-            best["knn"] = (validation[k], votes_test, {"k": k, "validation_score": validation[k]})
         for probe in which:
             results[probe]["metrics"].append(_node_metrics(y_test, best[probe][1]))
             results[probe]["chosen"].append({k: v for k, v in best[probe][2].items() if k != "validation"})
@@ -424,13 +415,9 @@ def link_prediction(vectors, split, graph, device, seed, which=PAIR_PROBES):
             test = _evaluate_scorer(score, split, "test")
             test.update(_retrieval(matrix, split, graph, seed))
             del matrix, score
-        elif probe in ("bilinear", "mlp"):
-            score, validation, info = probes.fit_pair_model(probe, unit, pairs, labels, device, seed, validate)
-            chosen = {"weight_decay": info["weight_decay"], "validation_mrr": validation}
-            test = _evaluate_scorer(score, split, "test")
-        elif probe in ("logistic", "svm"):
-            score, validation, info = probes.fit_pair_linear(probe, unit, pairs[linear_rows], labels[linear_rows],
-                                                             device, validate)
+        elif probe == "logistic":
+            score, validation, info = probes.fit_pair_logistic(unit, pairs[linear_rows], labels[linear_rows],
+                                                               device, validate)
             chosen = {"decay": info["decay"], "validation_mrr": validation}
             test = _evaluate_scorer(score, split, "test")
         else:
