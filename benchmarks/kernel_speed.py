@@ -18,6 +18,9 @@ Reported, best of ``--repeats`` runs each:
 * build           file to sparse matrix
 * per iteration   (embed with ``--iterations`` iterations - embed with none) / iterations:
                   one propagation and row normalisation of the whole embedding matrix
+* row by row      the same for the in-place propagation of an existing array, which
+                  reads whole rows instead of working through the matrix in blocks of
+                  columns (pycleora >= 4.0; the results of the two are bit-identical)
 """
 
 import argparse
@@ -86,9 +89,15 @@ def main():
             graph = graphs[-1]
             nothing = best(lambda: graph.embed_fast(args.dim, 0, **workers), args.repeats)
             rounds = best(lambda: graph.embed_fast(args.dim, args.iterations, **workers), args.repeats)
+            row_by_row = ""
+            if hasattr(graph, "left_markov_propagate_normalized_inplace"):
+                vectors = graph.embed_fast(args.dim, 0, **workers)
+                in_place = best(lambda: graph.left_markov_propagate_normalized_inplace(vectors, args.iterations, **workers),
+                                args.repeats)
+                row_by_row = f"  row by row {in_place / args.iterations:.3f} s"
             print(f"pycleora {version}  threads={'default' if threads is None else threads:>7}  "
                   f"{graph.num_entities:,} nodes  {len(source):,} edges  dim {args.dim}  "
-                  f"build {build:.2f} s  per iteration {(rounds - nothing) / args.iterations:.3f} s", flush=True)
+                  f"build {build:.2f} s  per iteration {(rounds - nothing) / args.iterations:.3f} s{row_by_row}", flush=True)
 
 
 if __name__ == "__main__":
