@@ -4,42 +4,86 @@
 
 </p>
 
-<h1 align="center">The Graph Embedding Engine</h1>
+<h1 align="center">Cleora</h1>
 
 <p align="center">
-Cleora embeds the nodes of a graph or hypergraph by iterating one sparse matrix product:<br>
-every vector becomes the normalised average of its neighbours' vectors.<br>
-No sampling, no training, no GPU. Deterministic, and fast enough to tune in seconds.
+<b>Graph embeddings in seconds, on a CPU.</b><br>
+No sampling, no training, no GPU - and ahead of nine established methods<br>
+at finding what belongs together.
 </p>
 
 <p align="center">
-  <a href="https://cleora.ai">Website</a> &nbsp;·&nbsp;
-  <a href="https://cleora.ai/docs">Documentation</a> &nbsp;·&nbsp;
+  <a href="https://pypi.org/project/pycleora/"><img alt="PyPI" src="https://img.shields.io/pypi/v/pycleora?color=2a78d6"></a>
+  <a href="https://pypi.org/project/pycleora/"><img alt="Python 3.10 to 3.15" src="https://img.shields.io/badge/python-3.10%20--%203.15-2a78d6"></a>
+  <a href="https://github.com/BaseModelAI/cleora/actions/workflows/CI.yml"><img alt="CI" src="https://github.com/BaseModelAI/cleora/actions/workflows/CI.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-2a78d6"></a>
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick start</a> &nbsp;·&nbsp;
   <a href="#benchmarks">Benchmarks</a> &nbsp;·&nbsp;
+  <a href="#performance">Performance</a> &nbsp;·&nbsp;
   <a href="benchmarks/README.md">Methodology</a> &nbsp;·&nbsp;
-  <a href="benchmarks/RESULTS.md">All results</a>
+  <a href="benchmarks/RESULTS.md">All results</a> &nbsp;·&nbsp;
+  <a href="https://cleora.ai/docs">Documentation</a>
 </p>
 
 <p align="center">
   <code>pip install pycleora</code>
 </p>
 
+<!-- benchmark:hero -->
+<table>
+<tr>
+<td align="center" width="33%"><h2>23 of 26</h2>graphs on which Cleora is the best of 10 methods at finding a node's held-out neighbours</td>
+<td align="center" width="33%"><h2>1.4 s</h2>to embed ogbn-arxiv (169,343 nodes, 1.2M edges) at 1024 dimensions. The baselines: 10.0 s to 18.1 min</td>
+<td align="center" width="33%"><h2>6 GB</h2>of memory for Yelp (716,847 nodes, 6.6M edges). The baselines: 15 to 62 GB</td>
+</tr>
+</table>
+<!-- /benchmark:hero -->
+
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="benchmarks/figures/summary_dark.svg">
+  <img alt="Three bar charts: the number of graphs on which each method is best in similarity search, the time each method needs to embed ogbn-arxiv, and the memory each needs on Yelp. Cleora leads all three by a wide margin." src="benchmarks/figures/summary_light.svg" width="100%">
+</picture>
+</p>
+
+<p align="center"><sub>
+Ten methods on 26 public graphs at 1024 dimensions; one fixed configuration per method, baselines run from their
+authors' code. Every benchmark table and figure on this page is generated from the result files, and the
+benchmark is one command: <a href="benchmarks/replicate.sh"><code>benchmarks/replicate.sh</code></a>.
+</sub></p>
+
 ---
 
-<!-- benchmark:headline -->
-| | Graphs | Cleora: best on | mean rank | Cleora, two columns: best on | mean rank | Best baseline (mean rank) |
-|---|---:|---:|---:|---:|---:|---|
-| Similarity search among all nodes (dot product / cosine, recall@10) | 26 | **23** | 1.12 | 15 | 2.23 | RandNE (3.46) |
-| Node classification (logistic regression, accuracy / micro-F1) | 17 | **10** | 2.00 | 7 | 2.24 | node2vec (3.35) |
-| Link ranking against sampled candidates (dot product / cosine, MRR) | 26 | **15** | 1.50 | 13 | 2.35 | RandNE (3.27) |
+## Why Cleora
 
-With the number of iterations and the normalisation chosen on validation data - the baselines stay at their authors' settings, so this is not part of the comparison above - Cleora is ahead of every baseline on 15 of 17 graphs in node classification and on 23 of 26 graphs in link ranking against sampled candidates.
-<!-- /benchmark:headline -->
+Cleora turns a graph or hypergraph into one vector per node by repeating a single step:
+every vector becomes the normalised average of its neighbours' vectors. That is one
+step of *every* random walk at once, without sampling a single one.
 
-Every number on this page is generated from the benchmark's result files, and the
-benchmark is one command: [`benchmarks/replicate.sh`](benchmarks/replicate.sh).
+- **Fast.** ogbn-arxiv - 169,343 nodes, 1.2 million edges - is embedded at 1024
+  dimensions in 1.4 seconds on a laptop CPU: 7 times faster than the fastest baseline
+  and 700 times faster than DeepWalk ([times](#time-and-memory)). An iteration over 12
+  million edges takes 0.74 s ([Performance](#performance)).
+- **Accurate.** First of ten methods by mean rank in each of the three ways
+  embeddings are used - similarity search, node classification, link ranking - and
+  the best method outright on most graphs ([Benchmarks](#benchmarks)).
+- **Lean.** Two embedding matrices of memory and nothing else: a fifth to a tenth of
+  what the other fast methods need.
+- **Scales.** Graphs with tens of millions of edges take minutes. DeepWalk and
+  node2vec do not finish them in three hours, and ProNE runs out of memory.
+- **Deterministic.** The same input gives the same embeddings, bit for bit, whatever
+  the number of threads. No seeds to average over, no runs to repeat.
+- **Simple.** No negative sampling, no learning rate, no epochs, no GPU. The one
+  parameter that matters - the number of iterations - is chosen from the graph:
+  `embed(graph)`.
+- **Practical.** Hypergraphs (baskets, sessions), weights, bipartite data, new nodes
+  without retraining, your own feature vectors as a starting point.
 
-**New in 4.0** ([changelog](CHANGELOG.md))
+<details>
+<summary><b>New in 4.0</b> (<a href="CHANGELOG.md">changelog</a>)</summary>
 
 - `embed(graph)` runs classic Cleora with a number of iterations chosen from the graph;
   per-iteration whitening, the default of 3.2, is opt-in.
@@ -47,28 +91,19 @@ benchmark is one command: [`benchmarks/replicate.sh`](benchmarks/replicate.sh).
   ([Performance](#performance)); both are bit-for-bit deterministic for any number of
   threads.
 - `scale_by_popularity` turns "how alike" into "how likely to be linked": better
-  link prediction and recommendation on two graphs out of three.
+  link prediction and recommendation on two graphs out of three, and better features
+  for classifiers.
 - Initial vectors are independent (in 3.2 a 256-dimensional initialisation had an
   effective rank of 5), weights are honoured, bad input is reported, forked workers
   no longer hang.
 - A benchmark that can be replicated with one command, against the reference
   implementations of nine other methods.
 
----
-
-## Achievements
-
-:one:st place at [SIGIR eCom Challenge 2020](https://sigir-ecom.github.io/ecom20DCPapers/SIGIR_eCom20_DC_paper_1.pdf)
-
-:two:nd place and Best Paper Award at [WSDM Booking.com Challenge 2021](http://ceur-ws.org/Vol-2855/challenge_short_3.pdf)
-
-:two:nd place at [Twitter Recsys Challenge 2021](https://recsys-twitter.com/competition_leaderboard/latest)
-
-:three:rd place at [KDD Cup 2021](https://ogb.stanford.edu/paper/kddcup2021/mag240m_SyneriseAI.pdf)
+</details>
 
 ---
 
-## Installation
+## Quick start
 
 ```bash
 pip install pycleora
@@ -82,8 +117,6 @@ pip install "pycleora[scipy]"   # the extra algorithms, attention / directed emb
 pip install "pycleora[viz]"     # matplotlib for visualization
 pip install "pycleora[full]"    # scipy + matplotlib + networkx + tqdm
 ```
-
-## Quick start
 
 ```python
 from pycleora import SparseMatrix, embed, find_most_similar
@@ -170,8 +203,9 @@ for_links = scale_by_popularity(graph, embeddings)     # row i times degree_i **
 The dot product of two such vectors is their cosine times a factor that grows with how
 connected both are; search them with an index that maximises the dot product. On two
 of three benchmark graphs this finds more of the held-out links than the cosine does
-([table](benchmarks/README.md#the-popularity-prior)). Keep the unit vectors for
-classification and for "more like this".
+([table](benchmarks/README.md#the-popularity-prior)). A classifier gains from knowing
+how connected a node is, too: as features, use `scale_by_popularity(graph, embeddings,
+exponent=0.25)`. Keep the unit vectors for "more like this".
 
 ### More
 
@@ -211,7 +245,7 @@ graph.left_markov_propagate_normalized_inplace(vectors, 8)   # 8 iterations, in 
 after every iteration - the default of pycleora 3.2. It needs many more entities than
 dimensions and 30 to 350 times the time. On small graphs it is clearly worse than the
 default, on graphs with hundreds of nodes per dimension it can classify better
-([Reading the results honestly](#reading-the-results-honestly)).
+([Where Cleora is not the best](#where-cleora-is-not-the-best)).
 
 ### Command line
 
@@ -243,9 +277,38 @@ embeddings are used in production:
 **One configuration per method, the same for every graph.** Nothing is chosen per
 dataset - not for the baselines, and not for Cleora, which runs with the settings
 recommended above for the task: left normalisation and `purpose="classification"` for
-node classification; symmetric normalisation, `purpose="similarity"` and the
-popularity prior for similarity search and link ranking. Both ways of feeding a graph are shown: **Cleora** (one reflexive column) and
+node classification; symmetric normalisation and `purpose="similarity"` for similarity
+search and link ranking; the popularity prior for both. Both ways of feeding a graph are shown: **Cleora** (one reflexive column) and
 **Cleora, two columns**.
+
+### The short version
+
+<!-- benchmark:headline -->
+| | Graphs | Cleora: best on | mean rank | Cleora, two columns: best on | mean rank | Best baseline (mean rank) |
+|---|---:|---:|---:|---:|---:|---|
+| Similarity search among all nodes (dot product / cosine, recall@10) | 26 | **23** | 1.12 | 15 | 2.23 | RandNE (3.46) |
+| Node classification (logistic regression, accuracy / micro-F1) | 17 | **11** | 1.88 | 7 | 2.00 | node2vec (3.35) |
+| Link ranking against sampled candidates (dot product / cosine, MRR) | 26 | **15** | 1.50 | 13 | 2.35 | RandNE (3.27) |
+
+With the number of iterations and the normalisation chosen on validation data - the baselines stay at their authors' settings, so this is not part of the comparison above - Cleora is ahead of every baseline on 15 of 17 graphs in node classification and on 23 of 26 graphs in link ranking against sampled candidates.
+<!-- /benchmark:headline -->
+
+### What the embeddings look like
+
+UMAP projections of the 1024-dimensional vectors, coloured by node class: one panel
+per method, the same nodes in every panel. All 26 graphs are in
+[`benchmarks/figures`](benchmarks/figures).
+
+![UMAP of ogbn-arxiv](benchmarks/figures/umap_ogbn_arxiv.png)
+
+![UMAP of Amazon Photo](benchmarks/figures/umap_amazon_photo.png)
+
+<details>
+<summary>Cora</summary>
+
+![UMAP of Cora](benchmarks/figures/umap_cora.png)
+
+</details>
 
 ### Mean rank across graphs
 
@@ -270,8 +333,8 @@ Node classification (accuracy, or micro-F1 on multi-label graphs), by probe:
 <!-- benchmark:ranks_nc -->
 | Probe | Graphs | Cleora | Cleora, two columns | DeepWalk | node2vec | Walklets | NetMF | GraRep | HOPE | ProNE | FastRP | RandNE |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| logistic regression | 17 | **2.00** (10) | 2.24 (7) | 4.18 (0) | 3.35 (1) | 5.53 (0) | 4.88 (2) | 7.00 (0) | 7.53 (0) | 6.47 (1) | 6.18 (1) | 5.24 (2) |
-| MLP (AdamC) | 17 | **1.94** (11) | 2.76 (6) | 3.35 (0) | 2.94 (1) | 5.00 (0) | 6.71 (0) | 6.82 (0) | 7.29 (0) | 6.82 (1) | 6.06 (1) | 5.41 (3) |
+| logistic regression | 17 | **1.88** (11) | 2.00 (7) | 4.18 (0) | 3.35 (1) | 5.53 (0) | 4.88 (2) | 7.00 (0) | 7.53 (0) | 6.47 (1) | 6.18 (1) | 5.35 (1) |
+| MLP (AdamC) | 17 | **1.88** (12) | 2.71 (7) | 3.41 (0) | 3.00 (1) | 4.94 (0) | 6.71 (0) | 6.82 (0) | 7.29 (0) | 6.88 (0) | 5.94 (2) | 5.47 (2) |
 <!-- /benchmark:ranks_nc -->
 
 Link ranking (MRR of the true neighbour against 500 sampled non-neighbours), by probe:
@@ -292,6 +355,9 @@ nearest nodes among all nodes of the graph (its known neighbours excluded), and 
 share of its held-out neighbours among them. Dot product or cosine, whichever
 validates better for the method. [nDCG@10, MAP@10, recall@50 and
 MRR](benchmarks/RESULTS.md#similarity-search-among-all-nodes) give the same picture.
+
+<details open>
+<summary><b>Recall@10 on every graph</b></summary>
 
 <!-- benchmark:retrieval_recall@10 -->
 | Dataset | Cleora | Cleora, two columns | DeepWalk | node2vec | Walklets | NetMF | GraRep | HOPE | ProNE | FastRP | RandNE |
@@ -326,47 +392,61 @@ MRR](benchmarks/RESULTS.md#similarity-search-among-all-nodes) give the same pict
 | *best on* | 23 / 26 | 15 / 26 | 0 / 22 | 0 / 22 | 1 / 15 | 0 / 15 | 0 / 15 | 1 / 15 | 1 / 23 | 0 / 26 | 0 / 26 |
 <!-- /benchmark:retrieval_recall@10 -->
 
+</details>
+
 ### Node classification
 
-Accuracy of logistic regression on 10% of the labels (or the official split):
+Accuracy of logistic regression on 10% of the labels (or the official split), and
+micro-F1 on the multi-label graphs.
+
+<details>
+<summary><b>Accuracy on every single-label graph</b></summary>
 
 <!-- benchmark:nc_accuracy_logistic -->
 | Dataset | Cleora | Cleora, two columns | DeepWalk | node2vec | Walklets | NetMF | GraRep | HOPE | ProNE | FastRP | RandNE |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| CiteSeer | <u>0.566 ± 0.011</u> | 0.551 ± 0.011 | 0.543 ± 0.008 | 0.555 ± 0.007 | 0.538 ± 0.011 | **0.572 ± 0.007** | 0.546 ± 0.016 | 0.450 ± 0.015 | 0.437 ± 0.009 | 0.486 ± 0.007 | 0.474 ± 0.009 |
-| Cora | **0.785 ± 0.010** | <u>0.783 ± 0.008</u> | 0.765 ± 0.007 | 0.761 ± 0.009 | 0.755 ± 0.009 | 0.766 ± 0.003 | 0.715 ± 0.010 | 0.601 ± 0.009 | 0.589 ± 0.011 | 0.701 ± 0.008 | 0.688 ± 0.014 |
-| PubMed | **0.811 ± 0.005** | 0.805 ± 0.003 | 0.802 ± 0.002 | 0.803 ± 0.003 | 0.800 ± 0.005 | <u>0.806 ± 0.001</u> | 0.776 ± 0.006 | 0.775 ± 0.005 | 0.756 ± 0.003 | 0.715 ± 0.003 | 0.707 ± 0.004 |
-| DBLP | **0.808 ± 0.003** | 0.802 ± 0.002 | 0.802 ± 0.003 | <u>0.803 ± 0.003</u> | 0.798 ± 0.004 | 0.797 ± 0.003 | 0.777 ± 0.006 | 0.750 ± 0.001 | 0.732 ± 0.004 | 0.685 ± 0.004 | 0.679 ± 0.003 |
-| Cora-Full | **0.586 ± 0.001** | <u>0.579 ± 0.001</u> | 0.569 ± 0.002 | 0.569 ± 0.004 | 0.573 ± 0.004 | 0.572 ± 0.004 | 0.486 ± 0.004 | 0.530 ± 0.000 | 0.534 ± 0.001 | 0.518 ± 0.005 | 0.520 ± 0.002 |
-| Coauthor CS | **0.876 ± 0.002** | **0.876 ± 0.002** | 0.868 ± 0.002 | <u>0.869 ± 0.002</u> | 0.866 ± 0.001 | 0.864 ± 0.002 | 0.805 ± 0.003 | 0.821 ± 0.004 | 0.793 ± 0.003 | 0.789 ± 0.002 | 0.783 ± 0.005 |
-| Amazon Photo | **0.917 ± 0.004** | **0.917 ± 0.002** | 0.907 ± 0.002 | 0.910 ± 0.002 | 0.907 ± 0.002 | 0.912 ± 0.006 | 0.857 ± 0.004 | 0.899 ± 0.002 | 0.878 ± 0.005 | 0.909 ± 0.005 | <u>0.913 ± 0.005</u> |
-| Amazon Computers | **0.892 ± 0.002** | 0.889 ± 0.003 | 0.876 ± 0.002 | 0.877 ± 0.003 | 0.872 ± 0.002 | 0.885 ± 0.004 | 0.801 ± 0.003 | 0.868 ± 0.001 | 0.860 ± 0.004 | <u>0.890 ± 0.002</u> | 0.888 ± 0.002 |
+| CiteSeer | <u>0.567 ± 0.013</u> | 0.550 ± 0.011 | 0.543 ± 0.008 | 0.555 ± 0.007 | 0.538 ± 0.011 | **0.572 ± 0.007** | 0.546 ± 0.016 | 0.450 ± 0.015 | 0.437 ± 0.009 | 0.486 ± 0.007 | 0.474 ± 0.009 |
+| Cora | **0.788 ± 0.008** | <u>0.786 ± 0.007</u> | 0.765 ± 0.007 | 0.761 ± 0.009 | 0.755 ± 0.009 | 0.766 ± 0.003 | 0.715 ± 0.010 | 0.601 ± 0.009 | 0.589 ± 0.011 | 0.701 ± 0.008 | 0.688 ± 0.014 |
+| PubMed | **0.812 ± 0.004** | 0.805 ± 0.003 | 0.802 ± 0.002 | 0.803 ± 0.003 | 0.800 ± 0.005 | <u>0.806 ± 0.001</u> | 0.776 ± 0.006 | 0.775 ± 0.005 | 0.756 ± 0.003 | 0.715 ± 0.003 | 0.707 ± 0.004 |
+| DBLP | **0.808 ± 0.003** | 0.802 ± 0.003 | 0.802 ± 0.003 | <u>0.803 ± 0.003</u> | 0.798 ± 0.004 | 0.797 ± 0.003 | 0.777 ± 0.006 | 0.750 ± 0.001 | 0.732 ± 0.004 | 0.685 ± 0.004 | 0.679 ± 0.003 |
+| Cora-Full | **0.589 ± 0.002** | <u>0.582 ± 0.001</u> | 0.569 ± 0.002 | 0.569 ± 0.004 | 0.573 ± 0.004 | 0.572 ± 0.004 | 0.486 ± 0.004 | 0.530 ± 0.000 | 0.534 ± 0.001 | 0.518 ± 0.005 | 0.520 ± 0.002 |
+| Coauthor CS | **0.876 ± 0.001** | **0.876 ± 0.002** | 0.868 ± 0.002 | <u>0.869 ± 0.002</u> | 0.866 ± 0.001 | 0.864 ± 0.002 | 0.805 ± 0.003 | 0.821 ± 0.004 | 0.793 ± 0.003 | 0.789 ± 0.002 | 0.783 ± 0.005 |
+| Amazon Photo | **0.916 ± 0.004** | **0.916 ± 0.003** | 0.907 ± 0.002 | 0.910 ± 0.002 | 0.907 ± 0.002 | 0.912 ± 0.006 | 0.857 ± 0.004 | 0.899 ± 0.002 | 0.878 ± 0.005 | 0.909 ± 0.005 | <u>0.913 ± 0.005</u> |
+| Amazon Computers | **0.891 ± 0.002** | 0.888 ± 0.002 | 0.876 ± 0.002 | 0.877 ± 0.003 | 0.872 ± 0.002 | 0.885 ± 0.004 | 0.801 ± 0.003 | 0.868 ± 0.001 | 0.860 ± 0.004 | <u>0.890 ± 0.002</u> | 0.888 ± 0.002 |
 | Coauthor Physics | 0.928 ± 0.001 | 0.927 ± 0.002 | <u>0.931 ± 0.001</u> | <u>0.931 ± 0.002</u> | 0.926 ± 0.001 | **0.932 ± 0.001** | 0.905 ± 0.001 | 0.896 ± 0.002 | 0.906 ± 0.002 | 0.868 ± 0.000 | 0.859 ± 0.004 |
-| Flickr | <u>0.539 ± 0.002</u> | **0.544 ± 0.001** | 0.533 ± 0.001 | 0.533 ± 0.001 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.535 ± 0.001 | 0.493 ± 0.000 | 0.515 ± 0.001 |
-| ogbn-arxiv | <u>0.681 ± 0.001</u> | 0.670 ± 0.002 | **0.685 ± 0.001** | **0.685 ± 0.001** | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.663 ± 0.002 | 0.569 ± 0.000 | 0.592 ± 0.003 |
-| Reddit | **0.941** | 0.937 | 0.937 | <u>0.940</u> | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.937 | 0.936 | <u>0.940</u> |
-| ogbn-products | **0.645** | <u>0.634</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.556 | 0.562 |
+| Flickr | <u>0.543 ± 0.001</u> | **0.551 ± 0.002** | 0.533 ± 0.001 | 0.533 ± 0.001 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.535 ± 0.001 | 0.493 ± 0.000 | 0.515 ± 0.001 |
+| ogbn-arxiv | <u>0.681 ± 0.001</u> | 0.671 ± 0.002 | **0.685 ± 0.001** | **0.685 ± 0.001** | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.663 ± 0.002 | 0.569 ± 0.000 | 0.592 ± 0.003 |
+| Reddit | **0.941** | 0.939 | 0.937 | <u>0.940</u> | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.937 | 0.936 | <u>0.940</u> |
+| ogbn-products | **0.645** | <u>0.602</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.556 | 0.562 |
 | *mean rank* | **1.46** | 2.08 | 4.00 | 3.15 | 5.31 | 3.92 | 7.00 | 7.23 | 6.85 | 6.69 | 6.38 |
 | *best on* | 10 / 13 | 6 / 13 | 0 / 12 | 1 / 12 | 0 / 9 | 2 / 9 | 0 / 9 | 0 / 9 | 0 / 12 | 0 / 13 | 0 / 13 |
 <!-- /benchmark:nc_accuracy_logistic -->
 
-Multi-label graphs, micro-F1:
+</details>
+
+<details>
+<summary><b>Micro-F1 on every multi-label graph</b></summary>
 
 <!-- benchmark:nc_micro_f1_logistic -->
 | Dataset | Cleora | Cleora, two columns | DeepWalk | node2vec | Walklets | NetMF | GraRep | HOPE | ProNE | FastRP | RandNE |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| PPI | <u>0.127 ± 0.011</u> | 0.125 ± 0.014 | 0.106 ± 0.004 | 0.106 ± 0.006 | 0.120 ± 0.008 | 0.091 ± 0.013 | 0.076 ± 0.014 | 0.104 ± 0.010 | 0.096 ± 0.013 | 0.123 ± 0.008 | **0.129 ± 0.008** |
-| Wikipedia POS | 0.383 ± 0.010 | **0.410 ± 0.011** | 0.369 ± 0.008 | 0.371 ± 0.010 | 0.368 ± 0.008 | 0.337 ± 0.036 | 0.361 ± 0.006 | 0.290 ± 0.071 | 0.365 ± 0.013 | 0.340 ± 0.006 | <u>0.409 ± 0.012</u> |
-| BlogCatalog | 0.259 ± 0.006 | 0.284 ± 0.005 | 0.277 ± 0.007 | 0.284 ± 0.005 | 0.255 ± 0.007 | 0.276 ± 0.008 | 0.283 ± 0.005 | 0.213 ± 0.003 | 0.276 ± 0.005 | **0.332 ± 0.009** | <u>0.301 ± 0.009</u> |
-| Yelp | 0.217 | 0.188 | 0.202 | 0.201 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | **0.284** | 0.185 | <u>0.244</u> |
-| *mean rank* | 3.75 | 2.75 | 4.75 | 4.00 | 6.25 | 8.00 | 7.00 | 8.50 | 5.25 | 4.50 | **1.50** |
-| *best on* | 0 / 4 | 1 / 4 | 0 / 4 | 0 / 4 | 0 / 3 | 0 / 3 | 0 / 3 | 0 / 3 | 1 / 4 | 1 / 4 | 2 / 4 |
+| PPI | **0.134 ± 0.010** | 0.127 ± 0.012 | 0.106 ± 0.004 | 0.106 ± 0.006 | 0.120 ± 0.008 | 0.091 ± 0.013 | 0.076 ± 0.014 | 0.104 ± 0.010 | 0.096 ± 0.013 | 0.123 ± 0.008 | <u>0.129 ± 0.008</u> |
+| Wikipedia POS | 0.381 ± 0.009 | **0.415 ± 0.011** | 0.369 ± 0.008 | 0.371 ± 0.010 | 0.368 ± 0.008 | 0.337 ± 0.036 | 0.361 ± 0.006 | 0.290 ± 0.071 | 0.365 ± 0.013 | 0.340 ± 0.006 | <u>0.409 ± 0.012</u> |
+| BlogCatalog | 0.260 ± 0.007 | <u>0.306 ± 0.007</u> | 0.277 ± 0.007 | 0.284 ± 0.005 | 0.255 ± 0.007 | 0.276 ± 0.008 | 0.283 ± 0.005 | 0.213 ± 0.003 | 0.276 ± 0.005 | **0.332 ± 0.009** | 0.301 ± 0.009 |
+| Yelp | <u>0.282</u> | 0.276 | 0.202 | 0.201 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | **0.284** | 0.185 | 0.244 |
+| *mean rank* | 3.25 | **1.75** | 4.75 | 4.00 | 6.25 | 8.00 | 7.00 | 8.50 | 5.25 | 4.50 | 2.00 |
+| *best on* | 1 / 4 | 1 / 4 | 0 / 4 | 0 / 4 | 0 / 3 | 0 / 3 | 0 / 3 | 0 / 3 | 1 / 4 | 1 / 4 | 1 / 4 |
 <!-- /benchmark:nc_micro_f1_logistic -->
+
+</details>
 
 ### Link ranking against sampled candidates
 
 MRR of a held-out edge against 500 sampled non-edges of the same node (the OGB link
-datasets: against their official negatives), by dot product or cosine:
+datasets: against their official negatives), by dot product or cosine.
+
+<details>
+<summary><b>MRR on every graph</b></summary>
 
 <!-- benchmark:lp_mrr_similarity -->
 | Dataset | Cleora | Cleora, two columns | DeepWalk | node2vec | Walklets | NetMF | GraRep | HOPE | ProNE | FastRP | RandNE |
@@ -401,34 +481,76 @@ datasets: against their official negatives), by dot product or cosine:
 | *best on* | 15 / 26 | 13 / 26 | 1 / 22 | 0 / 22 | 0 / 15 | 0 / 15 | 0 / 15 | 2 / 15 | 3 / 23 | 0 / 26 | 5 / 26 |
 <!-- /benchmark:lp_mrr_similarity -->
 
+</details>
+
+### Time and memory
+
+Time to embed the whole graph at 1024 dimensions, one method at a time on an idle
+24-thread machine (median of three runs; single runs for the longest ones):
+
+<!-- benchmark:time -->
+| Dataset | Cleora | pycleora 3.2 default | DeepWalk | node2vec | Walklets | NetMF | GraRep | HOPE | ProNE | FastRP | RandNE |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Cora | **81 ms** | 27.9 s | 5.7 s | 7.1 s | 7.0 s | 2.1 min | 8.2 s | 2.2 s | 2.7 s | 718 ms | 705 ms |
+| PubMed | **198 ms** | 29.8 s | 44.2 s | 46.1 s | 57.0 s | 8.2 min | 2.9 min | 14.4 s | 16.3 s | 1.8 s | 1.2 s |
+| Amazon Computers | **163 ms** | 25.7 s | 25.9 s | 30.1 s | 60.9 s | 5.3 min | 6.7 min | 2.4 min | 18.3 s | 2.5 s | 1.7 s |
+| Flickr | **618 ms** | 62.9 s | 10.0 min | 10.1 min | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 82.6 s | 7.7 s | 5.0 s |
+| ogbn-arxiv | **1.4 s** | 1.8 min | 17.4 min | 18.1 min | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 2.9 min | 13.1 s | 10.0 s |
+| Yelp | **7.8 s** | 4.2 min | 97.1 min | 99.8 min | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 13.1 min | 67.7 s | 53.6 s |
+<!-- /benchmark:time -->
+
+<details>
+<summary><b>Peak memory of the embedding process</b></summary>
+
+<!-- benchmark:memory -->
+| Dataset | Cleora | pycleora 3.2 default | DeepWalk | node2vec | Walklets | NetMF | GraRep | HOPE | ProNE | FastRP | RandNE |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Cora | **0.06 GB** | 0.37 GB | 0.26 GB | 0.28 GB | 0.39 GB | 0.27 GB | 0.26 GB | 0.17 GB | 0.45 GB | 0.40 GB | 0.26 GB |
+| PubMed | **0.20 GB** | 0.46 GB | 0.61 GB | 0.64 GB | 2.02 GB | 3.90 GB | 4.73 GB | 0.41 GB | 1.53 GB | 1.87 GB | 1.04 GB |
+| Amazon Computers | **0.16 GB** | 0.44 GB | 0.49 GB | 0.50 GB | 1.47 GB | 2.07 GB | 9.79 GB | 0.98 GB | 1.15 GB | 1.38 GB | 0.76 GB |
+| Flickr | **0.77 GB** | 1.02 GB | 2.01 GB | 2.03 GB | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 6.10 GB | 7.89 GB | 4.24 GB |
+| ogbn-arxiv | **1.43 GB** | 1.65 GB | 3.59 GB | 3.61 GB | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 11.39 GB | 14.84 GB | 7.94 GB |
+| Yelp | **6.05 GB** | 6.21 GB | 14.65 GB | 14.66 GB | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 46.35 GB | 62.28 GB | 33.21 GB |
+<!-- /benchmark:memory -->
+
+</details>
+
 ### With a validation set
 
 The tables above use no per-graph tuning. When labels or held-out edges are available,
 choosing the number of iterations and the normalisation on them costs seconds per
 candidate and adds about a point:
 
+<details>
+<summary><b>Node classification, graph by graph</b></summary>
+
 <!-- benchmark:tuned_nc -->
 | Dataset | Cleora | Cleora, tuned | gain | Best baseline |
 |---|---:|---:|---:|---|
-| CiteSeer | 0.566 | **0.579** | +1.3 | NetMF 0.572 |
-| Cora | 0.785 | **0.791** | +0.6 | NetMF 0.766 |
-| PubMed | 0.811 | **0.814** | +0.3 | NetMF 0.806 |
-| DBLP | 0.808 | **0.817** | +0.9 | node2vec 0.803 |
-| Cora-Full | 0.586 | **0.587** | +0.1 | Walklets 0.573 |
-| Coauthor CS | 0.876 | **0.882** | +0.6 | node2vec 0.869 |
-| Amazon Photo | 0.917 | **0.924** | +0.7 | RandNE 0.913 |
-| Amazon Computers | 0.892 | **0.901** | +0.9 | FastRP 0.890 |
-| Coauthor Physics | 0.928 | **0.938** | +1.0 | NetMF 0.932 |
-| Flickr | 0.539 | **0.544** | +0.6 | ProNE 0.535 |
-| ogbn-arxiv | 0.681 | **0.702** | +2.1 | node2vec 0.685 |
-| Reddit | 0.941 | **0.945** | +0.4 | RandNE 0.940 |
-| ogbn-products | **0.645** | 0.637 | -0.8 | RandNE 0.562 |
-| PPI | 0.127 | **0.131** | +0.3 | RandNE 0.129 |
-| Wikipedia POS | 0.383 | **0.428** | +4.5 | RandNE 0.409 |
-| BlogCatalog | 0.259 | 0.299 | +4.0 | FastRP 0.332 |
-| Yelp | 0.217 | 0.255 | +3.8 | ProNE 0.284 |
-| *mean gain (points)* | | | +1.3 | |
+| CiteSeer | 0.567 | **0.580** | +1.3 | NetMF 0.572 |
+| Cora | 0.788 | **0.792** | +0.4 | NetMF 0.766 |
+| PubMed | 0.812 | **0.815** | +0.3 | NetMF 0.806 |
+| DBLP | 0.808 | **0.818** | +1.0 | node2vec 0.803 |
+| Cora-Full | **0.589** | 0.587 | -0.1 | Walklets 0.573 |
+| Coauthor CS | 0.876 | **0.884** | +0.7 | node2vec 0.869 |
+| Amazon Photo | 0.916 | **0.924** | +0.8 | RandNE 0.913 |
+| Amazon Computers | 0.891 | **0.899** | +0.9 | FastRP 0.890 |
+| Coauthor Physics | 0.928 | **0.939** | +1.1 | NetMF 0.932 |
+| Flickr | 0.543 | **0.553** | +1.0 | ProNE 0.535 |
+| ogbn-arxiv | 0.681 | **0.700** | +1.9 | node2vec 0.685 |
+| Reddit | 0.941 | **0.946** | +0.5 | RandNE 0.940 |
+| ogbn-products | **0.645** | 0.604 | -4.1 | RandNE 0.562 |
+| PPI | 0.134 | **0.134** | +0.0 | RandNE 0.129 |
+| Wikipedia POS | 0.381 | **0.433** | +5.2 | RandNE 0.409 |
+| BlogCatalog | 0.260 | 0.324 | +6.4 | FastRP 0.332 |
+| Yelp | 0.282 | 0.282 | +0.0 | ProNE 0.284 |
+| *mean gain (points)* | | | +1.0 | |
 <!-- /benchmark:tuned_nc -->
+
+</details>
+
+<details>
+<summary><b>Link ranking, graph by graph</b></summary>
 
 <!-- benchmark:tuned_lp -->
 | Dataset | Cleora | Cleora, tuned | gain | Best baseline |
@@ -462,59 +584,25 @@ candidate and adds about a point:
 | *mean gain (points)* | | | +1.8 | |
 <!-- /benchmark:tuned_lp -->
 
-### Time and memory
+</details>
 
-Time to embed the whole graph at 1024 dimensions, one method at a time on an idle
-24-thread machine (median of three runs; single runs for the longest ones):
+### Where Cleora is not the best
 
-<!-- benchmark:time -->
-| Dataset | Cleora | pycleora 3.2 default | DeepWalk | node2vec | Walklets | NetMF | GraRep | HOPE | ProNE | FastRP | RandNE |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Cora | **81 ms** | 27.9 s | 5.7 s | 7.1 s | 7.0 s | 2.1 min | 8.2 s | 2.2 s | 2.7 s | 718 ms | 705 ms |
-| PubMed | **198 ms** | 29.8 s | 44.2 s | 46.1 s | 57.0 s | 8.2 min | 2.9 min | 14.4 s | 16.3 s | 1.8 s | 1.2 s |
-| Amazon Computers | **163 ms** | 25.7 s | 25.9 s | 30.1 s | 60.9 s | 5.3 min | 6.7 min | 2.4 min | 18.3 s | 2.5 s | 1.7 s |
-| Flickr | **618 ms** | 62.9 s | 10.0 min | 10.1 min | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 82.6 s | 7.7 s | 5.0 s |
-| ogbn-arxiv | **1.4 s** | 1.8 min | 17.4 min | 18.1 min | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 2.9 min | 13.1 s | 10.0 s |
-| Yelp | **7.8 s** | 4.2 min | 97.1 min | 99.8 min | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 13.1 min | 67.7 s | 53.6 s |
-<!-- /benchmark:time -->
+Every graph on which another method is ahead, generated from the same tables:
 
-Peak memory of the embedding process:
-
-<!-- benchmark:memory -->
-| Dataset | Cleora | pycleora 3.2 default | DeepWalk | node2vec | Walklets | NetMF | GraRep | HOPE | ProNE | FastRP | RandNE |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Cora | **0.06 GB** | 0.37 GB | 0.26 GB | 0.28 GB | 0.39 GB | 0.27 GB | 0.26 GB | 0.17 GB | 0.45 GB | 0.40 GB | 0.26 GB |
-| PubMed | **0.20 GB** | 0.46 GB | 0.61 GB | 0.64 GB | 2.02 GB | 3.90 GB | 4.73 GB | 0.41 GB | 1.53 GB | 1.87 GB | 1.04 GB |
-| Amazon Computers | **0.16 GB** | 0.44 GB | 0.49 GB | 0.50 GB | 1.47 GB | 2.07 GB | 9.79 GB | 0.98 GB | 1.15 GB | 1.38 GB | 0.76 GB |
-| Flickr | **0.77 GB** | 1.02 GB | 2.01 GB | 2.03 GB | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 6.10 GB | 7.89 GB | 4.24 GB |
-| ogbn-arxiv | **1.43 GB** | 1.65 GB | 3.59 GB | 3.61 GB | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 11.39 GB | 14.84 GB | 7.94 GB |
-| Yelp | **6.05 GB** | 6.21 GB | 14.65 GB | 14.66 GB | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 46.35 GB | 62.28 GB | 33.21 GB |
-<!-- /benchmark:memory -->
-
-### What the embeddings look like
-
-UMAP projections of the 1024-dimensional vectors, coloured by node class. One figure
-per dataset, one panel per method; all of them are in
-[`benchmarks/figures`](benchmarks/figures).
-
-![UMAP of Cora](benchmarks/figures/umap_cora.png)
-
-![UMAP of Amazon Photo](benchmarks/figures/umap_amazon_photo.png)
-
-![UMAP of ogbn-arxiv](benchmarks/figures/umap_ogbn_arxiv.png)
-
-### Reading the results honestly
-
-Every graph on which Cleora is not the best method, generated from the same tables:
+<details>
+<summary><b>The full list</b></summary>
 
 <!-- benchmark:caveats -->
 - **Similarity search among all nodes: a baseline is ahead of Cleora on** PubMed (Walklets 0.192, Cleora 0.185); MovieLens-1M (HOPE 0.107, Cleora 0.101); Reddit (ProNE 0.345, Cleora 0.311).
 - **Similarity search among all nodes: the pycleora 3.2 default (whitening, 40 iterations) is ahead of Cleora on** roadNet-CA (0.3464 against 0.3458); Reddit (0.359 against 0.311).
-- **Node classification: a baseline is ahead of Cleora on** CiteSeer (NetMF 0.572, Cleora 0.566); Coauthor Physics (NetMF 0.932, Cleora 0.928); ogbn-arxiv (node2vec 0.685, Cleora 0.681); PPI (RandNE 0.129, Cleora 0.127); Wikipedia POS (RandNE 0.409, Cleora 0.383); BlogCatalog (FastRP 0.332, Cleora 0.259); Yelp (ProNE 0.284, Cleora 0.217).
-- **Node classification: the pycleora 3.2 default (whitening, 40 iterations) is ahead of Cleora on** Flickr (0.548 against 0.539); ogbn-arxiv (0.695 against 0.681); ogbn-products (0.741 against 0.645); Yelp (0.264 against 0.217).
+- **Node classification: a baseline is ahead of Cleora on** CiteSeer (NetMF 0.572, Cleora 0.567); Coauthor Physics (NetMF 0.932, Cleora 0.928); ogbn-arxiv (node2vec 0.685, Cleora 0.681); Wikipedia POS (RandNE 0.409, Cleora 0.381); BlogCatalog (FastRP 0.332, Cleora 0.260); Yelp (ProNE 0.284, Cleora 0.282).
+- **Node classification: the pycleora 3.2 default (whitening, 40 iterations) is ahead of Cleora on** Flickr (0.548 against 0.543); ogbn-arxiv (0.695 against 0.681); ogbn-products (0.741 against 0.645).
 - **Link ranking against sampled candidates: a baseline is ahead of Cleora on** Facebook (ego) (ProNE 0.601, Cleora 0.595); Coauthor CS (RandNE 0.648, Cleora 0.637); Coauthor Physics (RandNE 0.752, Cleora 0.737); MovieLens-1M (HOPE 0.149, Cleora 0.148); ogbl-ddi (HOPE 0.083, Cleora 0.027); ogbl-collab (DeepWalk 0.0955, Cleora 0.0946); roadNet-CA (ProNE 0.778, Cleora 0.752); Yelp (RandNE 0.513, Cleora 0.495); Reddit (ProNE 0.626, Cleora 0.605); ogbl-citation2 (RandNE 0.829, Cleora 0.813); LiveJournal (RandNE 0.776, Cleora 0.765).
 - **Link ranking against sampled candidates: the pycleora 3.2 default (whitening, 40 iterations) is ahead of Cleora on** Coauthor Physics (0.752 against 0.737); roadNet-CA (0.816 against 0.752); Yelp (0.501 against 0.495); ogbl-citation2 (0.827 against 0.813); LiveJournal (0.809 against 0.765).
 <!-- /benchmark:caveats -->
+
+</details>
 
 What follows from that list:
 
@@ -535,16 +623,18 @@ What follows from that list:
   behind ([rank tables](#mean-rank-across-graphs)).
 - **Single-label classification**: ahead on most graphs, by margins of a point or two
   at most.
-- **Multi-label classification is not Cleora's ground.** On PPI, Wikipedia POS,
-  BlogCatalog and Yelp one of RandNE, FastRP and ProNE is better.
+- **Multi-label classification is the closest contest.** Cleora is best on PPI and
+  within a fraction of a point of ProNE on Yelp; on Wikipedia POS and BlogCatalog
+  RandNE and FastRP are ahead of it - though on Wikipedia POS Cleora fed as two columns
+  beats them both.
 - **Whitening pays off when there are far more nodes than dimensions.** The 3.2 default
   (40 iterations, whitening after each) loses badly on small graphs and costs 30 to
-  350 times the time, but on four of the five largest labelled graphs it classifies
+  350 times the time, but on three of the five largest labelled graphs it classifies
   better than plain Cleora - by ten points on ogbn-products. `embed(graph, 1024, 40,
   whiten=True)` is worth a try there.
 - **Two columns can beat one**: on Reddit, the densest graph, in both link
   measurements; on ogbl-citation2, LiveJournal and two more against sampled
-  candidates; on four graphs in classification. The recommendation of one reflexive
+  candidates; on five graphs in classification. The recommendation of one reflexive
   column is a default, not a law.
 - **Everything is at 1024 dimensions.** Most baselines were published at 128, and some
   of them (ProNE and HOPE on the small graphs) are better there.
@@ -628,7 +718,17 @@ on this page does not use them: it runs the reference implementations.
 
 ---
 
-## Case study: Zomato
+## In competitions and in production
+
+:one:st place at [SIGIR eCom Challenge 2020](https://sigir-ecom.github.io/ecom20DCPapers/SIGIR_eCom20_DC_paper_1.pdf)
+
+:two:nd place and Best Paper Award at [WSDM Booking.com Challenge 2021](http://ceur-ws.org/Vol-2855/challenge_short_3.pdf)
+
+:two:nd place at [Twitter Recsys Challenge 2021](https://recsys-twitter.com/competition_leaderboard/latest)
+
+:three:rd place at [KDD Cup 2021](https://ogb.stanford.edu/paper/kddcup2021/mag240m_SyneriseAI.pdf)
+
+### Case study: Zomato
 
 **From 20 hours to under 5 minutes** - powering recommendations for 80M+ users across
 500+ cities. Zomato's ML team needed graph embeddings for "People Like You" restaurant
@@ -637,7 +737,7 @@ interactions of a single city region; Cleora embeds them in under five minutes, 
 they report it 197 times faster than DeepWalk in their pipeline.
 [Read the Zomato blog post →](https://www.zomato.com/blog/connecting-the-dots-strengthening-recommendations-for-our-customers-part-two/)
 
-## Also used by
+### Also used by
 
 **Synerise** - AI/ML platform processing billions of e-commerce events daily: product
 embeddings from terabytes of transactions, customer segmentation, cold-start

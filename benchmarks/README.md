@@ -104,10 +104,9 @@ four *families*. The columns of the main tables:
   `embed(graph, 1024, graph.suggest_iterations(propagation, purpose), propagation)`
   with `propagation="left"`, `purpose="classification"` for node classification and
   `propagation="symmetric"`, `purpose="similarity"` for similarity search and link
-  ranking, where the vectors are also given the popularity prior
-  (`scale_by_popularity`, [below](#the-popularity-prior)). The two columns are the
-  same method fed in two ways; they are shown side by side and are not ranked against
-  each other.
+  ranking, followed by `scale_by_popularity` with the exponent of the purpose
+  ([below](#the-popularity-prior)). The two columns are the same method fed in two
+  ways; they are shown side by side and are not ranked against each other.
 
 Outside the main tables, in tables of their own:
 
@@ -243,13 +242,13 @@ Two decisions about Cleora were made once, for all graphs, and not on test score
 <!-- benchmark:families_validation -->
 | Task | Graphs | one column, left | one column, symmetric | two columns, left | two columns, symmetric |
 |---|---:|---:|---:|---:|---:|
-| node classification (logistic regression) | 17 | 0.6606 (4) | 0.6490 (7) | 0.6592 (2) | 0.6539 (4) |
+| node classification (logistic regression) | 17 | 0.6661 (6) | 0.6511 (3) | 0.6676 (3) | 0.6590 (5) |
 | link ranking (cosine) | 26 | 0.4242 (3) | 0.4575 (21) | 0.3870 (1) | 0.4033 (1) |
 <!-- /benchmark:families_validation -->
 
 - *The number of iterations.* A rule on two statistics of the graph, fitted on
   validation curves ([below](#number-of-iterations)).
-- *The popularity prior and its exponent* ([next section](#the-popularity-prior)).
+- *The popularity prior and its two exponents* ([next section](#the-popularity-prior)).
 
 In similarity search and in link ranking a method is given the better of dot product
 and cosine on validation (the validation MRR against sampled candidates); for Cleora
@@ -270,24 +269,24 @@ reported separately:
 <!-- benchmark:tuned_nc -->
 | Dataset | Cleora | Cleora, tuned | gain | Best baseline |
 |---|---:|---:|---:|---|
-| CiteSeer | 0.566 | **0.579** | +1.3 | NetMF 0.572 |
-| Cora | 0.785 | **0.791** | +0.6 | NetMF 0.766 |
-| PubMed | 0.811 | **0.814** | +0.3 | NetMF 0.806 |
-| DBLP | 0.808 | **0.817** | +0.9 | node2vec 0.803 |
-| Cora-Full | 0.586 | **0.587** | +0.1 | Walklets 0.573 |
-| Coauthor CS | 0.876 | **0.882** | +0.6 | node2vec 0.869 |
-| Amazon Photo | 0.917 | **0.924** | +0.7 | RandNE 0.913 |
-| Amazon Computers | 0.892 | **0.901** | +0.9 | FastRP 0.890 |
-| Coauthor Physics | 0.928 | **0.938** | +1.0 | NetMF 0.932 |
-| Flickr | 0.539 | **0.544** | +0.6 | ProNE 0.535 |
-| ogbn-arxiv | 0.681 | **0.702** | +2.1 | node2vec 0.685 |
-| Reddit | 0.941 | **0.945** | +0.4 | RandNE 0.940 |
-| ogbn-products | **0.645** | 0.637 | -0.8 | RandNE 0.562 |
-| PPI | 0.127 | **0.131** | +0.3 | RandNE 0.129 |
-| Wikipedia POS | 0.383 | **0.428** | +4.5 | RandNE 0.409 |
-| BlogCatalog | 0.259 | 0.299 | +4.0 | FastRP 0.332 |
-| Yelp | 0.217 | 0.255 | +3.8 | ProNE 0.284 |
-| *mean gain (points)* | | | +1.3 | |
+| CiteSeer | 0.567 | **0.580** | +1.3 | NetMF 0.572 |
+| Cora | 0.788 | **0.792** | +0.4 | NetMF 0.766 |
+| PubMed | 0.812 | **0.815** | +0.3 | NetMF 0.806 |
+| DBLP | 0.808 | **0.818** | +1.0 | node2vec 0.803 |
+| Cora-Full | **0.589** | 0.587 | -0.1 | Walklets 0.573 |
+| Coauthor CS | 0.876 | **0.884** | +0.7 | node2vec 0.869 |
+| Amazon Photo | 0.916 | **0.924** | +0.8 | RandNE 0.913 |
+| Amazon Computers | 0.891 | **0.899** | +0.9 | FastRP 0.890 |
+| Coauthor Physics | 0.928 | **0.939** | +1.1 | NetMF 0.932 |
+| Flickr | 0.543 | **0.553** | +1.0 | ProNE 0.535 |
+| ogbn-arxiv | 0.681 | **0.700** | +1.9 | node2vec 0.685 |
+| Reddit | 0.941 | **0.946** | +0.5 | RandNE 0.940 |
+| ogbn-products | **0.645** | 0.604 | -4.1 | RandNE 0.562 |
+| PPI | 0.134 | **0.134** | +0.0 | RandNE 0.129 |
+| Wikipedia POS | 0.381 | **0.433** | +5.2 | RandNE 0.409 |
+| BlogCatalog | 0.260 | 0.324 | +6.4 | FastRP 0.332 |
+| Yelp | 0.282 | 0.282 | +0.0 | ProNE 0.284 |
+| *mean gain (points)* | | | +1.0 | |
 <!-- /benchmark:tuned_nc -->
 
 <!-- benchmark:tuned_lp -->
@@ -361,6 +360,27 @@ similar; at larger exponents popularity starts to replace similarity and the sco
 fall. It does not help everywhere: on eight of the 26 graphs (Reddit, ogbl-ddi,
 MovieLens-1M, PPI, Facebook, Coauthor Physics, roadNet-CA, Yelp) the cosine validates
 better and is what the tables use.
+
+A classifier can use the same information: with scaled vectors it sees how well
+connected a node is, which matters most where a node has several labels. For
+classification the Cleora columns are scaled with the exponent 1/4, chosen the same
+way - the classification configuration of the benchmark, logistic regression, mean
+validation score over the labelled graphs of tiers S and M. The probe still chooses
+the feature scaling on validation, and unit-norm rows are one of its options:
+
+<!-- benchmark:popularity_exponent_classification -->
+| Exponent | Graphs | Validation score | Graphs above the unit vectors | Graphs below |
+|---:|---:|---:|---:|---:|
+| 0 | 16 | 0.6474 | 0 | 0 |
+| 0.03125 | 16 | 0.6492 | 10 | 3 |
+| 0.0625 | 16 | 0.6505 | 11 | 4 |
+| 0.09375 | 16 | 0.6511 | 11 | 5 |
+| 0.125 | 16 | 0.6519 | 10 | 4 |
+| 0.1875 | 16 | 0.6529 | 9 | 6 |
+| 0.25 | 16 | **0.6536** | 10 | 6 |
+| 0.375 | 16 | 0.6527 | 10 | 6 |
+| 0.5 | 16 | 0.6520 | 10 | 5 |
+<!-- /benchmark:popularity_exponent_classification -->
 
 ## Number of iterations
 
@@ -445,24 +465,24 @@ sweep chose):
 <!-- benchmark:iterations_nc -->
 | Dataset | one column, left (auto) | one column, left (tuned) | one column, left (loss) | one column, symmetric (auto) | one column, symmetric (tuned) | one column, symmetric (loss) | two columns, left (auto) | two columns, left (tuned) | two columns, left (loss) | two columns, symmetric (auto) | two columns, symmetric (tuned) | two columns, symmetric (loss) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| CiteSeer | 29 | 64 | +1.3 | 43 | 64 | -0.5 | 14 | 48 | +1.6 | 22 | 64 | +1.7 |
-| Cora | 24 | 48 | +0.2 | 36 | 48 | +0.0 | 12 | 12 | +0.0 | 18 | 32 | +0.0 |
-| PPI | 11 | 12 | +0.3 | 16 | 12 | -0.1 | 5 | 4 | -0.2 | 8 | 6 | +0.3 |
-| PubMed | 23 | 32 | +0.2 | 34 | 64 | +0.8 | 11 | 16 | +0.2 | 17 | 32 | +0.7 |
-| DBLP | 20 | 32 | +0.8 | 29 | 64 | +1.6 | 10 | 16 | +0.8 | 15 | 48 | +1.1 |
-| Cora-Full | 19 | 16 | +0.1 | 28 | 24 | -0.1 | 9 | 8 | -0.0 | 14 | 12 | +0.0 |
-| Coauthor CS | 16 | 24 | +0.2 | 24 | 32 | +0.2 | 8 | 12 | +0.1 | 12 | 16 | +0.2 |
-| Amazon Photo | 9 | 8 | -0.1 | 13 | 16 | +0.2 | 4 | 6 | +0.1 | 6 | 8 | +0.1 |
-| Wikipedia POS | 8 | 48 | +0.2 | 12 | 32 | -0.1 | 4 | 3 | +1.8 | 6 | 3 | +0.9 |
-| Amazon Computers | 8 | 12 | +0.0 | 12 | 24 | +0.3 | 4 | 4 | +0.0 | 6 | 8 | -0.0 |
-| Coauthor Physics | 13 | 32 | +0.8 | 19 | 64 | +0.4 | 6 | 16 | +0.8 | 9 | 24 | +0.4 |
-| BlogCatalog | 8 | 12 | +1.5 | 9 | 24 | +3.8 | 3 | 4 | +0.7 | 4 | 4 | +0.0 |
-| Flickr | 15 | 32 | +0.4 | 23 | 16 | -0.4 | 8 | 16 | -0.0 | 11 | 8 | +0.0 |
-| ogbn-arxiv | 13 | 24 | +0.7 | 19 | 48 | +2.7 | 6 | 12 | +0.8 | 10 | 24 | +1.2 |
-| Yelp | 11 | 8 | +2.8 | 17 | 16 | +0.4 | 6 | 2 | +6.7 | 8 | 4 | +1.5 |
-| Reddit | 8 | 12 | +0.1 | 8 | 24 | +3.2 | 2 | 3 | +0.4 | 2 | 8 | +2.5 |
+| CiteSeer | 29 | 64 | +1.3 | 43 | 64 | +0.2 | 14 | 48 | +1.5 | 22 | 64 | +1.7 |
+| Cora | 24 | 48 | -0.1 | 36 | 48 | +0.0 | 12 | 12 | +0.0 | 18 | 32 | -0.4 |
+| PPI | 11 | 12 | +0.2 | 16 | 12 | -0.1 | 5 | 4 | +0.0 | 8 | 6 | +0.3 |
+| PubMed | 23 | 32 | +0.1 | 34 | 64 | +0.9 | 11 | 16 | +0.2 | 17 | 32 | +0.6 |
+| DBLP | 20 | 32 | +0.7 | 29 | 64 | +1.8 | 10 | 16 | +0.8 | 15 | 48 | +1.3 |
+| Cora-Full | 19 | 16 | -0.1 | 28 | 24 | -0.2 | 9 | 8 | -0.0 | 14 | 12 | -0.2 |
+| Coauthor CS | 16 | 24 | +0.2 | 24 | 32 | +0.3 | 8 | 12 | +0.2 | 12 | 16 | +0.2 |
+| Amazon Photo | 9 | 8 | -0.1 | 13 | 16 | +0.3 | 4 | 6 | +0.1 | 6 | 8 | +0.2 |
+| Wikipedia POS | 8 | 48 | -25.0 | 12 | 32 | +2.1 | 4 | 3 | +1.8 | 6 | 3 | +2.6 |
+| Amazon Computers | 8 | 12 | +0.1 | 12 | 24 | +0.5 | 4 | 4 | +0.0 | 6 | 8 | +0.1 |
+| Coauthor Physics | 13 | 32 | +0.9 | 19 | 64 | +0.4 | 6 | 16 | +0.8 | 9 | 24 | +0.5 |
+| BlogCatalog | 8 | 12 | +3.4 | 9 | 24 | +2.7 | 3 | 4 | +1.8 | 4 | 4 | +0.0 |
+| Flickr | 15 | 32 | +0.3 | 23 | 16 | -0.8 | 8 | 16 | +0.1 | 11 | 8 | -0.3 |
+| ogbn-arxiv | 13 | 24 | +0.6 | 19 | 48 | +2.6 | 6 | 12 | +0.9 | 10 | 24 | +1.3 |
+| Yelp | 11 | 8 | -1.0 | 17 | 16 | -0.2 | 6 | 2 | -0.6 | 8 | 4 | -2.6 |
+| Reddit | 8 | 12 | +0.4 | 8 | 24 | +3.3 | 2 | 3 | +0.5 | 2 | 8 | +2.6 |
 | ogbn-products | 8 | – | – | 10 | – | – | 3 | – | – | 5 | – | – |
-| *mean loss* |  |  | +0.6 |  |  | +0.8 |  |  | +0.9 |  |  | +0.7 |
+| *mean loss* |  |  | -1.1 |  |  | +0.9 |  |  | +0.5 |  |  | +0.5 |
 <!-- /benchmark:iterations_nc -->
 
 <!-- benchmark:iterations_lp -->
@@ -529,6 +549,10 @@ Points are coloured by node class - the eight largest classes, the others grey -
 on graphs without labels, by degree. The pictures illustrate; whether one method
 separates classes better than another is what the tables measure.
 
+`make_summary_figure.py` draws the three bar charts at the top of the main README -
+graphs won in similarity search, time on ogbn-arxiv, memory on Yelp - from the same
+rows as the tables, once for a light and once for a dark page.
+
 ## Replication
 
 ```bash
@@ -546,9 +570,9 @@ runs, in this order and skipping whatever is already there:
 | Cleora, baselines, pycleora 3.2 default | `run_benchmark.py` | `results/` |
 | iteration sweep and selection | `run_benchmark.py --results sweep`, `select_iterations.py` | `sweep/`, `selected_iterations.json` |
 | Cleora, tuned | `run_benchmark.py --methods cleora_tuned` | `results/` |
-| exponent of the popularity prior (tiers S and M) | `popularity_exponent.py` | `popularity/` |
+| exponents of the popularity prior (tiers S and M) | `popularity_exponent.py` | `popularity/` |
 | time and memory | `run_benchmark.py --tasks time --results timing` | `timing/` |
-| figures | `make_figures.py` | `benchmarks/figures/` |
+| figures | `make_figures.py`, `make_summary_figure.py` | `benchmarks/figures/` |
 | tables | `make_report.py` | `benchmarks/RESULTS.md`, `benchmarks/results.csv.gz` (every aggregated number), the READMEs |
 
 Needs [uv](https://docs.astral.sh/uv/), git and a Rust toolchain. The probes use a CUDA

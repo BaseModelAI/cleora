@@ -149,7 +149,8 @@ mixed with new ones. Requires Python 3.10 or newer; tested on 3.10 to 3.15.
 - `scale_by_popularity(graph, embeddings, exponent=1/16)`: multiplies every
   vector by a power of the degree of its entity, so that the dot product of two
   vectors is their cosine times a popularity prior. On 14 of 21 benchmark graphs
-  held-out links are found better with it than with the cosine
+  held-out links are found better with it than with the cosine, and with
+  `exponent=0.25` the vectors are better features for a classifier
   (`benchmarks/README.md`, "The popularity prior").
 - `SparseMatrix.from_edges(src, dst, weights=None)` and
   `pycleora.io_utils.from_arrays`: build a graph from NumPy arrays of integer
