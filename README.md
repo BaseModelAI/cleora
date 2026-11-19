@@ -269,7 +269,7 @@ what a nearest-neighbour index over the vectors would return.
 | Amazon Photo | **0.508 ± 0.004** | 0.411 ± 0.004 | 0.326 ± 0.002 | 0.326 ± 0.003 | 0.378 ± 0.003 | 0.401 ± 0.003 | 0.187 ± 0.002 | <u>0.456 ± 0.002</u> | 0.427 ± 0.005 | 0.412 ± 0.003 | 0.427 ± 0.003 |
 | Wikipedia POS | **0.251 ± 0.003** | 0.210 ± 0.004 | 0.046 ± 0.001 | 0.048 ± 0.002 | 0.070 ± 0.002 | 0.046 ± 0.001 | 0.069 ± 0.001 | <u>0.242 ± 0.005</u> | 0.058 ± 0.001 | 0.112 ± 0.003 | 0.097 ± 0.001 |
 | Amazon Computers | **0.483 ± 0.001** | 0.410 ± 0.002 | 0.283 ± 0.002 | 0.285 ± 0.001 | 0.329 ± 0.003 | 0.399 ± 0.003 | 0.126 ± 0.001 | <u>0.421 ± 0.001</u> | 0.405 ± 0.003 | 0.394 ± 0.003 | 0.409 ± 0.003 |
-| Coauthor Physics | 0.737 ± 0.002 | 0.719 ± 0.002 | 0.676 ± 0.003 | 0.674 ± 0.003 | 0.669 ± 0.002 | 0.651 ± 0.001 | 0.340 | 0.621 ± 0.001 | <u>0.739 ± 0.001</u> | 0.725 ± 0.001 | **0.752 ± 0.002** |
+| Coauthor Physics | 0.737 ± 0.002 | 0.719 ± 0.002 | 0.676 ± 0.003 | 0.674 ± 0.003 | 0.669 ± 0.002 | 0.651 ± 0.001 | 0.343 ± 0.003 | 0.621 ± 0.001 | <u>0.739 ± 0.001</u> | 0.725 ± 0.001 | **0.752 ± 0.002** |
 | BlogCatalog | **0.218 ± 0.001** | 0.114 ± 0.001 | 0.070 ± 0.001 | 0.070 ± 0.001 | 0.092 ± 0.001 | 0.055 ± 0.000 | 0.165 ± 0.002 | <u>0.209 ± 0.001</u> | 0.070 ± 0.000 | 0.098 ± 0.000 | 0.096 ± 0.000 |
 | Flickr | **0.283 ± 0.001** | 0.122 ± 0.001 | <u>0.244 ± 0.001</u> | 0.243 ± 0.000 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.195 ± 0.001 | 0.154 ± 0.001 | 0.189 ± 0.000 |
 | MovieLens-1M | <u>0.148 ± 0.001</u> | 0.008 ± 0.001 | 0.060 ± 0.000 | 0.059 ± 0.000 | 0.044 ± 0.001 | 0.081 ± 0.001 | 0.108 ± 0.001 | **0.149 ± 0.012** | 0.144 ± 0.000 | 0.023 ± 0.001 | 0.102 ± 0.009 |
@@ -283,7 +283,7 @@ what a nearest-neighbour index over the vectors would return.
 | ogbl-ppa | **0.069** | 0.019 | 0.007 | 0.006 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.009 | <u>0.034</u> | 0.014 |
 | ogbl-citation2 | 0.802 | **0.839** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.793 | <u>0.829</u> |
 | LiveJournal | 0.756 | <u>0.766</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.685 | **0.776** |
-| ogbn-products | **0.909** | 0.904 | time limit | time limit | – | n/a (size) | – | – | out of memory | 0.892 | <u>0.906</u> |
+| ogbn-products | **0.909** | 0.904 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.892 | <u>0.906</u> |
 | *mean rank* | **1.58** | 3.50 | 6.19 | 6.31 | 6.12 | 5.88 | 7.31 | 4.81 | 4.54 | 4.38 | 3.27 |
 | *best on* | 14 / 26 | 5 / 26 | 0 / 22 | 1 / 22 | 0 / 15 | 0 / 15 | 0 / 15 | 2 / 15 | 4 / 23 | 0 / 26 | 5 / 26 |
 <!-- /benchmark:lp_mrr_similarity -->
@@ -377,13 +377,13 @@ candidate and adds about a point:
 | ogbl-collab | 0.057 | 0.055 | -0.2 | node2vec 0.099 |
 | roadNet-CA | 0.752 | 0.752 | +0.0 | ProNE 0.778 |
 | Yelp | 0.495 | 0.504 | +0.8 | RandNE 0.513 |
-| Reddit | 0.605 | **0.645** | +4.1 | ProNE 0.626 |
+| Reddit | 0.605 | **0.745** | +14.0 | ProNE 0.626 |
 | MovieLens-20M | 0.209 | 0.209 | +0.0 | ProNE 0.227 |
 | ogbl-ppa | **0.069** | **0.069** | +0.0 | FastRP 0.034 |
 | ogbl-citation2 | 0.802 | **0.838** | +3.6 | RandNE 0.829 |
 | LiveJournal | 0.756 | **0.799** | +4.3 | RandNE 0.776 |
 | ogbn-products | **0.909** | **0.909** | +0.0 | RandNE 0.906 |
-| *mean gain (points)* | | | +1.0 | |
+| *mean gain (points)* | | | +1.3 | |
 <!-- /benchmark:tuned_lp -->
 
 ### Time and memory
@@ -443,6 +443,10 @@ What follows from that list:
 - **Similarity search and link ranking are where Cleora leads**, on small and
   mid-sized graphs often by a wide margin. On several of the largest graphs RandNE or
   ProNE rank links a little better, with five to eight times the memory.
+- **The lead depends on the probe.** With the training-free scores and with linear
+  models Cleora ranks first; with a trained bilinear form or an MLP over the
+  concatenated vectors, node2vec and ProNE do, and with k-NN classification node2vec
+  and ProNE are level with it ([rank tables](#mean-rank-across-graphs)).
 - **Single-label classification**: ahead on most graphs, by margins of a point or two
   at most.
 - **Multi-label classification is not Cleora's ground.** On PPI, Wikipedia POS,

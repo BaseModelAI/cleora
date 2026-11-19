@@ -419,7 +419,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | **0.508 ± 0.004** | 0.411 ± 0.004 | 0.326 ± 0.002 | 0.326 ± 0.003 | 0.378 ± 0.003 | 0.401 ± 0.003 | 0.187 ± 0.002 | <u>0.456 ± 0.002</u> | 0.427 ± 0.005 | 0.412 ± 0.003 | 0.427 ± 0.003 |
 | Wikipedia POS | **0.251 ± 0.003** | 0.210 ± 0.004 | 0.046 ± 0.001 | 0.048 ± 0.002 | 0.070 ± 0.002 | 0.046 ± 0.001 | 0.069 ± 0.001 | <u>0.242 ± 0.005</u> | 0.058 ± 0.001 | 0.112 ± 0.003 | 0.097 ± 0.001 |
 | Amazon Computers | **0.483 ± 0.001** | 0.410 ± 0.002 | 0.283 ± 0.002 | 0.285 ± 0.001 | 0.329 ± 0.003 | 0.399 ± 0.003 | 0.126 ± 0.001 | <u>0.421 ± 0.001</u> | 0.405 ± 0.003 | 0.394 ± 0.003 | 0.409 ± 0.003 |
-| Coauthor Physics | 0.737 ± 0.002 | 0.719 ± 0.002 | 0.676 ± 0.003 | 0.674 ± 0.003 | 0.669 ± 0.002 | 0.651 ± 0.001 | 0.340 | 0.621 ± 0.001 | <u>0.739 ± 0.001</u> | 0.725 ± 0.001 | **0.752 ± 0.002** |
+| Coauthor Physics | 0.737 ± 0.002 | 0.719 ± 0.002 | 0.676 ± 0.003 | 0.674 ± 0.003 | 0.669 ± 0.002 | 0.651 ± 0.001 | 0.343 ± 0.003 | 0.621 ± 0.001 | <u>0.739 ± 0.001</u> | 0.725 ± 0.001 | **0.752 ± 0.002** |
 | BlogCatalog | **0.218 ± 0.001** | 0.114 ± 0.001 | 0.070 ± 0.001 | 0.070 ± 0.001 | 0.092 ± 0.001 | 0.055 ± 0.000 | 0.165 ± 0.002 | <u>0.209 ± 0.001</u> | 0.070 ± 0.000 | 0.098 ± 0.000 | 0.096 ± 0.000 |
 | Flickr | **0.283 ± 0.001** | 0.122 ± 0.001 | <u>0.244 ± 0.001</u> | 0.243 ± 0.000 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.195 ± 0.001 | 0.154 ± 0.001 | 0.189 ± 0.000 |
 | MovieLens-1M | <u>0.148 ± 0.001</u> | 0.008 ± 0.001 | 0.060 ± 0.000 | 0.059 ± 0.000 | 0.044 ± 0.001 | 0.081 ± 0.001 | 0.108 ± 0.001 | **0.149 ± 0.012** | 0.144 ± 0.000 | 0.023 ± 0.001 | 0.102 ± 0.009 |
@@ -433,7 +433,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | **0.069** | 0.019 | 0.007 | 0.006 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.009 | <u>0.034</u> | 0.014 |
 | ogbl-citation2 | 0.802 | **0.839** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.793 | <u>0.829</u> |
 | LiveJournal | 0.756 | <u>0.766</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.685 | **0.776** |
-| ogbn-products | **0.909** | 0.904 | time limit | time limit | – | n/a (size) | – | – | out of memory | 0.892 | <u>0.906</u> |
+| ogbn-products | **0.909** | 0.904 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.892 | <u>0.906</u> |
 | *mean rank* | **1.58** | 3.50 | 6.19 | 6.31 | 6.12 | 5.88 | 7.31 | 4.81 | 4.54 | 4.38 | 3.27 |
 | *best on* | 14 / 26 | 5 / 26 | 0 / 22 | 1 / 22 | 0 / 15 | 0 / 15 | 0 / 15 | 2 / 15 | 4 / 23 | 0 / 26 | 5 / 26 |
 
@@ -452,7 +452,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | **0.508 ± 0.004** | 0.411 ± 0.004 | 0.298 ± 0.002 | 0.278 ± 0.010 | 0.378 ± 0.003 | 0.347 ± 0.003 | 0.182 ± 0.002 | <u>0.456 ± 0.002</u> | 0.427 ± 0.005 | 0.412 ± 0.005 | 0.427 ± 0.003 |
 | Wikipedia POS | **0.251 ± 0.003** | 0.210 ± 0.004 | 0.046 ± 0.001 | 0.048 ± 0.002 | 0.070 ± 0.002 | 0.040 ± 0.000 | 0.069 ± 0.001 | <u>0.242 ± 0.005</u> | 0.058 ± 0.001 | 0.080 ± 0.002 | 0.097 ± 0.001 |
 | Amazon Computers | **0.483 ± 0.001** | 0.410 ± 0.002 | 0.225 ± 0.009 | 0.215 ± 0.006 | 0.329 ± 0.003 | 0.361 ± 0.003 | 0.109 ± 0.002 | <u>0.421 ± 0.001</u> | 0.405 ± 0.003 | 0.394 ± 0.003 | 0.409 ± 0.003 |
-| Coauthor Physics | 0.737 ± 0.002 | 0.719 ± 0.002 | 0.676 ± 0.003 | 0.674 ± 0.003 | 0.669 ± 0.002 | 0.600 ± 0.001 | 0.161 | 0.599 ± 0.003 | <u>0.739 ± 0.001</u> | 0.725 ± 0.001 | **0.752 ± 0.002** |
+| Coauthor Physics | 0.737 ± 0.002 | 0.719 ± 0.002 | 0.676 ± 0.003 | 0.674 ± 0.003 | 0.669 ± 0.002 | 0.600 ± 0.001 | 0.162 ± 0.001 | 0.599 ± 0.003 | <u>0.739 ± 0.001</u> | 0.725 ± 0.001 | **0.752 ± 0.002** |
 | BlogCatalog | **0.218 ± 0.001** | 0.114 ± 0.001 | 0.070 ± 0.001 | 0.070 ± 0.001 | 0.092 ± 0.001 | 0.033 ± 0.000 | 0.165 ± 0.002 | <u>0.209 ± 0.001</u> | 0.070 ± 0.000 | 0.059 ± 0.000 | 0.096 ± 0.000 |
 | Flickr | **0.283 ± 0.001** | 0.122 ± 0.001 | <u>0.244 ± 0.001</u> | 0.243 ± 0.000 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.195 ± 0.001 | 0.154 ± 0.001 | 0.189 ± 0.000 |
 | MovieLens-1M | <u>0.148 ± 0.001</u> | 0.008 ± 0.001 | 0.060 ± 0.000 | 0.059 ± 0.000 | 0.044 ± 0.001 | 0.034 ± 0.000 | 0.108 ± 0.001 | **0.149 ± 0.012** | 0.144 ± 0.000 | 0.023 ± 0.001 | 0.102 ± 0.009 |
@@ -466,7 +466,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | **0.069** | 0.019 | 0.007 | 0.006 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.009 | <u>0.034</u> | 0.014 |
 | ogbl-citation2 | 0.802 | **0.839** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.793 | <u>0.829</u> |
 | LiveJournal | 0.756 | <u>0.766</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.685 | **0.776** |
-| ogbn-products | **0.909** | 0.904 | time limit | time limit | – | n/a (size) | – | – | out of memory | 0.892 | <u>0.906</u> |
+| ogbn-products | **0.909** | 0.904 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.892 | <u>0.906</u> |
 | *mean rank* | **1.58** | 3.46 | 6.12 | 6.54 | 5.96 | 6.35 | 7.31 | 4.65 | 4.23 | 4.54 | 3.12 |
 | *best on* | 14 / 26 | 4 / 26 | 0 / 22 | 1 / 22 | 0 / 15 | 0 / 15 | 0 / 15 | 2 / 15 | 4 / 23 | 0 / 26 | 5 / 26 |
 
@@ -485,7 +485,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | **0.508 ± 0.004** | 0.411 ± 0.004 | 0.326 ± 0.002 | 0.326 ± 0.003 | 0.306 ± 0.004 | 0.401 ± 0.003 | 0.187 ± 0.002 | 0.367 ± 0.003 | <u>0.427 ± 0.005</u> | 0.412 ± 0.003 | <u>0.427 ± 0.003</u> |
 | Wikipedia POS | **0.251 ± 0.003** | <u>0.210 ± 0.004</u> | 0.023 ± 0.000 | 0.025 ± 0.001 | 0.024 ± 0.001 | 0.046 ± 0.001 | 0.056 ± 0.002 | 0.043 ± 0.000 | 0.058 ± 0.001 | 0.112 ± 0.003 | 0.097 ± 0.001 |
 | Amazon Computers | **0.483 ± 0.001** | <u>0.410 ± 0.002</u> | 0.283 ± 0.002 | 0.285 ± 0.001 | 0.275 ± 0.003 | 0.399 ± 0.003 | 0.126 ± 0.001 | 0.329 ± 0.002 | 0.405 ± 0.003 | 0.394 ± 0.003 | 0.409 ± 0.003 |
-| Coauthor Physics | 0.737 ± 0.002 | 0.719 ± 0.002 | 0.662 ± 0.002 | 0.666 ± 0.002 | 0.660 ± 0.001 | 0.651 ± 0.001 | 0.340 | 0.621 ± 0.001 | <u>0.739 ± 0.001</u> | 0.725 ± 0.001 | **0.752 ± 0.002** |
+| Coauthor Physics | 0.737 ± 0.002 | 0.719 ± 0.002 | 0.662 ± 0.002 | 0.666 ± 0.002 | 0.660 ± 0.001 | 0.651 ± 0.001 | 0.343 ± 0.003 | 0.621 ± 0.001 | <u>0.739 ± 0.001</u> | 0.725 ± 0.001 | **0.752 ± 0.002** |
 | BlogCatalog | **0.218 ± 0.001** | <u>0.114 ± 0.001</u> | 0.019 ± 0.000 | 0.020 ± 0.000 | 0.021 ± 0.000 | 0.055 ± 0.000 | 0.065 ± 0.000 | 0.078 ± 0.001 | 0.070 ± 0.000 | 0.098 ± 0.000 | 0.096 ± 0.000 |
 | Flickr | **0.283 ± 0.001** | 0.122 ± 0.001 | 0.204 ± 0.001 | <u>0.205 ± 0.001</u> | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.195 ± 0.001 | 0.154 ± 0.001 | 0.189 ± 0.000 |
 | MovieLens-1M | **0.148 ± 0.001** | 0.008 ± 0.001 | 0.031 ± 0.000 | 0.031 ± 0.000 | 0.010 ± 0.000 | 0.081 ± 0.001 | 0.102 ± 0.001 | 0.034 ± 0.006 | <u>0.144 ± 0.000</u> | 0.009 ± 0.000 | 0.102 ± 0.009 |
@@ -499,7 +499,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | **0.069** | <u>0.019</u> | 0.002 | 0.002 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.009 | 0.012 | 0.014 |
 | ogbl-citation2 | 0.802 | **0.839** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.791 | <u>0.829</u> |
 | LiveJournal | 0.756 | <u>0.766</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.684 | **0.776** |
-| ogbn-products | **0.909** | 0.904 | time limit | time limit | – | n/a (size) | – | – | out of memory | 0.892 | <u>0.906</u> |
+| ogbn-products | **0.909** | 0.904 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.892 | <u>0.906</u> |
 | *mean rank* | **1.38** | 2.69 | 6.50 | 6.38 | 6.62 | 5.31 | 7.54 | 6.42 | 3.62 | 4.04 | 2.58 |
 | *best on* | 17 / 26 | 11 / 26 | 0 / 22 | 0 / 22 | 0 / 15 | 0 / 15 | 0 / 15 | 0 / 15 | 4 / 23 | 0 / 26 | 5 / 26 |
 
@@ -518,7 +518,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | 0.410 ± 0.012 | 0.401 ± 0.005 | 0.421 ± 0.002 | 0.425 ± 0.001 | **0.466 ± 0.003** | 0.401 ± 0.001 | 0.243 ± 0.013 | 0.414 ± 0.001 | <u>0.450 ± 0.005</u> | 0.415 ± 0.006 | 0.428 ± 0.005 |
 | Wikipedia POS | 0.070 ± 0.004 | <u>0.208 ± 0.004</u> | 0.072 ± 0.001 | 0.083 ± 0.001 | 0.197 ± 0.027 | 0.048 ± 0.001 | 0.193 ± 0.055 | 0.045 ± 0.001 | 0.067 ± 0.002 | 0.133 ± 0.002 | **0.209 ± 0.004** |
 | Amazon Computers | 0.389 ± 0.002 | 0.424 ± 0.003 | 0.407 ± 0.002 | 0.408 ± 0.010 | **0.454 ± 0.007** | 0.401 ± 0.002 | 0.183 ± 0.012 | 0.370 ± 0.006 | <u>0.428 ± 0.005</u> | 0.411 ± 0.004 | 0.399 ± 0.006 |
-| Coauthor Physics | 0.685 ± 0.001 | 0.669 ± 0.002 | <u>0.760 ± 0.002</u> | **0.762 ± 0.003** | 0.735 ± 0.007 | 0.656 ± 0.002 | 0.336 | 0.622 ± 0.001 | 0.741 ± 0.000 | 0.729 ± 0.000 | 0.710 ± 0.002 |
+| Coauthor Physics | 0.685 ± 0.001 | 0.669 ± 0.002 | <u>0.760 ± 0.002</u> | **0.762 ± 0.003** | 0.735 ± 0.007 | 0.656 ± 0.002 | 0.338 ± 0.003 | 0.622 ± 0.001 | 0.741 ± 0.000 | 0.729 ± 0.000 | 0.710 ± 0.002 |
 | BlogCatalog | 0.097 ± 0.003 | 0.184 ± 0.003 | 0.160 ± 0.002 | 0.175 ± 0.000 | **0.221 ± 0.001** | 0.088 ± 0.001 | <u>0.199 ± 0.001</u> | 0.109 ± 0.001 | 0.109 ± 0.001 | 0.182 ± 0.002 | 0.138 ± 0.002 |
 | Flickr | 0.237 ± 0.000 | 0.238 ± 0.001 | <u>0.290 ± 0.005</u> | **0.292 ± 0.003** | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.236 ± 0.004 | 0.205 ± 0.002 | 0.209 ± 0.002 |
 | MovieLens-1M | 0.050 ± 0.001 | 0.163 ± 0.000 | <u>0.175 ± 0.001</u> | 0.174 ± 0.001 | **0.191 ± 0.000** | 0.130 ± 0.001 | 0.124 ± 0.001 | 0.125 ± 0.001 | 0.147 ± 0.000 | 0.128 ± 0.001 | 0.121 ± 0.001 |
@@ -532,7 +532,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | **0.035** | 0.017 | <u>0.020</u> | 0.015 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.018 | 0.012 | 0.014 |
 | ogbl-citation2 | 0.796 | **0.813** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.793 | <u>0.801</u> |
 | LiveJournal | 0.727 | <u>0.741</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.691 | **0.766** |
-| ogbn-products | <u>0.894</u> | 0.893 | time limit | time limit | – | n/a (size) | – | – | out of memory | 0.889 | **0.899** |
+| ogbn-products | <u>0.894</u> | 0.893 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.889 | **0.899** |
 | *mean rank* | 5.00 | 4.73 | 3.92 | **3.54** | 4.15 | 5.62 | 7.65 | 7.12 | 4.08 | 4.54 | 4.77 |
 | *best on* | 1 / 26 | 2 / 26 | 0 / 22 | 7 / 22 | 8 / 15 | 2 / 15 | 0 / 15 | 0 / 15 | 4 / 23 | 0 / 26 | 4 / 26 |
 
@@ -551,7 +551,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | 0.465 ± 0.004 | 0.461 ± 0.007 | 0.429 ± 0.008 | 0.426 ± 0.007 | 0.452 ± 0.010 | 0.450 ± 0.009 | 0.377 ± 0.007 | **0.507 ± 0.001** | **0.507 ± 0.002** | 0.451 ± 0.006 | <u>0.470 ± 0.006</u> |
 | Wikipedia POS | <u>0.251 ± 0.005</u> | 0.232 ± 0.003 | 0.144 ± 0.003 | 0.155 ± 0.016 | 0.178 ± 0.014 | 0.168 ± 0.028 | **0.256 ± 0.006** | 0.171 ± 0.008 | 0.190 ± 0.021 | 0.157 ± 0.018 | 0.151 ± 0.021 |
 | Amazon Computers | 0.448 ± 0.005 | 0.461 ± 0.005 | 0.425 ± 0.009 | 0.427 ± 0.006 | 0.434 ± 0.006 | 0.441 ± 0.005 | 0.344 ± 0.006 | <u>0.467 ± 0.005</u> | **0.487 ± 0.005** | 0.433 ± 0.004 | 0.446 ± 0.008 |
-| Coauthor Physics | 0.673 ± 0.010 | 0.661 ± 0.010 | 0.665 ± 0.012 | 0.668 ± 0.011 | 0.641 ± 0.013 | 0.652 ± 0.007 | 0.468 | 0.625 ± 0.004 | **0.732 ± 0.004** | 0.663 ± 0.009 | <u>0.678 ± 0.008</u> |
+| Coauthor Physics | 0.673 ± 0.010 | 0.661 ± 0.010 | 0.665 ± 0.012 | 0.668 ± 0.011 | 0.641 ± 0.013 | 0.652 ± 0.007 | 0.481 ± 0.013 | 0.625 ± 0.004 | **0.732 ± 0.004** | 0.663 ± 0.009 | <u>0.678 ± 0.008</u> |
 | BlogCatalog | **0.226 ± 0.001** | 0.219 ± 0.002 | 0.213 ± 0.001 | 0.216 ± 0.003 | <u>0.220 ± 0.003</u> | 0.197 ± 0.002 | 0.211 ± 0.001 | 0.215 ± 0.002 | 0.216 ± 0.001 | 0.214 ± 0.003 | 0.205 ± 0.003 |
 | Flickr | 0.249 ± 0.000 | 0.246 ± 0.000 | <u>0.267 ± 0.001</u> | 0.266 ± 0.003 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | **0.280 ± 0.000** | 0.225 ± 0.002 | 0.242 ± 0.001 |
 | MovieLens-1M | 0.156 ± 0.000 | 0.184 ± 0.001 | 0.179 ± 0.001 | 0.179 ± 0.000 | <u>0.191 ± 0.000</u> | 0.179 ± 0.002 | **0.197 ± 0.000** | 0.185 ± 0.000 | 0.189 ± 0.000 | 0.158 ± 0.002 | 0.155 ± 0.001 |
@@ -565,7 +565,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | <u>0.027</u> | **0.037** | 0.020 | 0.015 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.010 | 0.012 | 0.018 |
 | ogbl-citation2 | 0.719 | **0.793** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.768 | <u>0.778</u> |
 | LiveJournal | 0.692 | <u>0.715</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.669 | **0.718** |
-| ogbn-products | 0.888 | <u>0.892</u> | time limit | time limit | – | n/a (size) | – | – | out of memory | 0.883 | **0.896** |
+| ogbn-products | 0.888 | <u>0.892</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.883 | **0.896** |
 | *mean rank* | 3.38 | 4.08 | 5.54 | 5.27 | 5.27 | 5.58 | 7.08 | 5.08 | **2.73** | 5.69 | 4.77 |
 | *best on* | 3 / 26 | 2 / 26 | 1 / 22 | 1 / 22 | 0 / 15 | 0 / 15 | 2 / 15 | 3 / 15 | 13 / 23 | 0 / 26 | 3 / 26 |
 
@@ -584,7 +584,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | <u>0.512 ± 0.004</u> | 0.438 ± 0.002 | 0.373 ± 0.001 | 0.374 ± 0.003 | 0.359 ± 0.004 | 0.447 ± 0.003 | 0.209 ± 0.007 | 0.510 ± 0.002 | **0.526 ± 0.003** | 0.436 ± 0.003 | 0.457 ± 0.001 |
 | Wikipedia POS | <u>0.262 ± 0.004</u> | **0.266 ± 0.003** | 0.005 ± 0.000 | 0.059 ± 0.026 | 0.085 ± 0.007 | 0.031 ± 0.020 | 0.245 ± 0.003 | 0.147 ± 0.002 | 0.194 ± 0.038 | 0.140 ± 0.004 | 0.102 ± 0.057 |
 | Amazon Computers | <u>0.483 ± 0.002</u> | 0.437 ± 0.002 | 0.357 ± 0.003 | 0.359 ± 0.003 | 0.353 ± 0.002 | 0.407 ± 0.001 | 0.119 ± 0.001 | 0.458 ± 0.003 | **0.497 ± 0.003** | 0.419 ± 0.003 | 0.443 ± 0.003 |
-| Coauthor Physics | <u>0.747 ± 0.002</u> | 0.729 ± 0.001 | 0.702 ± 0.001 | 0.704 ± 0.001 | 0.737 ± 0.001 | 0.666 ± 0.001 | 0.335 | 0.633 ± 0.001 | 0.742 ± 0.003 | 0.727 ± 0.001 | **0.753 ± 0.001** |
+| Coauthor Physics | <u>0.747 ± 0.002</u> | 0.729 ± 0.001 | 0.702 ± 0.001 | 0.704 ± 0.001 | 0.737 ± 0.001 | 0.666 ± 0.001 | 0.353 ± 0.027 | 0.633 ± 0.001 | 0.742 ± 0.003 | 0.727 ± 0.001 | **0.753 ± 0.001** |
 | BlogCatalog | <u>0.213 ± 0.007</u> | <u>0.213 ± 0.003</u> | 0.112 ± 0.006 | 0.129 ± 0.000 | 0.129 ± 0.003 | 0.095 ± 0.002 | 0.192 ± 0.001 | 0.186 ± 0.001 | **0.252 ± 0.001** | 0.165 ± 0.005 | 0.189 ± 0.001 |
 | Flickr | **0.284 ± 0.001** | 0.133 ± 0.002 | 0.220 ± 0.004 | 0.216 ± 0.001 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.253 ± 0.003</u> | 0.149 ± 0.001 | 0.187 ± 0.002 |
 | MovieLens-1M | 0.133 ± 0.001 | 0.128 ± 0.006 | 0.122 ± 0.006 | 0.122 ± 0.003 | 0.090 ± 0.011 | 0.122 ± 0.002 | 0.110 ± 0.001 | <u>0.151 ± 0.003</u> | **0.203 ± 0.000** | 0.120 ± 0.002 | 0.092 ± 0.013 |
@@ -598,7 +598,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | **0.077** | 0.035 | 0.007 | 0.006 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.045</u> | 0.028 | 0.033 |
 | ogbl-citation2 | 0.803 | **0.839** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.790 | <u>0.829</u> |
 | LiveJournal | 0.756 | <u>0.769</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.683 | **0.777** |
-| ogbn-products | **0.909** | 0.904 | time limit | time limit | – | n/a (size) | – | – | out of memory | 0.891 | <u>0.906</u> |
+| ogbn-products | **0.909** | 0.904 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.891 | <u>0.906</u> |
 | *mean rank* | **1.73** | 3.12 | 6.04 | 6.12 | 6.15 | 6.23 | 7.46 | 5.62 | 2.50 | 4.73 | 3.81 |
 | *best on* | 11 / 26 | 5 / 26 | 0 / 22 | 0 / 22 | 0 / 15 | 0 / 15 | 0 / 15 | 0 / 15 | 11 / 23 | 0 / 26 | 4 / 26 |
 
@@ -617,7 +617,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | 0.507 ± 0.003 | 0.434 ± 0.002 | 0.402 ± 0.004 | 0.404 ± 0.002 | 0.392 ± 0.001 | 0.446 ± 0.003 | 0.232 ± 0.005 | <u>0.509 ± 0.002</u> | **0.527 ± 0.003** | 0.436 ± 0.003 | 0.456 ± 0.004 |
 | Wikipedia POS | 0.216 ± 0.021 | 0.196 ± 0.027 | 0.075 ± 0.004 | 0.080 ± 0.007 | 0.096 ± 0.004 | 0.057 ± 0.001 | <u>0.250 ± 0.002</u> | 0.130 ± 0.002 | 0.167 ± 0.004 | 0.130 ± 0.004 | **0.255 ± 0.003** |
 | Amazon Computers | <u>0.479 ± 0.004</u> | 0.442 ± 0.002 | 0.383 ± 0.003 | 0.384 ± 0.003 | 0.389 ± 0.002 | 0.411 ± 0.002 | 0.145 ± 0.001 | 0.460 ± 0.003 | **0.497 ± 0.003** | 0.418 ± 0.002 | 0.440 ± 0.002 |
-| Coauthor Physics | 0.746 ± 0.002 | 0.728 ± 0.001 | 0.713 ± 0.001 | 0.715 ± 0.001 | <u>0.751 ± 0.001</u> | 0.683 ± 0.002 | 0.436 | 0.632 ± 0.001 | 0.747 ± 0.002 | 0.727 ± 0.001 | **0.752 ± 0.001** |
+| Coauthor Physics | 0.746 ± 0.002 | 0.728 ± 0.001 | 0.713 ± 0.001 | 0.715 ± 0.001 | <u>0.751 ± 0.001</u> | 0.683 ± 0.002 | 0.436 ± 0.001 | 0.632 ± 0.001 | 0.747 ± 0.002 | 0.727 ± 0.001 | **0.752 ± 0.001** |
 | BlogCatalog | <u>0.212 ± 0.009</u> | 0.209 ± 0.002 | 0.111 ± 0.004 | 0.129 ± 0.002 | 0.139 ± 0.007 | 0.094 ± 0.001 | 0.175 ± 0.009 | 0.187 ± 0.000 | **0.253 ± 0.001** | 0.173 ± 0.002 | 0.186 ± 0.002 |
 | Flickr | **0.281 ± 0.001** | 0.130 ± 0.002 | 0.220 ± 0.004 | 0.218 ± 0.003 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.254 ± 0.003</u> | 0.150 ± 0.000 | 0.188 ± 0.001 |
 | MovieLens-1M | 0.135 ± 0.001 | 0.139 ± 0.002 | 0.129 ± 0.006 | 0.122 ± 0.003 | 0.098 ± 0.004 | 0.123 ± 0.000 | 0.126 ± 0.014 | <u>0.150 ± 0.001</u> | **0.203 ± 0.001** | 0.124 ± 0.004 | 0.134 ± 0.001 |
@@ -631,7 +631,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | **0.085** | 0.035 | 0.017 | 0.014 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.047</u> | 0.028 | 0.033 |
 | ogbl-citation2 | 0.803 | **0.837** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.788 | <u>0.829</u> |
 | LiveJournal | 0.756 | <u>0.768</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.682 | **0.777** |
-| ogbn-products | **0.909** | 0.904 | time limit | time limit | – | n/a (size) | – | – | out of memory | 0.892 | <u>0.906</u> |
+| ogbn-products | **0.909** | 0.904 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.892 | <u>0.906</u> |
 | *mean rank* | **1.96** | 3.27 | 6.04 | 6.31 | 5.92 | 6.35 | 7.58 | 5.62 | 2.54 | 4.69 | 3.38 |
 | *best on* | 10 / 26 | 4 / 26 | 0 / 22 | 0 / 22 | 0 / 15 | 0 / 15 | 0 / 15 | 0 / 15 | 11 / 23 | 0 / 26 | 5 / 26 |
 
@@ -654,7 +654,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | **0.368** | 0.269 | 0.195 | 0.194 | 0.182 | 0.251 | 0.101 | 0.234 | <u>0.288</u> | 0.271 | 0.286 |
 | Wikipedia POS | **0.168** | <u>0.125</u> | 0.009 | 0.010 | 0.009 | 0.019 | 0.024 | 0.017 | 0.026 | 0.060 | 0.046 |
 | Amazon Computers | **0.352** | 0.276 | 0.170 | 0.172 | 0.167 | 0.259 | 0.062 | 0.202 | 0.275 | 0.263 | <u>0.277</u> |
-| Coauthor Physics | <u>0.646</u> | 0.625 | 0.543 | 0.548 | 0.543 | 0.543 | 0.246 | 0.490 | 0.628 | 0.627 | **0.658** |
+| Coauthor Physics | <u>0.646</u> | 0.625 | 0.543 | 0.548 | 0.543 | 0.543 | 0.248 | 0.490 | 0.628 | 0.627 | **0.658** |
 | BlogCatalog | **0.128** | <u>0.053</u> | 0.007 | 0.008 | 0.007 | 0.023 | 0.023 | 0.032 | 0.029 | 0.045 | 0.041 |
 | Flickr | **0.217** | 0.077 | 0.136 | <u>0.137</u> | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.124 | 0.103 | 0.124 |
 | MovieLens-1M | **0.078** | 0.000 | 0.009 | 0.009 | 0.002 | 0.034 | 0.048 | 0.007 | <u>0.064</u> | 0.001 | 0.045 |
@@ -668,7 +668,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | **0.035** | <u>0.000</u> | <u>0.000</u> | <u>0.000</u> | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.000</u> | <u>0.000</u> | <u>0.000</u> |
 | ogbl-citation2 | 0.767 | **0.788** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.730 | <u>0.780</u> |
 | LiveJournal | 0.721 | <u>0.726</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.630 | **0.740** |
-| ogbn-products | **0.877** | <u>0.867</u> | time limit | time limit | – | n/a (size) | – | – | out of memory | 0.846 | 0.864 |
+| ogbn-products | **0.877** | <u>0.867</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.846 | 0.864 |
 | *mean rank* | **1.38** | 3.31 | 6.25 | 5.98 | 6.77 | 5.29 | 7.63 | 6.63 | 3.60 | 3.94 | 2.90 |
 | *best on* | 17 / 26 | 6 / 26 | 0 / 22 | 0 / 22 | 0 / 15 | 0 / 15 | 0 / 15 | 0 / 15 | 3 / 23 | 1 / 26 | 5 / 26 |
 
@@ -687,7 +687,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | **0.786** | 0.716 | 0.603 | 0.605 | 0.570 | <u>0.726</u> | 0.364 | 0.646 | 0.712 | 0.711 | 0.724 |
 | Wikipedia POS | **0.404** | <u>0.383</u> | 0.038 | 0.042 | 0.041 | 0.087 | 0.102 | 0.082 | 0.103 | 0.207 | 0.189 |
 | Amazon Computers | **0.744** | 0.685 | 0.518 | 0.519 | 0.496 | <u>0.692</u> | 0.246 | 0.595 | 0.669 | 0.662 | 0.675 |
-| Coauthor Physics | 0.891 | 0.880 | 0.879 | 0.879 | 0.880 | 0.848 | 0.521 | 0.870 | **0.925** | 0.891 | <u>0.906</u> |
+| Coauthor Physics | 0.891 | 0.880 | 0.879 | 0.879 | 0.880 | 0.848 | 0.527 | 0.870 | **0.925** | 0.891 | <u>0.906</u> |
 | BlogCatalog | **0.396** | <u>0.226</u> | 0.031 | 0.032 | 0.036 | 0.105 | 0.136 | 0.157 | 0.136 | 0.192 | 0.191 |
 | Flickr | **0.395** | 0.198 | 0.337 | <u>0.339</u> | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.334 | 0.243 | 0.313 |
 | MovieLens-1M | <u>0.283</u> | 0.006 | 0.060 | 0.059 | 0.013 | 0.166 | 0.207 | 0.069 | **0.308** | 0.009 | 0.207 |
@@ -701,7 +701,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | **0.139** | <u>0.051</u> | 0.002 | 0.002 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.011 | 0.016 | 0.029 |
 | ogbl-citation2 | 0.855 | **0.912** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.888 | <u>0.901</u> |
 | LiveJournal | 0.816 | <u>0.837</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.784 | **0.839** |
-| ogbn-products | 0.955 | 0.956 | time limit | time limit | – | n/a (size) | – | – | out of memory | <u>0.958</u> | **0.966** |
+| ogbn-products | 0.955 | 0.956 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | <u>0.958</u> | **0.966** |
 | *mean rank* | **1.65** | 3.19 | 5.85 | 5.88 | 6.54 | 4.83 | 7.63 | 6.48 | 4.06 | 4.29 | 3.17 |
 | *best on* | 15 / 26 | 6 / 26 | 0 / 22 | 0 / 22 | 0 / 15 | 1 / 15 | 0 / 15 | 0 / 15 | 6 / 23 | 0 / 26 | 4 / 26 |
 
@@ -720,7 +720,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | **0.981** | 0.976 | 0.940 | 0.939 | 0.917 | <u>0.978</u> | 0.814 | 0.962 | 0.940 | 0.975 | 0.975 |
 | Wikipedia POS | **0.713** | <u>0.670</u> | 0.172 | 0.179 | 0.212 | 0.323 | 0.461 | 0.320 | 0.485 | 0.574 | 0.630 |
 | Amazon Computers | **0.966** | <u>0.961</u> | 0.879 | 0.875 | 0.856 | 0.959 | 0.700 | 0.934 | 0.918 | 0.953 | 0.958 |
-| Coauthor Physics | 0.969 | 0.968 | <u>0.980</u> | <u>0.980</u> | **0.982** | 0.973 | 0.825 | 0.963 | 0.961 | 0.960 | 0.960 |
+| Coauthor Physics | 0.969 | 0.968 | <u>0.980</u> | <u>0.980</u> | **0.982** | 0.973 | 0.828 | 0.963 | 0.961 | 0.960 | 0.960 |
 | BlogCatalog | **0.797** | <u>0.711</u> | 0.136 | 0.137 | 0.181 | 0.398 | 0.571 | 0.583 | 0.567 | 0.636 | <u>0.711</u> |
 | Flickr | 0.616 | 0.450 | <u>0.635</u> | **0.636** | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.602 | 0.499 | 0.559 |
 | MovieLens-1M | <u>0.721</u> | 0.142 | 0.314 | 0.311 | 0.105 | 0.506 | 0.558 | 0.471 | **0.796** | 0.138 | 0.695 |
@@ -734,7 +734,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | **0.373** | <u>0.307</u> | 0.027 | 0.025 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.165 | 0.251 | 0.223 |
 | ogbl-citation2 | 0.911 | **0.946** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | <u>0.940</u> | 0.939 |
 | LiveJournal | 0.896 | **0.910** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.892 | <u>0.909</u> |
-| ogbn-products | 0.978 | 0.978 | time limit | time limit | – | n/a (size) | – | – | out of memory | <u>0.980</u> | **0.983** |
+| ogbn-products | 0.978 | 0.978 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | <u>0.980</u> | **0.983** |
 | *mean rank* | **2.38** | 2.96 | 4.81 | 4.85 | 6.12 | 5.15 | 6.50 | 6.54 | 5.50 | 4.85 | 3.69 |
 | *best on* | 9 / 26 | 10 / 26 | 1 / 22 | 4 / 22 | 2 / 15 | 0 / 15 | 1 / 15 | 0 / 15 | 5 / 23 | 1 / 26 | 3 / 26 |
 
@@ -753,7 +753,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | **0.975** | 0.967 | 0.952 | 0.951 | 0.919 | <u>0.970</u> | 0.847 | 0.962 | 0.946 | 0.969 | 0.964 |
 | Wikipedia POS | **0.764** | <u>0.738</u> | 0.449 | 0.469 | 0.450 | 0.562 | 0.673 | 0.507 | 0.717 | 0.733 | 0.716 |
 | Amazon Computers | **0.961** | 0.954 | 0.909 | 0.907 | 0.876 | <u>0.958</u> | 0.809 | 0.950 | 0.935 | 0.953 | 0.947 |
-| Coauthor Physics | 0.971 | 0.968 | <u>0.975</u> | <u>0.975</u> | **0.980** | <u>0.975</u> | 0.853 | 0.968 | 0.970 | 0.974 | 0.972 |
+| Coauthor Physics | 0.971 | 0.968 | <u>0.975</u> | <u>0.975</u> | **0.980** | <u>0.975</u> | 0.854 | 0.968 | 0.970 | 0.974 | 0.972 |
 | BlogCatalog | **0.828** | 0.782 | 0.410 | 0.411 | 0.451 | 0.625 | 0.759 | 0.748 | 0.768 | 0.792 | <u>0.810</u> |
 | Flickr | **0.768** | 0.639 | <u>0.764</u> | <u>0.764</u> | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.738 | 0.702 | 0.729 |
 | MovieLens-1M | <u>0.788</u> | 0.497 | 0.615 | 0.615 | 0.406 | 0.694 | 0.666 | 0.707 | **0.872** | 0.447 | 0.764 |
@@ -767,7 +767,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | 0.986 | 0.967 | **0.989** | **0.989** | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.988</u> | 0.986 | 0.986 |
 | ogbl-citation2 | 0.959 | **0.975** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | <u>0.972</u> | <u>0.972</u> |
 | LiveJournal | 0.937 | **0.945** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.930 | <u>0.944</u> |
-| ogbn-products | 0.987 | 0.987 | time limit | time limit | – | n/a (size) | – | – | out of memory | <u>0.988</u> | **0.989** |
+| ogbn-products | 0.987 | 0.987 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | <u>0.988</u> | **0.989** |
 | *mean rank* | **2.42** | 3.58 | 4.96 | 4.85 | 6.19 | 5.00 | 6.96 | 6.35 | 5.04 | 4.42 | 4.19 |
 | *best on* | 10 / 26 | 5 / 26 | 3 / 22 | 2 / 22 | 2 / 15 | 0 / 15 | 0 / 15 | 0 / 15 | 6 / 23 | 1 / 26 | 2 / 26 |
 
@@ -786,7 +786,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | **0.973** | 0.960 | 0.946 | 0.945 | 0.924 | <u>0.965</u> | 0.834 | 0.963 | 0.959 | 0.963 | 0.956 |
 | Wikipedia POS | **0.770** | 0.746 | 0.477 | 0.492 | 0.478 | 0.601 | 0.691 | 0.500 | 0.694 | <u>0.755</u> | 0.733 |
 | Amazon Computers | **0.958** | 0.948 | 0.911 | 0.910 | 0.886 | **0.958** | 0.801 | 0.949 | <u>0.950</u> | 0.949 | 0.938 |
-| Coauthor Physics | 0.977 | 0.973 | 0.976 | 0.976 | **0.981** | 0.979 | 0.866 | 0.976 | **0.981** | <u>0.980</u> | <u>0.980</u> |
+| Coauthor Physics | 0.977 | 0.973 | 0.976 | 0.976 | **0.981** | 0.979 | 0.867 | 0.976 | **0.981** | <u>0.980</u> | <u>0.980</u> |
 | BlogCatalog | **0.820** | 0.779 | 0.444 | 0.444 | 0.466 | 0.648 | 0.763 | 0.733 | 0.734 | 0.779 | <u>0.790</u> |
 | Flickr | **0.812** | 0.682 | 0.795 | <u>0.796</u> | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.790 | 0.747 | 0.777 |
 | MovieLens-1M | <u>0.779</u> | 0.477 | 0.578 | 0.576 | 0.429 | 0.723 | 0.643 | 0.645 | **0.863** | 0.463 | 0.723 |
@@ -800,7 +800,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | <u>0.990</u> | 0.976 | 0.987 | 0.988 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | **0.991** | 0.989 | 0.989 |
 | ogbl-citation2 | 0.972 | **0.982** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | <u>0.980</u> | <u>0.980</u> |
 | LiveJournal | <u>0.956</u> | **0.961** | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.951 | **0.961** |
-| ogbn-products | <u>0.991</u> | <u>0.991</u> | time limit | time limit | – | n/a (size) | – | – | out of memory | <u>0.991</u> | **0.993** |
+| ogbn-products | <u>0.991</u> | <u>0.991</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | <u>0.991</u> | **0.993** |
 | *mean rank* | **2.08** | 3.73 | 5.73 | 5.65 | 6.31 | 4.58 | 7.23 | 6.23 | 4.19 | 4.27 | 4.12 |
 | *best on* | 11 / 26 | 4 / 26 | 0 / 22 | 0 / 22 | 1 / 15 | 4 / 15 | 0 / 15 | 0 / 15 | 7 / 23 | 0 / 26 | 3 / 26 |
 
@@ -819,7 +819,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | **0.187** | 0.130 | 0.083 | 0.082 | 0.082 | 0.110 | 0.045 | 0.107 | 0.135 | 0.125 | <u>0.142</u> |
 | Wikipedia POS | **0.101** | <u>0.074</u> | 0.006 | 0.007 | 0.006 | 0.012 | 0.019 | 0.013 | 0.018 | 0.039 | 0.032 |
 | Amazon Computers | **0.139** | 0.103 | 0.055 | 0.056 | 0.057 | 0.086 | 0.020 | 0.067 | 0.096 | 0.094 | <u>0.104</u> |
-| Coauthor Physics | **0.266** | 0.251 | 0.179 | 0.182 | 0.189 | 0.200 | 0.081 | 0.149 | 0.223 | 0.239 | <u>0.262</u> |
+| Coauthor Physics | **0.266** | 0.251 | 0.179 | 0.182 | 0.189 | 0.200 | 0.083 | 0.149 | 0.223 | 0.239 | <u>0.262</u> |
 | BlogCatalog | **0.049** | <u>0.021</u> | 0.003 | 0.003 | 0.003 | 0.009 | 0.009 | 0.012 | 0.011 | 0.017 | 0.016 |
 | Flickr | **0.035** | 0.009 | <u>0.022</u> | <u>0.022</u> | n/a (size) | n/a (size) | n/a (size) | n/a (size) | 0.015 | 0.010 | 0.016 |
 | MovieLens-1M | **0.049** | 0.001 | 0.006 | 0.006 | 0.002 | 0.020 | 0.030 | 0.006 | <u>0.037</u> | 0.001 | 0.030 |
@@ -833,7 +833,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | – | – | – | – | n/a (size) | n/a (size) | n/a (size) | n/a (size) | – | – | – |
 | ogbl-citation2 | **0.121** | 0.098 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.085 | <u>0.099</u> |
 | LiveJournal | **0.167** | 0.135 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.113 | <u>0.145</u> |
-| ogbn-products | **0.189** | <u>0.143</u> | time limit | time limit | – | n/a (size) | – | – | out of memory | 0.110 | 0.137 |
+| ogbn-products | **0.189** | <u>0.143</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.110 | 0.137 |
 | *mean rank* | **1.13** | 2.78 | 6.65 | 6.65 | 6.57 | 5.09 | 7.61 | 6.57 | 3.65 | 3.83 | 2.57 |
 | *best on* | 21 / 23 | 5 / 23 | 0 / 19 | 0 / 19 | 0 / 14 | 0 / 14 | 0 / 14 | 0 / 14 | 0 / 20 | 0 / 23 | 2 / 23 |
 
@@ -852,7 +852,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | **0.380** | 0.259 | 0.197 | 0.194 | 0.183 | 0.212 | 0.081 | 0.205 | <u>0.281</u> | 0.266 | 0.277 |
 | Wikipedia POS | **0.232** | <u>0.127</u> | 0.015 | 0.017 | 0.013 | 0.033 | 0.003 | 0.004 | 0.035 | 0.045 | 0.030 |
 | Amazon Computers | **0.330** | 0.238 | 0.146 | 0.146 | 0.144 | 0.199 | 0.043 | 0.141 | 0.241 | 0.235 | <u>0.244</u> |
-| Coauthor Physics | **0.504** | 0.485 | 0.375 | 0.382 | 0.375 | 0.403 | 0.155 | 0.288 | 0.430 | 0.468 | <u>0.498</u> |
+| Coauthor Physics | **0.504** | 0.485 | 0.375 | 0.382 | 0.375 | 0.403 | 0.156 | 0.288 | 0.430 | 0.468 | <u>0.498</u> |
 | BlogCatalog | **0.114** | <u>0.029</u> | 0.005 | 0.005 | 0.005 | 0.016 | 0.003 | 0.008 | 0.018 | 0.023 | 0.020 |
 | Flickr | **0.073** | 0.013 | 0.025 | 0.025 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.027</u> | 0.012 | 0.013 |
 | MovieLens-1M | **0.101** | 0.000 | 0.009 | 0.009 | 0.002 | 0.067 | 0.064 | 0.008 | <u>0.090</u> | 0.001 | 0.082 |
@@ -866,7 +866,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | – | – | – | – | n/a (size) | n/a (size) | n/a (size) | n/a (size) | – | – | – |
 | ogbl-citation2 | **0.244** | <u>0.204</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.175 | 0.201 |
 | LiveJournal | **0.309** | 0.258 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.220 | <u>0.276</u> |
-| ogbn-products | **0.319** | <u>0.253</u> | time limit | time limit | – | n/a (size) | – | – | out of memory | 0.209 | 0.247 |
+| ogbn-products | **0.319** | <u>0.253</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.209 | 0.247 |
 | *mean rank* | **1.17** | 2.96 | 6.43 | 5.91 | 6.52 | 4.83 | 8.13 | 7.09 | 3.30 | 3.91 | 3.00 |
 | *best on* | 20 / 23 | 8 / 23 | 0 / 19 | 0 / 19 | 0 / 14 | 0 / 14 | 0 / 14 | 0 / 14 | 1 / 20 | 0 / 23 | 2 / 23 |
 
@@ -885,7 +885,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | **0.679** | 0.554 | 0.457 | 0.457 | 0.420 | 0.526 | 0.207 | 0.473 | <u>0.571</u> | 0.563 | 0.567 |
 | Wikipedia POS | **0.472** | <u>0.419</u> | 0.034 | 0.038 | 0.032 | 0.083 | 0.016 | 0.015 | 0.080 | 0.114 | 0.086 |
 | Amazon Computers | **0.600** | 0.497 | 0.337 | 0.336 | 0.322 | 0.454 | 0.104 | 0.354 | 0.498 | 0.488 | <u>0.499</u> |
-| Coauthor Physics | <u>0.728</u> | 0.709 | 0.621 | 0.628 | 0.602 | 0.625 | 0.266 | 0.516 | 0.692 | 0.710 | **0.738** |
+| Coauthor Physics | <u>0.728</u> | 0.709 | 0.621 | 0.628 | 0.602 | 0.625 | 0.270 | 0.516 | 0.692 | 0.710 | **0.738** |
 | BlogCatalog | **0.305** | <u>0.081</u> | 0.015 | 0.015 | 0.012 | 0.047 | 0.012 | 0.028 | 0.047 | 0.063 | 0.055 |
 | Flickr | **0.168** | 0.046 | 0.066 | 0.068 | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.071</u> | 0.046 | 0.043 |
 | MovieLens-1M | <u>0.264</u> | 0.003 | 0.039 | 0.038 | 0.006 | 0.176 | 0.176 | 0.053 | **0.272** | 0.006 | 0.218 |
@@ -899,7 +899,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | – | – | – | – | n/a (size) | n/a (size) | n/a (size) | n/a (size) | – | – | – |
 | ogbl-citation2 | **0.458** | <u>0.399</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.348 | 0.394 |
 | LiveJournal | **0.481** | 0.435 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.355 | <u>0.455</u> |
-| ogbn-products | **0.518** | <u>0.444</u> | time limit | time limit | – | n/a (size) | – | – | out of memory | 0.394 | 0.434 |
+| ogbn-products | **0.518** | <u>0.444</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.394 | 0.434 |
 | *mean rank* | **1.30** | 2.96 | 6.09 | 5.96 | 7.00 | 4.74 | 8.04 | 6.83 | 3.70 | 3.78 | 2.87 |
 | *best on* | 17 / 23 | 8 / 23 | 0 / 19 | 0 / 19 | 0 / 14 | 0 / 14 | 0 / 14 | 0 / 14 | 3 / 20 | 0 / 23 | 3 / 23 |
 
@@ -918,7 +918,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | **0.302** | 0.205 | 0.146 | 0.143 | 0.139 | 0.166 | 0.067 | 0.161 | 0.217 | 0.206 | <u>0.220</u> |
 | Wikipedia POS | **0.169** | <u>0.101</u> | 0.012 | 0.014 | 0.011 | 0.025 | 0.009 | 0.007 | 0.029 | 0.043 | 0.030 |
 | Amazon Computers | **0.264** | 0.190 | 0.110 | 0.112 | 0.112 | 0.157 | 0.036 | 0.113 | 0.186 | 0.183 | <u>0.194</u> |
-| Coauthor Physics | **0.385** | 0.368 | 0.272 | 0.276 | 0.279 | 0.301 | 0.120 | 0.212 | 0.322 | 0.350 | <u>0.378</u> |
+| Coauthor Physics | **0.385** | 0.368 | 0.272 | 0.276 | 0.279 | 0.301 | 0.122 | 0.212 | 0.322 | 0.350 | <u>0.378</u> |
 | BlogCatalog | **0.115** | <u>0.039</u> | 0.006 | 0.006 | 0.006 | 0.019 | 0.010 | 0.017 | 0.023 | 0.033 | 0.029 |
 | Flickr | **0.048** | 0.008 | <u>0.016</u> | <u>0.016</u> | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.016</u> | 0.008 | 0.010 |
 | MovieLens-1M | **0.132** | 0.000 | 0.013 | 0.012 | 0.002 | 0.067 | 0.084 | 0.009 | <u>0.103</u> | 0.001 | 0.089 |
@@ -932,7 +932,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | – | – | – | – | n/a (size) | n/a (size) | n/a (size) | n/a (size) | – | – | – |
 | ogbl-citation2 | **0.140** | <u>0.114</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.098 | <u>0.114</u> |
 | LiveJournal | **0.197** | 0.159 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.135 | <u>0.172</u> |
-| ogbn-products | **0.217** | <u>0.165</u> | time limit | time limit | – | n/a (size) | – | – | out of memory | 0.128 | 0.159 |
+| ogbn-products | **0.217** | <u>0.165</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.128 | 0.159 |
 | *mean rank* | **1.13** | 2.87 | 6.74 | 6.52 | 6.43 | 4.96 | 7.91 | 6.91 | 3.26 | 3.74 | 2.70 |
 | *best on* | 21 / 23 | 6 / 23 | 0 / 19 | 0 / 19 | 0 / 14 | 0 / 14 | 0 / 14 | 0 / 14 | 1 / 20 | 0 / 23 | 1 / 23 |
 
@@ -951,7 +951,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | Amazon Photo | **0.207** | 0.137 | 0.090 | 0.088 | 0.088 | 0.103 | 0.039 | 0.102 | 0.144 | 0.135 | <u>0.148</u> |
 | Wikipedia POS | **0.098** | <u>0.055</u> | 0.007 | 0.008 | 0.007 | 0.014 | 0.005 | 0.004 | 0.018 | 0.025 | 0.018 |
 | Amazon Computers | **0.173** | 0.124 | 0.067 | 0.068 | 0.068 | 0.095 | 0.020 | 0.067 | 0.118 | 0.117 | <u>0.126</u> |
-| Coauthor Physics | **0.299** | 0.284 | 0.202 | 0.205 | 0.209 | 0.229 | 0.087 | 0.154 | 0.244 | 0.268 | <u>0.292</u> |
+| Coauthor Physics | **0.299** | 0.284 | 0.202 | 0.205 | 0.209 | 0.229 | 0.091 | 0.154 | 0.244 | 0.268 | <u>0.292</u> |
 | BlogCatalog | **0.060** | <u>0.020</u> | 0.002 | 0.003 | 0.003 | 0.009 | 0.005 | 0.008 | 0.011 | 0.017 | 0.015 |
 | Flickr | **0.036** | 0.005 | <u>0.010</u> | <u>0.010</u> | n/a (size) | n/a (size) | n/a (size) | n/a (size) | <u>0.010</u> | 0.005 | 0.006 |
 | MovieLens-1M | **0.069** | 0.000 | 0.005 | 0.005 | 0.001 | 0.032 | 0.042 | 0.003 | <u>0.049</u> | 0.000 | 0.045 |
@@ -965,7 +965,7 @@ Every held-out edge is ranked against 500 sampled non-edges of the same source n
 | ogbl-ppa | – | – | – | – | n/a (size) | n/a (size) | n/a (size) | n/a (size) | – | – | – |
 | ogbl-citation2 | **0.109** | 0.086 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.075 | <u>0.088</u> |
 | LiveJournal | **0.161** | 0.128 | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.108 | <u>0.139</u> |
-| ogbn-products | **0.183** | <u>0.136</u> | time limit | time limit | – | n/a (size) | – | – | out of memory | 0.102 | 0.130 |
+| ogbn-products | **0.183** | <u>0.136</u> | time limit | time limit | n/a (size) | n/a (size) | n/a (size) | n/a (size) | out of memory | 0.102 | 0.130 |
 | *mean rank* | **1.09** | 2.83 | 6.65 | 6.52 | 6.43 | 4.96 | 7.91 | 7.00 | 3.30 | 3.74 | 2.70 |
 | *best on* | 22 / 23 | 7 / 23 | 0 / 19 | 0 / 19 | 0 / 14 | 0 / 14 | 0 / 14 | 0 / 14 | 0 / 20 | 0 / 23 | 1 / 23 |
 
@@ -1024,7 +1024,7 @@ One column (`complex::reflexive::node`) or two (`src dst`), left or symmetric no
 | ogbl-collab | 0.054 | **0.056** | 0.051 | 0.053 | <u>0.055</u> | 0.046 |
 | roadNet-CA | 0.716 | <u>0.752</u> | 0.560 | 0.614 | <u>0.752</u> | **0.816** |
 | Yelp | **0.504** | 0.495 | 0.479 | 0.472 | **0.504** | <u>0.501</u> |
-| Reddit | 0.509 | <u>0.605</u> | 0.551 | **0.645** | **0.645** | 0.572 |
+| Reddit | 0.509 | 0.605 | 0.551 | <u>0.645</u> | **0.745** | 0.572 |
 | MovieLens-20M | <u>0.183</u> | **0.209** | 0.010 | 0.014 | **0.209** | 0.053 |
 | ogbl-ppa | 0.011 | **0.069** | <u>0.020</u> | 0.019 | **0.069** | 0.011 |
 | ogbl-citation2 | <u>0.838</u> | 0.802 | 0.830 | **0.839** | <u>0.838</u> | 0.827 |
@@ -1091,13 +1091,13 @@ Mean validation score of each family over the graphs on which all four ran, and 
 | ogbl-collab | 0.057 | 0.055 | -0.2 | node2vec 0.099 |
 | roadNet-CA | 0.752 | 0.752 | +0.0 | ProNE 0.778 |
 | Yelp | 0.495 | 0.504 | +0.8 | RandNE 0.513 |
-| Reddit | 0.605 | **0.645** | +4.1 | ProNE 0.626 |
+| Reddit | 0.605 | **0.745** | +14.0 | ProNE 0.626 |
 | MovieLens-20M | 0.209 | 0.209 | +0.0 | ProNE 0.227 |
 | ogbl-ppa | **0.069** | **0.069** | +0.0 | FastRP 0.034 |
 | ogbl-citation2 | 0.802 | **0.838** | +3.6 | RandNE 0.829 |
 | LiveJournal | 0.756 | **0.799** | +4.3 | RandNE 0.776 |
 | ogbn-products | **0.909** | **0.909** | +0.0 | RandNE 0.906 |
-| *mean gain (points)* | | | +1.0 | |
+| *mean gain (points)* | | | +1.3 | |
 
 ## Number of iterations: automatic rule against the sweep
 
@@ -1150,13 +1150,13 @@ Mean validation score of each family over the graphs on which all four ran, and 
 | ogbl-collab | 9 | 16 | -0.0 | 13 | 2 | +0.3 | 4 | 8 | +0.0 | 7 | 2 | +0.1 |
 | roadNet-CA | 15 | – | – | 23 | – | – | 8 | – | – | 11 | – | – |
 | Yelp | 8 | 8 | +0.0 | 9 | 12 | +0.0 | 3 | 2 | +0.1 | 4 | 4 | +0.0 |
-| Reddit | 8 | 8 | – | 8 | 8 | – | 2 | 1 | – | 2 | 1 | – |
+| Reddit | 8 | 8 | +0.0 | 8 | 8 | +0.0 | 2 | 1 | +19.3 | 2 | 1 | +8.5 |
 | MovieLens-20M | 8 | – | – | 8 | – | – | 2 | – | – | 2 | – | – |
 | ogbl-ppa | 8 | – | – | 8 | – | – | 2 | – | – | 2 | – | – |
 | ogbl-citation2 | 8 | – | – | 8 | – | – | 3 | – | – | 4 | – | – |
 | LiveJournal | 8 | – | – | 9 | – | – | 3 | – | – | 4 | – | – |
 | ogbn-products | 8 | – | – | 8 | – | – | 2 | – | – | 3 | – | – |
-| *mean loss* |  |  | +0.4 |  |  | +0.6 |  |  | +0.5 |  |  | +0.8 |
+| *mean loss* |  |  | +0.4 |  |  | +0.6 |  |  | +1.5 |  |  | +1.2 |
 
 ## Number of iterations: candidate rules, leave-one-graph-out
 

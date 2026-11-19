@@ -32,8 +32,8 @@ node features. The vectors are then frozen and judged by what small supervised m
 | node classification | those with node labels | can a classifier predict the label of a node from its vector? |
 | link ranking | all | does the true neighbour of a node score higher than non-neighbours? |
 
-Not every graph has node labels: Facebook, MovieLens and the OGB link datasets take
-part in link ranking only.
+Not every graph has node labels: Facebook, MovieLens, roadNet-CA, LiveJournal and the
+OGB link datasets take part in link ranking only.
 
 Every method produces **1024-dimensional** vectors, and every column of the main
 tables is **one configuration** of a method, the same for every graph: nothing is
@@ -312,13 +312,13 @@ reported separately:
 | ogbl-collab | 0.057 | 0.055 | -0.2 | node2vec 0.099 |
 | roadNet-CA | 0.752 | 0.752 | +0.0 | ProNE 0.778 |
 | Yelp | 0.495 | 0.504 | +0.8 | RandNE 0.513 |
-| Reddit | 0.605 | **0.645** | +4.1 | ProNE 0.626 |
+| Reddit | 0.605 | **0.745** | +14.0 | ProNE 0.626 |
 | MovieLens-20M | 0.209 | 0.209 | +0.0 | ProNE 0.227 |
 | ogbl-ppa | **0.069** | **0.069** | +0.0 | FastRP 0.034 |
 | ogbl-citation2 | 0.802 | **0.838** | +3.6 | RandNE 0.829 |
 | LiveJournal | 0.756 | **0.799** | +4.3 | RandNE 0.776 |
 | ogbn-products | **0.909** | **0.909** | +0.0 | RandNE 0.906 |
-| *mean gain (points)* | | | +1.0 | |
+| *mean gain (points)* | | | +1.3 | |
 <!-- /benchmark:tuned_lp -->
 
 ## Number of iterations
@@ -447,13 +447,13 @@ sweep chose):
 | ogbl-collab | 9 | 16 | -0.0 | 13 | 2 | +0.3 | 4 | 8 | +0.0 | 7 | 2 | +0.1 |
 | roadNet-CA | 15 | – | – | 23 | – | – | 8 | – | – | 11 | – | – |
 | Yelp | 8 | 8 | +0.0 | 9 | 12 | +0.0 | 3 | 2 | +0.1 | 4 | 4 | +0.0 |
-| Reddit | 8 | 8 | – | 8 | 8 | – | 2 | 1 | – | 2 | 1 | – |
+| Reddit | 8 | 8 | +0.0 | 8 | 8 | +0.0 | 2 | 1 | +19.3 | 2 | 1 | +8.5 |
 | MovieLens-20M | 8 | – | – | 8 | – | – | 2 | – | – | 2 | – | – |
 | ogbl-ppa | 8 | – | – | 8 | – | – | 2 | – | – | 2 | – | – |
 | ogbl-citation2 | 8 | – | – | 8 | – | – | 3 | – | – | 4 | – | – |
 | LiveJournal | 8 | – | – | 9 | – | – | 3 | – | – | 4 | – | – |
 | ogbn-products | 8 | – | – | 8 | – | – | 2 | – | – | 3 | – | – |
-| *mean loss* |  |  | +0.4 |  |  | +0.6 |  |  | +0.5 |  |  | +0.8 |
+| *mean loss* |  |  | +0.4 |  |  | +0.6 |  |  | +1.5 |  |  | +1.2 |
 <!-- /benchmark:iterations_lp -->
 
 The rule was derived on the graphs of the sweep, so for them the *Cleora* columns are
@@ -531,8 +531,9 @@ to run; the standard deviations show by how much.
 
 - **Tuned baselines.** The baselines run with their authors' settings. DeepWalk's
   window, node2vec's p and q or ProNE's filter could be tuned per dataset as Cleora's
-  iterations are in the *tuned* tables; at 10² to 10⁴ times Cleora's cost per run this
-  was not done, which is why the tuned numbers are kept out of the main tables.
+  iterations are in the *tuned* tables; at a few times to a few thousand times
+  Cleora's cost per run this was not done, which is why the tuned numbers are kept out
+  of the main tables.
 - **Other dimensionalities.** Everything is at 1024 dimensions. Most baselines were
   published at 128, and some of them are better there than at 1024.
 - **Methods that use node features or labels** (GCN, GraphSAGE, ...). All methods here
