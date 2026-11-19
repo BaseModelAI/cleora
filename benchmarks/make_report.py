@@ -70,6 +70,15 @@ class Results:
             result[display.DATASET_LABELS[name]] = cells
         return result
 
+    def scenario_rows(self, scenario, methods):
+        """The rows of the headline measurement of a scenario (``display.SCENARIOS``)."""
+        _, _, task, probe, metric = display.SCENARIOS[scenario]
+        if task == "lp":
+            return self.rows("lp", probe, metric, self.with_task("lp"), methods)
+        rows = self.rows("nc", probe, "accuracy", self.labelled(False), methods)
+        rows.update(self.rows("nc", probe, "micro_f1", self.labelled(True), methods))
+        return rows
+
 
 def competition_summary(rows, methods, higher_is_better=True):
     """Mean rank and wins of every method. The Cleora columns are the same method fed in two
@@ -98,21 +107,18 @@ def table_with_summary(rows, methods, digits=3, higher_is_better=True, show_std=
     return text
 
 
-def rank_table(results, task, probes, names_by_metric, columns):
-    """One row per probe: the mean rank of every method over the graphs of the task, and
-    the number of graphs it is best on. ``names_by_metric``: ``{metric: datasets}``."""
+def rank_table(measurements, columns, first_column="Probe"):
+    """One row per measurement (``{label: the rows of its table}``): the mean rank of
+    every method over the graphs, and the number of graphs it is best on."""
     labels = [display.METHODS[method]["label"] for method in columns]
-    lines = ["| Probe | Graphs | " + " | ".join(labels) + " |", "|---|---:|" + "---:|" * len(columns)]
-    for probe, probe_label in probes.items():
-        rows = {}
-        for metric, names in names_by_metric.items():
-            rows.update(results.rows(task, probe, metric, names, columns))
+    lines = [f"| {first_column} | Graphs | " + " | ".join(labels) + " |", "|---|---:|" + "---:|" * len(columns)]
+    for label, rows in measurements.items():
         summary = competition_summary(rows, columns)
         graphs = max(s["rows"] for s in summary.values())
         best = min(s["mean_rank"] for s in summary.values())
         cells = [f"{'**' if summary[m]['mean_rank'] == best else ''}{summary[m]['mean_rank']:.2f}"
                  f"{'**' if summary[m]['mean_rank'] == best else ''} ({summary[m]['wins']})" for m in columns]
-        lines.append(f"| {probe_label} | {graphs} | " + " | ".join(cells) + " |")
+        lines.append(f"| {label} | {graphs} | " + " | ".join(cells) + " |")
     return "\n".join(lines)
 
 
@@ -173,7 +179,6 @@ def iterations_table(results, task):
         for family, auto_name in families.items():
             auto = results.table.get((name, task, auto_name, display.MAIN_DIM))
             tuned_name = results.selected.get(name, {}).get(task, {}).get(family)
-            tuned = results.table.get((name, task, tuned_name, display.MAIN_DIM)) if tuned_name else None
             auto_cell = report.cell(results.table, name, task, probe, metric, [(auto_name, display.MAIN_DIM)])
             tuned_cell = report.cell(results.table, name, task, probe, metric, [(tuned_name, display.MAIN_DIM)]) if tuned_name else {}
             cells.append(_iterations(auto) if auto else "–")
@@ -253,28 +258,22 @@ def families_validation_table(results):
     return "\n".join(lines)
 
 
-def tuned_table(results, task, probe, names_by_metric):
+def tuned_table(results, scenario):
     """What a validation set adds: Cleora as in the main tables, Cleora with the iteration
     count and the family chosen on validation, and the best baseline of the row."""
     lines = ["| Dataset | Cleora | Cleora, tuned | gain | Best baseline |", "|---|---:|---:|---:|---|"]
     gains = []
-    for metric, names in names_by_metric.items():
-        for name in names:
-            cell = lambda method: (report.best_training_free(results.table, name, results.variants(method, name, task), metric)
-                                   if probe == "similarity" else
-                                   report.cell(results.table, name, task, probe, metric, results.variants(method, name, task)))
-            plain, tuned = cell("cleora"), cell("cleora_tuned")
-            rivals = {method: cell(method) for method in display.BASELINES}
-            rivals = {method: value["mean"] for method, value in rivals.items() if "mean" in value}
-            if "mean" not in plain or "mean" not in tuned:
-                continue
-            gains.append(100 * (tuned["mean"] - plain["mean"]))
-            best = max(rivals, key=rivals.get) if rivals else None
-            rival = f"{display.METHODS[best]['label']} {rivals[best]:.3f}" if best else "–"
-            top = max([plain["mean"], tuned["mean"]] + list(rivals.values()))
-            bold = lambda value: f"**{value:.3f}**" if value == top else f"{value:.3f}"
-            lines.append(f"| {display.DATASET_LABELS[name]} | {bold(plain['mean'])} | {bold(tuned['mean'])} | "
-                         f"{gains[-1]:+.1f} | {rival} |")
+    for name, cells in results.scenario_rows(scenario, ["cleora", "cleora_tuned"] + list(display.BASELINES)).items():
+        plain, tuned = cells["cleora"], cells["cleora_tuned"]
+        rivals = {method: cells[method]["mean"] for method in display.BASELINES if "mean" in cells[method]}
+        if "mean" not in plain or "mean" not in tuned:
+            continue
+        gains.append(100 * (tuned["mean"] - plain["mean"]))
+        best = max(rivals, key=rivals.get) if rivals else None
+        rival = f"{display.METHODS[best]['label']} {rivals[best]:.3f}" if best else "–"
+        top = max([plain["mean"], tuned["mean"]] + list(rivals.values()))
+        bold = lambda value: f"**{value:.3f}**" if value == top else f"{value:.3f}"
+        lines.append(f"| {name} | {bold(plain['mean'])} | {bold(tuned['mean'])} | {gains[-1]:+.1f} | {rival} |")
     if gains:
         lines.append(f"| *mean gain (points)* | | | {np.mean(gains):+.1f} | |")
     return "\n".join(lines)
@@ -285,73 +284,62 @@ def _best_baseline(summary):
     return f"{display.METHODS[name]['label']} ({summary[name]['mean_rank']:.2f})"
 
 
-def _task_rows(results, task):
-    """The rows of the headline probe of a task: logistic regression / dot product or cosine."""
-    columns = list(display.MAIN_COLUMNS)
-    if task == "lp":
-        return results.rows("lp", "similarity", "mrr", results.with_task("lp"), columns)
-    rows = results.rows("nc", "logistic", "accuracy", results.labelled(False), columns)
-    rows.update(results.rows("nc", "logistic", "micro_f1", results.labelled(True), columns))
-    return rows
-
-
 def headline(results):
-    """The summary at the top of the README: wins and mean ranks on the two headline probes."""
+    """The summary at the top of the README: wins and mean ranks on the headline
+    measurement of every scenario."""
+    columns = list(display.MAIN_COLUMNS)
     lines = ["| | Graphs | Cleora: best on | mean rank | Cleora, two columns: best on | mean rank | Best baseline (mean rank) |",
              "|---|---:|---:|---:|---:|---:|---|"]
-    for task, label in (("lp", "Similarity search and link ranking (dot product / cosine, MRR)"),
-                        ("nc", "Node classification (logistic regression, accuracy / micro-F1)")):
-        summary = competition_summary(_task_rows(results, task), list(display.MAIN_COLUMNS))
+    for scenario, (label, measured, *_) in display.SCENARIOS.items():
+        summary = competition_summary(results.scenario_rows(scenario, columns), columns)
         one, two = summary["cleora"], summary["cleora_pair"]
-        lines.append(f"| {label} | {one['rows']} | **{one['wins']}** | {one['mean_rank']:.2f} | "
+        lines.append(f"| {label} ({measured}) | {one['rows']} | **{one['wins']}** | {one['mean_rank']:.2f} | "
                      f"{two['wins']} | {two['mean_rank']:.2f} | {_best_baseline(summary)} |")
-    ahead = {task: _tuned_ahead(results, task) for task in ("lp", "nc")}
+    ahead = [f"on {wins} of {graphs} graphs in {display.SCENARIOS[scenario][0].lower()}"
+             for scenario in display.TUNED_SCENARIOS for wins, graphs in [_tuned_ahead(results, scenario)]]
     lines += ["", "With the number of iterations and the normalisation chosen on validation data - the baselines stay at "
-              f"their authors' settings, so this is not part of the comparison above - Cleora is ahead of every baseline "
-              f"on {ahead['lp'][0]} of {ahead['lp'][1]} graphs in link ranking and on {ahead['nc'][0]} of {ahead['nc'][1]} "
-              "in node classification."]
+              "their authors' settings, so this is not part of the comparison above - Cleora is ahead of every baseline "
+              + " and ".join(ahead) + "."]
     return "\n".join(lines)
 
 
-def _tuned_ahead(results, task):
-    """On how many graphs "Cleora, tuned" is ahead of every baseline (headline probe), out of
-    the graphs on which at least one baseline has a result."""
+def _tuned_ahead(results, scenario):
+    """On how many graphs "Cleora, tuned" is ahead of every baseline (headline measurement
+    of the scenario), out of the graphs on which at least one baseline has a result."""
     wins = graphs = 0
-    for name, cells in _task_rows(results, task).items():
-        dataset = next(d for d in results.datasets if display.DATASET_LABELS[d] == name)
-        metric = "mrr" if task == "lp" else ("micro_f1" if results.meta[dataset].get("multilabel") else "accuracy")
-        variants = results.variants("cleora_tuned", dataset, task)
-        tuned = (report.best_training_free(results.table, dataset, variants, metric) if task == "lp"
-                 else report.cell(results.table, dataset, task, "logistic", metric, variants))
-        rivals = [cells[m]["mean"] for m in display.BASELINES if "mean" in cells[m]]
-        if "mean" in tuned and rivals:
+    for cells in results.scenario_rows(scenario, ["cleora_tuned"] + list(display.BASELINES)).values():
+        rivals = [cells[method]["mean"] for method in display.BASELINES if "mean" in cells[method]]
+        if "mean" in cells["cleora_tuned"] and rivals:
             graphs += 1
-            wins += int(tuned["mean"] > max(rivals))
+            wins += int(cells["cleora_tuned"]["mean"] > max(rivals))
     return wins, graphs
+
+
+def _both(first, second):
+    """Two numbers with as many decimals (three or more) as it takes to tell them apart."""
+    digits = next((d for d in (3, 4, 5) if f"{first:.{d}f}" != f"{second:.{d}f}"), 5)
+    return f"{first:.{digits}f}", f"{second:.{digits}f}"
 
 
 def caveats(results):
     """Where Cleora is not the best method: every graph on which a baseline, or the
-    pycleora 3.2 default, is ahead of the Cleora column on a headline probe."""
+    pycleora 3.2 default, is ahead of the Cleora column on a headline measurement."""
     lines = []
-    dataset_of = {display.DATASET_LABELS[d]: d for d in results.datasets}
-    for task, label in (("lp", "Link ranking"), ("nc", "Node classification")):
+    for scenario, (label, *_) in display.SCENARIOS.items():
         behind, previous = [], []
-        for name, cells in _task_rows(results, task).items():
+        for name, cells in results.scenario_rows(scenario, ["cleora", "cleora_3_2"] + list(display.BASELINES)).items():
             if "mean" not in cells["cleora"]:
                 continue
             ours = cells["cleora"]["mean"]
-            rivals = {m: cells[m]["mean"] for m in display.BASELINES if "mean" in cells[m]}
+            rivals = {method: cells[method]["mean"] for method in display.BASELINES if "mean" in cells[method]}
             if rivals and max(rivals.values()) > ours:
                 best = max(rivals, key=rivals.get)
-                behind.append(f"{name} ({display.METHODS[best]['label']} {rivals[best]:.3f}, Cleora {ours:.3f})")
-            dataset = dataset_of[name]
-            probe = "cosine" if task == "lp" else "logistic"
-            metric = "mrr" if task == "lp" else ("micro_f1" if results.meta[dataset].get("multilabel") else "accuracy")
-            old = report.cell(results.table, dataset, task, probe, metric, results.variants("cleora_3_2", dataset, task))
-            new = report.cell(results.table, dataset, task, probe, metric, results.variants("cleora", dataset, task))
-            if "mean" in old and "mean" in new and old["mean"] > new["mean"]:
-                previous.append(f"{name} ({old['mean']:.3f} against {new['mean']:.3f})")
+                theirs, mine = _both(rivals[best], ours)
+                behind.append(f"{name} ({display.METHODS[best]['label']} {theirs}, Cleora {mine})")
+            old = cells["cleora_3_2"]
+            if "mean" in old and old["mean"] > ours:
+                theirs, mine = _both(old["mean"], ours)
+                previous.append(f"{name} ({theirs} against {mine})")
         lines.append(f"- **{label}: a baseline is ahead of Cleora on** " + ("; ".join(behind) if behind else "no graph") + ".")
         lines.append(f"- **{label}: the pycleora 3.2 default (whitening, 40 iterations) is ahead of Cleora on** "
                      + ("; ".join(previous) if previous else "no graph") + ".")
@@ -363,9 +351,17 @@ def build(results):
     columns = list(display.MAIN_COLUMNS)
     single, multi, link = results.labelled(False), results.labelled(True), results.with_task("lp")
     tables = {"datasets": dataset_table(results), "headline": headline(results), "caveats": caveats(results)}
-    tables["ranks_nc"] = rank_table(results, "nc", display.NODE_PROBES, {"accuracy": single, "micro_f1": multi}, columns)
-    tables["ranks_lp"] = rank_table(results, "lp", {"similarity": "dot product or cosine", **display.PAIR_PROBES},
-                                    {"mrr": link}, columns)
+    tables["ranks_retrieval"] = rank_table(
+        {label: results.rows("lp", "similarity", metric, link, columns) for metric, label in display.RETRIEVAL_METRICS.items()},
+        columns, "Metric")
+    tables["ranks_nc"] = rank_table(
+        {label: {**results.rows("nc", probe, "accuracy", single, columns), **results.rows("nc", probe, "micro_f1", multi, columns)}
+         for probe, label in display.NODE_PROBES.items()}, columns)
+    tables["ranks_lp"] = rank_table(
+        {label: results.rows("lp", probe, "mrr", link, columns)
+         for probe, label in {"similarity": "dot product or cosine", **display.PAIR_PROBES}.items()}, columns)
+    for metric in display.RETRIEVAL_METRICS:
+        tables[f"retrieval_{metric}"] = table_with_summary(results.rows("lp", "similarity", metric, link, columns), columns)
     for probe in display.NODE_PROBES:
         tables[f"nc_accuracy_{probe}"] = table_with_summary(results.rows("nc", probe, "accuracy", single, columns), columns)
         tables[f"nc_micro_f1_{probe}"] = table_with_summary(results.rows("nc", probe, "micro_f1", multi, columns), columns)
@@ -377,8 +373,7 @@ def build(results):
     tables["lp_mrr_similarity"] = table_with_summary(results.rows("lp", "similarity", "mrr", link, columns), columns)
     for probe in display.PAIR_PROBES:
         tables[f"lp_mrr_{probe}"] = table_with_summary(results.rows("lp", probe, "mrr", link, columns), columns)
-    for metric in ("hits@1", "hits@10", "hits@100", "roc_auc", "average_precision", "all_nodes_mrr", "recall@10",
-                   "recall@50", "ndcg@10", "map@10"):
+    for metric in ("hits@1", "hits@10", "hits@100", "roc_auc", "average_precision"):
         tables[f"lp_{metric}_cosine"] = table_with_summary(results.rows("lp", "cosine", metric, link, columns), columns, show_std=False)
     tables["families_nc_accuracy"] = families_table(results, "nc", "logistic", "accuracy", single)
     tables["families_nc_micro_f1"] = families_table(results, "nc", "logistic", "micro_f1", multi)
@@ -386,8 +381,8 @@ def build(results):
     tables["iterations_nc"] = iterations_table(results, "nc")
     tables["iterations_lp"] = iterations_table(results, "lp")
     tables["families_validation"] = families_validation_table(results)
-    tables["tuned_nc"] = tuned_table(results, "nc", "logistic", {"accuracy": single, "micro_f1": multi})
-    tables["tuned_lp"] = tuned_table(results, "lp", "similarity", {"mrr": link})
+    for scenario in display.TUNED_SCENARIOS:
+        tables[f"tuned_{scenario}"] = tuned_table(results, scenario)
     sweep = os.path.join(results.data, selection.SWEEP_DIRECTORY)
     if os.path.isdir(sweep):
         tables["iteration_rule_fit"] = iteration_fit.markdown(sweep)
@@ -399,16 +394,23 @@ def build(results):
 
 
 SECTIONS = (
-    ("In short", "The two headline probes; the full tables follow.", ["headline"]),
+    ("In short", "One headline measurement for each use of the vectors; the full tables follow.", ["headline"]),
     ("Where Cleora is not the best method", "", ["caveats"]),
     ("Datasets", "", ["datasets"]),
-    ("Summary: mean rank of every method, by probe",
-     "Mean rank over the graphs of the task (1 = best; a method without a result on a graph ranks after all that "
-     "have one), and in parentheses the number of graphs the method is best on. The two Cleora columns are the "
-     "same method fed in two ways and do not compete with each other: every baseline is ranked against Cleora "
-     "with one column, and each Cleora column against the baselines only. Node classification ranks by accuracy "
-     "(single-label graphs) or micro-F1 (multi-label), link ranking by MRR.",
-     ["ranks_nc", "ranks_lp"]),
+    ("Summary: mean rank of every method",
+     "Mean rank over the graphs (1 = best; a method without a result on a graph ranks after all that have one), "
+     "and in parentheses the number of graphs the method is best on. The two Cleora columns are the same method "
+     "fed in two ways and do not compete with each other: every baseline is ranked against Cleora with one "
+     "column, and each Cleora column against the baselines only. `ranks_retrieval`: similarity search among all "
+     "nodes, by metric. `ranks_nc`: node classification by accuracy (single-label graphs) or micro-F1 "
+     "(multi-label), by probe. `ranks_lp`: link ranking against sampled candidates by MRR, by probe.",
+     ["ranks_retrieval", "ranks_nc", "ranks_lp"]),
+    ("Similarity search among all nodes",
+     "What a nearest-neighbour index over the vectors returns: the held-out neighbours of a query node are ranked "
+     "among all nodes of the graph by dot product or cosine - whichever validates better for the method - with "
+     "the known neighbours filtered out. `recall@k`, `ndcg@k`, `map@k`: of the top-k list of every query node. "
+     "`all_nodes_mrr`: of every held-out edge.",
+     [f"retrieval_{metric}" for metric in display.RETRIEVAL_METRICS]),
     ("Node classification, single-label graphs: accuracy",
      "10% of the nodes for training and 10% for validation (or the official split), three random splits per "
      "embedding; mean ± standard deviation over splits and seeds. One table per probe.",
@@ -424,15 +426,13 @@ SECTIONS = (
      "test node is given to the classifier.",
      [f"nc_multilabel_{metric}_logistic" for metric in ("macro_f1", "micro_f1_known_count", "micro_average_precision",
                                                         "label_ranking_average_precision", "precision_at_1", "hamming_loss")]),
-    ("Link ranking: MRR",
-     "Every held-out edge is ranked against 500 sampled non-edges of the same source node. `similarity` is the better "
-     "of dot product and cosine on validation; the other tables are one per probe.",
+    ("Link ranking against sampled candidates: MRR",
+     "Every held-out edge is ranked against 500 sampled non-edges of the same source node (the OGB link datasets: "
+     "against their official negatives). `similarity` is the better of dot product and cosine on validation; the "
+     "other tables are one per probe.",
      ["lp_mrr_similarity"] + [f"lp_mrr_{probe}" for probe in display.PAIR_PROBES]),
-    ("Link ranking: other metrics (cosine)",
-     "`hits@k`, `roc_auc`, `average_precision`: against the 500 sampled non-edges. `all_nodes_mrr`, `recall@k`, "
-     "`ndcg@k`, `map@k`: the held-out neighbours of a node ranked among all nodes, known neighbours filtered out.",
-     [f"lp_{metric}_cosine" for metric in ("hits@1", "hits@10", "hits@100", "roc_auc", "average_precision",
-                                           "all_nodes_mrr", "recall@10", "recall@50", "ndcg@10", "map@10")]),
+    ("Link ranking against sampled candidates: other metrics (cosine)", "",
+     [f"lp_{metric}_cosine" for metric in ("hits@1", "hits@10", "hits@100", "roc_auc", "average_precision")]),
     ("Cleora: the four ways of feeding and normalising a graph",
      "One column (`complex::reflexive::node`) or two (`src dst`), left or symmetric normalisation, each with the "
      "number of iterations the library suggests for the task; `tuned`: iteration count and family chosen on "
@@ -446,8 +446,9 @@ SECTIONS = (
     ("Cleora: what a validation set adds",
      "`Cleora`: as in the main tables. `Cleora, tuned`: the number of iterations (from a sweep over twelve values) "
      "and the family chosen on validation data. `gain` in points of the metric. Classification with logistic "
-     "regression, link ranking with dot product or cosine.",
-     ["tuned_nc", "tuned_lp"]),
+     "regression, link ranking against sampled candidates with dot product or cosine - the two scores the sweep "
+     "validates.",
+     [f"tuned_{scenario}" for scenario in display.TUNED_SCENARIOS]),
     ("Number of iterations: automatic rule against the sweep",
      "`auto`: iterations of `SparseMatrix.suggest_iterations` for the task. `tuned`: best of the sweep on "
      "validation. `loss`: points of the metric (x 100) the automatic count is behind the tuned one; negative: "

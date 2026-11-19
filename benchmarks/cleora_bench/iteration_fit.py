@@ -13,7 +13,6 @@ only: the regret reported for a graph never comes from parameters that saw it.
 """
 
 import itertools
-import os
 
 import numpy as np
 

@@ -1,7 +1,7 @@
 """What the tables and figures show, and under which names.
 
-Concern of this module: the rows (datasets), the columns (methods) and their labels. It
-holds no numbers and computes none.
+Concern of this module: the rows (datasets), the columns (methods), the measurements
+and their labels. It holds no numbers and computes none.
 
 Every column of the main tables is one configuration at ``MAIN_DIM`` dimensions - the
 same for every graph, never chosen per dataset:
@@ -82,3 +82,19 @@ FIGURE_METHODS.append({"label": METHODS["cleora_3_2"]["label"], "configurations"
 
 NODE_PROBES = {"logistic": "logistic regression", "mlp": "MLP (AdamC)"}
 PAIR_PROBES = {"dot": "dot product", "cosine": "cosine", "logistic": "logistic regression on x*y"}
+# metrics of the retrieval among all nodes that get a table
+RETRIEVAL_METRICS = {"recall@10": "recall@10", "recall@50": "recall@50", "ndcg@10": "nDCG@10", "map@10": "MAP@10",
+                     "all_nodes_mrr": "MRR"}
+
+# The uses of the vectors the report is organised by, and the measurement each is headlined
+# with: (label, how it is measured, task, probe, metric). The probe "similarity" is the
+# better of dot product and cosine on validation; a metric of None is accuracy on
+# single-label graphs and micro-F1 on multi-label ones.
+SCENARIOS = {
+    "retrieval": ("Similarity search among all nodes", "dot product / cosine, recall@10", "lp", "similarity", "recall@10"),
+    "nc": ("Node classification", "logistic regression, accuracy / micro-F1", "nc", "logistic", None),
+    "lp": ("Link ranking against sampled candidates", "dot product / cosine, MRR", "lp", "similarity", "mrr"),
+}
+# "Cleora, tuned" is chosen on what the sweep validates - the classification score and the
+# MRR against sampled candidates - so these are the scenarios it is reported for
+TUNED_SCENARIOS = ("nc", "lp")

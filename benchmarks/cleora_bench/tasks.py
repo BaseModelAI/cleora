@@ -29,6 +29,7 @@ Link prediction and similarity ranking (every graph)
 
     Datasets with an official link split (OGB) keep their official positives and
     negatives; only the probe positives are taken out of the official training edges.
+    Retrieval among all nodes is measured on their official test positives as well.
 """
 
 import numpy as np
@@ -190,6 +191,11 @@ def _sample_negative_targets(rng, sources, keys, num_nodes, count, low, high):
     return negatives.astype(np.int32)
 
 
+def _both_directions(pairs):
+    """``(sources, targets)`` of every pair read in both directions."""
+    return np.concatenate([pairs[:, 0], pairs[:, 1]]), np.concatenate([pairs[:, 1], pairs[:, 0]])
+
+
 def _candidate_ranges(graph, targets):
     """The id range negatives for these targets are drawn from: all nodes, or - in a
     bipartite graph - the side the true target is on."""
@@ -240,13 +246,10 @@ def link_split(graph, seed):
     embedded[split["embed"].ravel()] = True
     usable = lambda pairs: pairs[embedded[pairs].all(axis=1)]
 
-    def both_directions(pairs):
-        return np.concatenate([pairs[:, 0], pairs[:, 1]]), np.concatenate([pairs[:, 1], pairs[:, 0]])
-
     result = {"embed": split["embed"], "embedded": embedded}
 
     probe = usable(split["probe"])
-    sources, targets = both_directions(probe)
+    sources, targets = _both_directions(probe)
     low, high = _candidate_ranges(graph, targets)
     negatives = _sample_negative_targets(rng, sources, keys, num_nodes, PROBE_NEGATIVES_PER_POSITIVE, low, high)
     negative_sources = np.repeat(sources, PROBE_NEGATIVES_PER_POSITIVE)
@@ -271,7 +274,7 @@ def link_split(graph, seed):
             result[f"{part}_queries"], result[f"{part}_targets"] = positives[keep, 0], positives[keep, 1]
             result[f"{part}_negatives"] = negatives.astype(np.int32)
             continue
-        sources, targets = both_directions(usable(split[part]))
+        sources, targets = _both_directions(usable(split[part]))
         low, high = _candidate_ranges(graph, targets)
         negatives = _sample_negative_targets(rng, sources, keys, num_nodes, NEGATIVES_PER_POSITIVE, low, high)
         negatives[~embedded[np.maximum(negatives, 0)]] = -1
@@ -338,15 +341,19 @@ def _retrieval(vectors_on_device, split, graph, seed):
     with a training-free score (the rows of ``vectors_on_device`` are compared by dot
     product). Known neighbours other than test targets are removed from the candidates.
 
+    The queries are those of the candidate ranking; a split that comes as one official
+    list of positive pairs has every distinct pair queried from both of its ends.
+
     Returns MRR / Hits@k of the individual test edges and Recall / NDCG / MAP of the
     top-``RETRIEVAL_DEPTH`` list of every query node.
     """
     import torch
 
-    if "test_queries" not in split:
-        return {}
     num_nodes = graph["meta"]["num_nodes"]
-    queries_all, targets_all = split["test_queries"], split["test_targets"]
+    if "test_queries" in split:
+        queries_all, targets_all = split["test_queries"], split["test_targets"]
+    else:
+        queries_all, targets_all = np.unique(np.stack(_both_directions(split["test_pos"]), axis=1), axis=0).T
     rng = np.random.default_rng(seed)
     nodes = np.unique(queries_all)
     if len(nodes) > RETRIEVAL_QUERIES:

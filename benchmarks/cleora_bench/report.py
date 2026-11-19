@@ -17,10 +17,6 @@ from collections import defaultdict
 
 import numpy as np
 
-# The headline metric of a probe, by kind of task.
-HEADLINE = {"nc": "accuracy", "nc_multilabel": "micro_f1", "lp": "mrr"}
-
-
 def load_jobs(results):
     """All job records under a results directory."""
     jobs = []

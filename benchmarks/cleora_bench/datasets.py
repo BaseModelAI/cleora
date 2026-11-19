@@ -29,7 +29,6 @@ original files otherwise. Every source URL is recorded in ``meta.json``.
 """
 
 import contextlib
-import gzip
 import hashlib
 import io
 import json
